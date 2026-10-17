@@ -1,4 +1,5 @@
 using System;
+using Kturker.UnityBase.Core.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,7 +21,7 @@ namespace Kturker.UnityBase.App.Game
 
         private void Awake()
         {
-            panel.SetActive(false);
+            KitScreens.Hide(panel);
             pauseButton.onClick.AddListener(OnPause);
             resumeButton.onClick.AddListener(OnResume);
             settingsButton.onClick.AddListener(OnSettings);
@@ -35,9 +36,9 @@ namespace Kturker.UnityBase.App.Game
             menuButton.onClick.RemoveListener(OnMenu);
         }
 
-        public void ShowPanel() => panel.SetActive(true);
+        public void ShowPanel() => KitScreens.Show(panel);
 
-        public void HidePanel() => panel.SetActive(false);
+        public void HidePanel() => KitScreens.Hide(panel);
 
         private void OnPause() => PauseClicked?.Invoke();
 

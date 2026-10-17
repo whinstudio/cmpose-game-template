@@ -37,6 +37,27 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
 - **Legal links:** set `privacyUrl` and `termsUrl` in `Assets/_Project/Core/About/AppConfig.asset`; a blank URL
   hides its button.
 
+## Look: style family, fonts and the UI kit
+
+Every screen is drawn in one **style family**: a palette, a pair of fonts (a display font for titles and buttons, a
+body font for text), a corner radius, a surface (Flat, Soft shadows or Raised), a motion profile (Calm, Snappy or
+Bouncy), a background (Solid, Gradient or Pattern), post-processing and the game world's colours. The applied family
+lives in `Core/Presentation/Resources/Theme/Style.asset` and `Light.asset`; the six families (`bright`, `neon`,
+`pastel`, `bold`, `nature`, `clean`) are described in `.cmpose/themes.json`. The bundled fonts (SIL Open Font Licence,
+in `Core/Presentation/Fonts`) carry every letter of the five languages; only the applied family's two fonts enter a
+build.
+
+Build your own screens with the kit in `Core/Presentation/Kit` instead of plain uGUI parts, so they follow the family:
+```csharp
+var play = KitFactory.Button(parent, "Start", KitButtonVariant.Play);          // Primary, Secondary, Icon, Play
+var shop = KitFactory.Button(parent, "Shop", KitButtonVariant.Secondary, sprite); // a glyph at its left
+var card = KitFactory.Card(parent, "Card");                                     // also Sheet, Switch, Slider,
+uiBinder.BindTree(card.gameObject);                                             // Segmented, Badge, CountUp, Decor
+```
+Buttons spring when pressed, panels slide and fade in (`KitScreens.Show`), and all of it runs on unscaled time, so it
+also plays while the game is paused. Every text needs a `ThemedText` (its font role) and every image a
+`ThemedGraphic` (its colour role); the EditMode `UiCoverageTests` check the template's screens for both.
+
 <!-- cmpose:multiLang -->
 ## Texts and languages
 
@@ -54,7 +75,8 @@ of these, English otherwise; Settings → Language changes it (saved as `lang.co
 ## Colours and themes
 
 Colours come from palettes (`Resources/Theme/Light.asset` and `Dark.asset`), one colour per role: background,
-surface, primary, on-primary, text, muted text, track and scrim. A `ThemedGraphic` gives an image or text its
+surface, primary, on-primary, text, muted text, track, scrim, accent, on-accent, success, danger and the rest of
+`ThemeRole`. A `ThemedGraphic` gives an image or text its
 role, a `ThemedCamera` clears with the background. Settings → Theme switches between System (follows the device,
 re-read when the game comes back to the foreground), Light and Dark (saved as `theme.mode`). The theme module and
 its tests are in `Core/Theme/`.
@@ -193,6 +215,41 @@ the ball gold), a leaderboard and achievements (leaderboards) and run totals (sa
 C# in its `Domain` folder (`RunnerSimulation` with `RunnerConfig`, `TrackSimulation` with `TrackConfig`), drawn by
 `RunnerWorldView` or `TrackWorldView`; replace them with your game and keep the shared parts in
 `Features/Showcase/Common`, which talk to any game through `IShowcaseRun`.
+
+## Game shell
+
+The Game scene (blank kind) carries the standard parts of a game screen, so a game never draws them itself: the HUD (the
+score counting up, "Best: n" or "Level n", an optional counter pill for coins or lives, short toasts like "Perfect!"),
+a "Tap to start" hint and the end cards. Game code asks for `IGameShell` (`Features/Shell/GameShell`) in its presenter:
+```csharp
+shell.Begin(ShellMode.Endless);          // or ShellMode.Levels (needs the save system)
+shell.ShowStartHint();                   // hide it with HideStartHint() on the first touch
+shell.SetScore(score);                   // counts up; SetBest(best), SetCounter(coins), Toast("shell.perfect")
+var choice = await shell.ShowGameOver(score, best, newBest);   // Retry, Menu or Continue
+```
+The game acts on the choice: Retry starts a new run, Menu loads the menu, Continue revives the run (offered once per
+run, only while a rewarded ad is ready or for premium players; ads part). Level games call
+`shell.CompleteLevel(level, stars)` and then `ShowLevelComplete(level, stars, reward)` (the stars, 0–3, land one by
+one and the reward counts up; Next or Menu) or `ShowLevelFailed(level)` (Retry, Continue or Menu); `CurrentLevel` is
+the level to play and the menu's Play button reads "Level n" once the level flow has begun. Progress and stars are kept
+in the save slot `levels`, so the level flow needs the save system: without it `Begin(ShellMode.Levels)` throws in the
+editor and falls back to the endless HUD on a device. With ads, a finished run or level is a natural break for an
+interstitial. Every card opens and animates while the game is paused. The shell's texts are in
+`Features/Shell/GameShell/Resources/Strings`.
+
+## Game world: presentation and juice
+
+`Render/GameRig.prefab` lights and frames the world in the family's colours (a key, fill and rim light with soft
+shadows, the family's backdrop and post-processing). For the world itself, use `Core/Render`:
+```csharp
+var mesh = RoundedMesh.Box(new Vector3(1f, 1f, 1f), 0.15f);                    // also Cylinder, Capsule
+renderer.sharedMaterial = WorldPalette.Material(index, RenderMaterials.SoftGloss); // the family's world colours
+CameraShake.Shake(0.3f);  SquashStretch.Play(piece.transform);  HitFlash.Flash(renderer);
+ParticlePresets.Burst(position, color);  FloatingText.Spawn(position, "+10", color);
+```
+Materials are assets in `Core/Presentation/Resources/Materials` (Lit, Matte, SoftGloss, Glow, Unlit,
+ParticlesUnlit): never create one with `Shader.Find`, a build can strip the shader. Give every player action a visible,
+audible or haptic answer (`IUiFeedback.Success()`, `Failure()`, `Impact(...)`).
 
 ## Reviews and updates
 

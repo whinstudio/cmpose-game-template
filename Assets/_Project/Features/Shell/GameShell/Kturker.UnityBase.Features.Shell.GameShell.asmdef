@@ -1,0 +1,17 @@
+{
+    "name": "Kturker.UnityBase.Features.Shell.GameShell",
+    "rootNamespace": "Kturker.UnityBase.Features.Shell.GameShell",
+    "references": [
+        "Kturker.UnityBase.Core.Domain",
+        "Kturker.UnityBase.Core.Haptics",
+        "Kturker.UnityBase.Core.Presentation",
+        "Kturker.UnityBase.Core.Localization",
+        "Kturker.UnityBase.Core.Save",
+        "Kturker.UnityBase.Core.Ads",
+        "UniTask",
+        "VContainer",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "autoReferenced": true
+}

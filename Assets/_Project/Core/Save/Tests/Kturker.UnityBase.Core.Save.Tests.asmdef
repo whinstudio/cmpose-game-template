@@ -5,6 +5,7 @@
         "Kturker.UnityBase.Core.Domain",
         "Kturker.UnityBase.Core.Save",
         "Kturker.UnityBase.Features.Sample.Presentation",
+        "Kturker.UnityBase.Features.Shell.GameShell",
         "Kturker.UnityBase.Tests.EditMode",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

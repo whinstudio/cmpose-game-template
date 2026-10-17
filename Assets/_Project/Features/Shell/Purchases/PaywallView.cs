@@ -9,7 +9,8 @@ using UnityEngine.UI;
 namespace Kturker.UnityBase.Features.Shell.Purchases
 {
     // SceneBuilder builds the prefab (Resources/ShellPurchases/Paywall): a full-screen panel with the title, two
-    // feature lines, Rows package rows, a status line, Continue, Restore, Close and the legal links
+    // feature lines and a card that is a column as tall as what it shows: Rows package rows (rounded, with a savings
+    // pill; hidden ones leave no gap), a status line, Continue, Restore and Close, the legal links
     public sealed class PaywallView : MonoBehaviour, IPaywallView
     {
         public const int Rows = 4;
@@ -21,6 +22,8 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
         [SerializeField] private LocalizedText[] rowPrices;
         [SerializeField] private LocalizedText[] rowDetails;
         [SerializeField] private LocalizedText[] rowBadges;
+        // The savings pill around each badge text
+        [SerializeField] private GameObject[] rowBadgeBoxes;
         [SerializeField] private LocalizedText status;
         [SerializeField] private Button buyButton;
         [SerializeField] private Button restoreButton;
@@ -39,7 +42,7 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
 
         private void Awake()
         {
-            panel.SetActive(false);
+            KitScreens.Hide(panel);
             closeButton.onClick.AddListener(OnClose);
             buyButton.onClick.AddListener(OnBuy);
             restoreButton.onClick.AddListener(OnRestore);
@@ -62,12 +65,14 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
             foreach (var row in rows) row.onClick.RemoveAllListeners();
         }
 
-        public void SetOpen(bool open) => panel.SetActive(open);
+        public void SetOpen(bool open) => KitScreens.Set(panel, open);
 
         public void SetLegal(bool privacy, bool terms)
         {
             privacyButton.gameObject.SetActive(privacy);
             termsButton.gameObject.SetActive(terms);
+            // Their row leaves the column when both are hidden (the other fills it when one is)
+            privacyButton.transform.parent.gameObject.SetActive(privacy || terms);
         }
 
         public void ShowLoading() => ShowStatus("common.loading");
@@ -86,7 +91,7 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
                 rowPrices[i].SetLiteral(row.Price);
                 rowDetails[i].gameObject.SetActive(row.DetailKey != null);
                 if (row.DetailKey != null) rowDetails[i].SetKey(row.DetailKey, row.DetailArg);
-                rowBadges[i].gameObject.SetActive(row.SavingsPercent.HasValue);
+                rowBadgeBoxes[i].SetActive(row.SavingsPercent.HasValue);
                 if (row.SavingsPercent.HasValue) rowBadges[i].SetKey(PurchasesKeys.Savings, row.SavingsPercent.Value);
             }
             Select(selected);

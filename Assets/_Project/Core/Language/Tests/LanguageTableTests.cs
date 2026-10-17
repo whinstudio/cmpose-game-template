@@ -66,14 +66,17 @@ namespace Kturker.UnityBase.Core.Language.Tests
         {
             var font = TMP_Settings.defaultFontAsset;
             Assert.That(font, Is.Not.Null);
-            var text = new string(Languages.SelectMany(l => Load(l).Values.SelectMany(f => f.Values))
-                .SelectMany(v => v).Where(c => !char.IsWhiteSpace(c)).Distinct().ToArray());
+            var text = TableCharacters();
             // Adding characters would write glyphs into the dynamic fallback asset, so its source font is asked instead
             font.HasCharacters(text, out var notInAtlas, true, false);
             var missing = (notInAtlas ?? new uint[0]).Where(c => !InSourceFont(font, c)).ToArray();
             Assert.That(missing, Is.Empty,
                 $"missing in {font.name} and its fallbacks: {string.Concat(missing.Select(c => char.ConvertFromUtf32((int)c)))}");
         }
+
+        private static string TableCharacters() =>
+            new string(Languages.SelectMany(l => Load(l).Values.SelectMany(f => f.Values))
+                .SelectMany(v => v).Where(c => !char.IsWhiteSpace(c)).Distinct().ToArray());
 
         private static bool InSourceFont(TMP_FontAsset font, uint unicode) =>
             Chain(font).Any(f => f.atlasPopulationMode != AtlasPopulationMode.Static && f.sourceFontFile != null

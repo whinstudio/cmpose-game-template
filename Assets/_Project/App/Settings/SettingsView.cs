@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kturker.UnityBase.Core.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -32,7 +33,7 @@ namespace Kturker.UnityBase.App.Settings
 
         private void Awake()
         {
-            panel.SetActive(false);
+            KitScreens.Hide(panel);
             musicSlider.onValueChanged.AddListener(OnMusic);
             sfxSlider.onValueChanged.AddListener(OnSfx);
             vibrationToggle.onValueChanged.AddListener(OnVibration);
@@ -62,7 +63,7 @@ namespace Kturker.UnityBase.App.Settings
             musicSlider.SetValueWithoutNotify(music);
             sfxSlider.SetValueWithoutNotify(sfx);
             vibrationToggle.SetIsOnWithoutNotify(vibration);
-            panel.SetActive(true);
+            KitScreens.Show(panel);
         }
 
         public void SetRateVisible(bool visible) => rateButton.gameObject.SetActive(visible);
@@ -77,7 +78,7 @@ namespace Kturker.UnityBase.App.Settings
             }
         }
 
-        public void Hide() => panel.SetActive(false);
+        public void Hide() => KitScreens.Hide(panel);
 
         private void OnMusic(float value) => MusicChanged?.Invoke(value);
 

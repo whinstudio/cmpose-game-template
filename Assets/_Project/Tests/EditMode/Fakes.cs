@@ -137,12 +137,14 @@ namespace Kturker.UnityBase.Tests.EditMode
         public string Title;
         public string Version;
         public List<string> GameKeys;
+        public (int Index, int Level)? LevelShown;
         public event Action<int> GameClicked;
         public event Action SettingsClicked;
         public event Action AboutClicked;
         public void SetTitle(string text) => Title = text;
         public void SetVersion(string text) => Version = text;
         public void ShowGames(IReadOnlyList<string> labelKeys, UiBinder binder) => GameKeys = new List<string>(labelKeys);
+        public void ShowLevel(int index, int level) => LevelShown = (index, level);
         public void ClickGame(int index) => GameClicked?.Invoke(index);
         public void ClickSettings() => SettingsClicked?.Invoke();
         public void ClickAbout() => AboutClicked?.Invoke();
@@ -181,7 +183,9 @@ namespace Kturker.UnityBase.Tests.EditMode
     public sealed class FakeVibrator : Kturker.UnityBase.Core.Haptics.IVibrator
     {
         public readonly List<Kturker.UnityBase.Core.Haptics.HapticStrength> Played = new List<Kturker.UnityBase.Core.Haptics.HapticStrength>();
+        public readonly List<Kturker.UnityBase.Core.Haptics.HapticEvent> Events = new List<Kturker.UnityBase.Core.Haptics.HapticEvent>();
         public void Vibrate(Kturker.UnityBase.Core.Haptics.HapticStrength strength) => Played.Add(strength);
+        public void Vibrate(Kturker.UnityBase.Core.Haptics.HapticEvent e) => Events.Add(e);
     }
 
     public sealed class FakeTimeScale : Kturker.UnityBase.Core.Lifecycle.ITimeScale
@@ -192,7 +196,13 @@ namespace Kturker.UnityBase.Tests.EditMode
     public sealed class FakeUiFeedback : IUiFeedback
     {
         public int Clicks;
+        public int Successes;
+        public int Failures;
+        public readonly List<Kturker.UnityBase.Core.Haptics.HapticStrength> Impacts = new List<Kturker.UnityBase.Core.Haptics.HapticStrength>();
         public void Click() => Clicks++;
+        public void Success() => Successes++;
+        public void Failure() => Failures++;
+        public void Impact(Kturker.UnityBase.Core.Haptics.HapticStrength strength) => Impacts.Add(strength);
     }
 
     public sealed class FakeUrlOpener : IUrlOpener
@@ -403,6 +413,7 @@ namespace Kturker.UnityBase.Tests.EditMode
     public sealed class FakeThemeSource : IThemeSource
     {
         public Palette Current { get; set; }
+        public ThemeStyle Style { get; set; }
         public event Action Changed;
 
         public void Switch(Palette palette)

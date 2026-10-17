@@ -1,5 +1,6 @@
 using System;
 using Kturker.UnityBase.Core.Localization;
+using Kturker.UnityBase.Core.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -27,7 +28,7 @@ namespace Kturker.UnityBase.App.Update
 
         private void Awake()
         {
-            panel.SetActive(false);
+            KitScreens.Hide(panel);
             updateButton.onClick.AddListener(OnUpdate);
             laterButton.onClick.AddListener(OnLater);
         }
@@ -44,7 +45,7 @@ namespace Kturker.UnityBase.App.Update
             message.SetKey(canUpdate ? RequiredMessageKey : RequiredStoreMessageKey);
             updateButton.gameObject.SetActive(canUpdate);
             laterButton.gameObject.SetActive(false);
-            panel.SetActive(true);
+            KitScreens.Show(panel);
         }
 
         public void ShowAvailable()
@@ -53,10 +54,10 @@ namespace Kturker.UnityBase.App.Update
             message.SetKey(AvailableMessageKey);
             updateButton.gameObject.SetActive(true);
             laterButton.gameObject.SetActive(true);
-            panel.SetActive(true);
+            KitScreens.Show(panel);
         }
 
-        public void Hide() => panel.SetActive(false);
+        public void Hide() => KitScreens.Hide(panel);
 
         private void OnUpdate() => UpdateClicked?.Invoke();
 

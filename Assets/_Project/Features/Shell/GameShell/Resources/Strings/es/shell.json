@@ -1,0 +1,18 @@
+{
+  "shell.tapToStart": "Toca para empezar",
+  "shell.best": "Récord: {0}",
+  "shell.level": "Nivel {0}",
+  "shell.gameOver": "Fin de la partida",
+  "shell.newBest": "¡Nuevo récord!",
+  "shell.retry": "Reintentar",
+  "shell.menu": "Menú",
+  "shell.continue": "Continuar",
+  "shell.continueAd": "Continuar (anuncio)",
+  "shell.next": "Siguiente",
+  "shell.complete": "¡Completado!",
+  "shell.failed": "Fallido",
+  "shell.reward": "Recompensa",
+  "shell.perfect": "¡Perfecto!",
+  "shell.great": "¡Genial!",
+  "shell.awesome": "¡Increíble!"
+}

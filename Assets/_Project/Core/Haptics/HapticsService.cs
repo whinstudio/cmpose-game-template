@@ -26,5 +26,10 @@ namespace Kturker.UnityBase.Core.Haptics
         {
             if (Enabled) vibrator.Vibrate(strength);
         }
+
+        public void Play(HapticEvent e)
+        {
+            if (Enabled) vibrator.Vibrate(e);
+        }
     }
 }

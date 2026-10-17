@@ -63,5 +63,51 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(audio.SfxPlayed, Is.EqualTo(2));
             Assert.That(vibrator.Played, Is.EqualTo(new[] { HapticStrength.Light }));
         }
+
+        [Test]
+        public void Event_waveforms_pair_every_step_with_an_amplitude()
+        {
+            foreach (var e in new[] { HapticEvent.Success, HapticEvent.Failure })
+            {
+                var timings = HapticPattern.Timings(e);
+                var amplitudes = HapticPattern.Amplitudes(e);
+                Assert.That(amplitudes.Length, Is.EqualTo(timings.Length), $"{e}");
+                Assert.That(timings, Has.All.GreaterThanOrEqualTo(0L), $"{e}");
+                Assert.That(amplitudes, Has.All.InRange(0, 255), $"{e}");
+                Assert.That(amplitudes[0], Is.Zero, $"{e} starts with a pause");
+            }
+            Assert.That(HapticPattern.Timings(HapticEvent.Failure).Length, Is.GreaterThan(HapticPattern.Timings(HapticEvent.Success).Length),
+                "failure buzzes more often than success");
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => HapticPattern.Timings((HapticEvent)99));
+        }
+
+        [Test]
+        public void Ui_success_failure_and_impact_play_their_haptics_without_a_click()
+        {
+            var audio = new FakeAudioPlayer();
+            var vibrator = new FakeVibrator();
+            var prefs = new FakePreferences();
+            var feedback = new UiFeedback(audio, new UiSounds(null), new HapticsService(prefs, vibrator));
+
+            feedback.Success();
+            feedback.Failure();
+            feedback.Impact(HapticStrength.Heavy);
+
+            Assert.That(vibrator.Events, Is.EqualTo(new[] { HapticEvent.Success, HapticEvent.Failure }));
+            Assert.That(vibrator.Played, Is.EqualTo(new[] { HapticStrength.Heavy }));
+            Assert.That(audio.SfxPlayed, Is.Zero);
+        }
+
+        [Test]
+        public void A_disabled_service_plays_no_events()
+        {
+            var vibrator = new FakeVibrator();
+            var haptics = new HapticsService(new FakePreferences(), vibrator) { Enabled = false };
+
+            haptics.Play(HapticEvent.Success);
+            haptics.Play(HapticEvent.Failure);
+
+            Assert.That(vibrator.Events, Is.Empty);
+        }
     }
 }

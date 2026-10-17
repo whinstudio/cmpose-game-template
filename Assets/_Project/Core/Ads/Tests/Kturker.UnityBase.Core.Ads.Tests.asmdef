@@ -10,6 +10,7 @@
         "Kturker.UnityBase.Core.Update",
         "Kturker.UnityBase.Features.Sample.Ads",
         "Kturker.UnityBase.Features.Shell.Ads",
+        "Kturker.UnityBase.Features.Shell.GameShell",
         "Kturker.UnityBase.Features.Sample.Presentation",
         "Kturker.UnityBase.Tests.EditMode",
         "UniTask",

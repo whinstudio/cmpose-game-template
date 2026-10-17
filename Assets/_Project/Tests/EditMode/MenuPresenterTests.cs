@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Kturker.UnityBase.App.Menu;
 using Kturker.UnityBase.Core.Domain;
+using Kturker.UnityBase.Features.Shell.GameShell;
 using NUnit.Framework;
 
 namespace Kturker.UnityBase.Tests.EditMode
@@ -12,9 +13,10 @@ namespace Kturker.UnityBase.Tests.EditMode
         // The fake view ignores the binder, so tests pass none
         private static MenuPresenter Create(FakeMenuView view, FakeSceneLoader loader, FakeLog log,
             FakeSettingsPanel settings = null, FakeAboutPanel about = null, FakeUiFeedback feedback = null,
-            IReadOnlyList<GameScene> games = null) =>
+            IReadOnlyList<GameScene> games = null, ILevelProgress levels = null) =>
             new MenuPresenter(view, loader, games ?? TwoGames, null, new AppInfo("UnityBase", "1.0.0", "Android"),
-                settings ?? new FakeSettingsPanel(), about ?? new FakeAboutPanel(), feedback ?? new FakeUiFeedback(), log);
+                settings ?? new FakeSettingsPanel(), about ?? new FakeAboutPanel(), feedback ?? new FakeUiFeedback(), log,
+                levels ?? new NoLevelProgress());
 
         [Test]
         public void Start_fills_the_view_and_marks_menu_ready()
@@ -35,6 +37,24 @@ namespace Kturker.UnityBase.Tests.EditMode
             Create(view, new FakeSceneLoader(), new FakeLog()).Start();
 
             Assert.That(view.GameKeys, Is.EqualTo(new[] { "menu.play", "other.play" }));
+        }
+
+        [Test]
+        public void Menu_play_shows_current_level()
+        {
+            var view = new FakeMenuView();
+            Create(view, new FakeSceneLoader(), new FakeLog(), levels: new FakeLevelProgress { Started = true, Current = 3 }).Start();
+
+            Assert.That(view.LevelShown, Is.EqualTo((0, 3)), "the first game's Play reads Level 3");
+        }
+
+        [Test]
+        public void Menu_play_stays_play_until_the_level_flow_starts()
+        {
+            var view = new FakeMenuView();
+            Create(view, new FakeSceneLoader(), new FakeLog(), levels: new FakeLevelProgress { Current = 3 }).Start();
+
+            Assert.That(view.LevelShown, Is.Null);
         }
 
         [Test]

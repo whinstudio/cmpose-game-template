@@ -11,6 +11,7 @@ using Kturker.UnityBase.Core.Preferences;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Core.Review;
 using Kturker.UnityBase.Core.Update;
+using Kturker.UnityBase.Features.Shell.GameShell;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
@@ -53,7 +54,7 @@ namespace Kturker.UnityBase.Core.DI
             builder.Register<TableLocalizer>(resolver =>
                 new TableLocalizer(resolver.Resolve<IStringSource>(), resolver.Resolve<ILog>(), Debug.isDebugBuild), Lifetime.Singleton)
                 .As<ILocalizer>().AsSelf();
-            builder.Register<IThemeSource>(_ => new FixedThemeSource(Palettes.Load(Palettes.Light)), Lifetime.Singleton);
+            builder.Register<IThemeSource>(_ => new FixedThemeSource(Palettes.Load(Palettes.Light), ThemeStyle.Load()), Lifetime.Singleton);
             builder.Register<UiBinder>(Lifetime.Singleton);
             builder.RegisterInstance(new AppInfo(Application.productName, Application.version, Application.platform.ToString()));
             builder.RegisterInstance(BuildScenes.FromBuildSettings());
@@ -94,8 +95,11 @@ namespace Kturker.UnityBase.Core.DI
                 new UpdateConfig(resolver.Resolve<AppConfig>().MinVersionUrl, Application.identifier), Lifetime.Singleton);
             builder.Register<UpdateChecker>(Lifetime.Singleton);
             builder.RegisterEntryPoint<UpdateFlow>().AsSelf();
+            // The game shell's level flow (the menu reads it too); a save store keeps it
+            builder.Register<ILevelProgress, NoLevelProgress>(Lifetime.Singleton);
             // cmpose:saveSystem
             new SaveInstaller().Install(builder);
+            builder.Register<ILevelProgress, LevelProgress>(Lifetime.Singleton);
             // /cmpose:saveSystem
             // cmpose:uiTheme
             new ThemeInstaller().Install(builder);

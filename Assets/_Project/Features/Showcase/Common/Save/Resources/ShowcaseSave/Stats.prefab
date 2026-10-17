@@ -84,6 +84,7 @@ GameObject:
   - component: {fileID: 1968484167493249883}
   - component: {fileID: 838674920836834776}
   - component: {fileID: 3633527825571674091}
+  - component: {fileID: 2249761238698428401}
   m_Layer: 0
   m_Name: Stats
   m_TagString: Untagged
@@ -140,15 +141,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 73086bebd8b5e43d6b4d8f0cbf7fc2bc, type: 2}
+  m_sharedMaterial: {fileID: 2570140580522940096, guid: 73086bebd8b5e43d6b4d8f0cbf7fc2bc, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.42, g: 0.44, b: 0.5, a: 1}
+  m_fontColor: {r: 0.31764707, g: 0.37254903, b: 0.44313726, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -236,3 +237,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedGraphic
   role: 5
+  shade: 0
+  opacity: 1
+--- !u!114 &2249761238698428401
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2844652152605819178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
+  role: 3

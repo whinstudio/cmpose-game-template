@@ -6,9 +6,12 @@ using Kturker.UnityBase.App.Settings;
 using Kturker.UnityBase.Core.Domain;
 using Kturker.UnityBase.Core.Navigation;
 using Kturker.UnityBase.Core.Presentation;
+using Kturker.UnityBase.Features.Shell.GameShell;
 
 namespace Kturker.UnityBase.App.Menu
 {
+    // The menu: one Play button per game (the first reads "Level n" once the shell's level flow has begun), Settings and
+    // About
     public sealed class MenuPresenter : Presenter<IMenuView>
     {
         private readonly ISceneLoader loader;
@@ -19,9 +22,10 @@ namespace Kturker.UnityBase.App.Menu
         private readonly IAboutPanel about;
         private readonly IUiFeedback feedback;
         private readonly ILog log;
+        private readonly ILevelProgress levels;
 
         public MenuPresenter(IMenuView view, ISceneLoader loader, IReadOnlyList<GameScene> games, UiBinder binder, AppInfo app,
-            ISettingsPanel settings, IAboutPanel about, IUiFeedback feedback, ILog log) : base(view)
+            ISettingsPanel settings, IAboutPanel about, IUiFeedback feedback, ILog log, ILevelProgress levels) : base(view)
         {
             this.loader = loader;
             this.games = games;
@@ -31,6 +35,7 @@ namespace Kturker.UnityBase.App.Menu
             this.about = about;
             this.feedback = feedback;
             this.log = log;
+            this.levels = levels;
         }
 
         public override void Start()
@@ -38,6 +43,7 @@ namespace Kturker.UnityBase.App.Menu
             View.SetTitle(app.ProductName);
             View.SetVersion($"v{app.Version}");
             View.ShowGames(games.Select(g => g.LabelKey).ToList(), binder);
+            if (games.Count > 0 && levels.Started) View.ShowLevel(0, levels.Current);
             View.GameClicked += OnGame;
             View.SettingsClicked += OnSettings;
             View.AboutClicked += OnAbout;

@@ -1,0 +1,18 @@
+{
+  "shell.tapToStart": "Tap to start",
+  "shell.best": "Best: {0}",
+  "shell.level": "Level {0}",
+  "shell.gameOver": "Game over",
+  "shell.newBest": "New best!",
+  "shell.retry": "Retry",
+  "shell.menu": "Menu",
+  "shell.continue": "Continue",
+  "shell.continueAd": "Continue (ad)",
+  "shell.next": "Next",
+  "shell.complete": "Complete!",
+  "shell.failed": "Failed",
+  "shell.reward": "Reward",
+  "shell.perfect": "Perfect!",
+  "shell.great": "Great!",
+  "shell.awesome": "Awesome!"
+}

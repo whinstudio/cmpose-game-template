@@ -17,7 +17,7 @@ namespace Kturker.UnityBase.Core.Theme
             builder.Register<ISystemDarkMode>(resolver => SystemDarkModes.ForPlatform(resolver.Resolve<ILog>()), Lifetime.Singleton);
             builder.Register<SwitchableThemeSource>(resolver => new SwitchableThemeSource(resolver.Resolve<IPreferences>(),
                     resolver.Resolve<ISystemDarkMode>(), resolver.Resolve<PauseService>(), resolver.Resolve<ILog>(),
-                    Palettes.Load(Palettes.Light), Palettes.Load(DarkPalette)), Lifetime.Singleton)
+                    Palettes.Load(Palettes.Light), Palettes.Load(DarkPalette), ThemeStyle.Load()), Lifetime.Singleton)
                 .As<IThemeSource>().AsSelf();
             builder.Register<ISettingsSection, ThemeSection>(Lifetime.Singleton);
             builder.RegisterBuildCallback(resolver => resolver.Resolve<SwitchableThemeSource>().Start());

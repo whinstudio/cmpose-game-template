@@ -20,6 +20,7 @@ namespace Kturker.UnityBase.Core.Theme.Tests
         private FakeLog log;
         private Palette light;
         private Palette dark;
+        private ThemeStyle style;
         private SwitchableThemeSource theme;
 
         [SetUp]
@@ -31,7 +32,8 @@ namespace Kturker.UnityBase.Core.Theme.Tests
             log = new FakeLog();
             light = ScriptableObject.CreateInstance<Palette>();
             dark = ScriptableObject.CreateInstance<Palette>();
-            theme = new SwitchableThemeSource(prefs, system, pause, log, light, dark);
+            style = ScriptableObject.CreateInstance<ThemeStyle>();
+            theme = new SwitchableThemeSource(prefs, system, pause, log, light, dark, style);
         }
 
         [TearDown]
@@ -40,6 +42,7 @@ namespace Kturker.UnityBase.Core.Theme.Tests
             theme.Dispose();
             Object.DestroyImmediate(light);
             Object.DestroyImmediate(dark);
+            Object.DestroyImmediate(style);
         }
 
         private void ReturnToTheApp()
@@ -54,6 +57,24 @@ namespace Kturker.UnityBase.Core.Theme.Tests
             var palette = UnityEditor.AssetDatabase.LoadAssetAtPath<Palette>("Assets/_Project/Core/Theme/Resources/Theme/Dark.asset");
             Assert.That(palette, Is.Not.Null);
             Contrast.AssertBoxes(palette, "dark", accentOnRow: 2.3f, controlOnSurface: 3f);
+        }
+
+        [Test]
+        public void The_dark_palette_has_readable_accent_success_and_danger()
+        {
+            var palette = UnityEditor.AssetDatabase.LoadAssetAtPath<Palette>("Assets/_Project/Core/Theme/Resources/Theme/Dark.asset");
+            Contrast.AssertAccentAndStatus(palette, "dark");
+            Contrast.AssertAccentReads(palette, "dark");
+            Contrast.AssertDangerReads(palette, "dark");
+        }
+
+        [Test]
+        public void Light_and_dark_share_the_style()
+        {
+            theme.Start();
+            Assert.That(theme.Style, Is.SameAs(style));
+            theme.SetMode(ThemeMode.Dark);
+            Assert.That(theme.Style, Is.SameAs(style));
         }
 
         [Test]
@@ -120,7 +141,7 @@ namespace Kturker.UnityBase.Core.Theme.Tests
             foreach (var stored in new[] { 99, -1 })
             {
                 prefs.SetInt(SwitchableThemeSource.PreferenceKey, stored);
-                var source = new SwitchableThemeSource(prefs, system, pause, log, light, dark);
+                var source = new SwitchableThemeSource(prefs, system, pause, log, light, dark, style);
                 source.Start();
                 Assert.That(source.Mode, Is.EqualTo(ThemeMode.System), stored.ToString());
                 source.Dispose();

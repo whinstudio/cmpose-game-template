@@ -1,6 +1,7 @@
 using System;
 using Kturker.UnityBase.Core.Localization;
 using Kturker.UnityBase.Core.Navigation;
+using Kturker.UnityBase.Core.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,7 +16,7 @@ namespace Kturker.UnityBase.App.Boot
 
         private void Awake()
         {
-            panel.SetActive(false);
+            KitScreens.Hide(panel);
             retryButton.onClick.AddListener(OnRetry);
         }
 
@@ -26,12 +27,12 @@ namespace Kturker.UnityBase.App.Boot
             if (detail == null) message.SetKey(messageKey);
             else message.SetKey(messageKey, detail);
             retry = onRetry;
-            panel.SetActive(true);
+            KitScreens.Show(panel);
         }
 
         private void OnRetry()
         {
-            panel.SetActive(false);
+            KitScreens.Hide(panel);
             var pending = retry;
             retry = null;
             pending?.Invoke();

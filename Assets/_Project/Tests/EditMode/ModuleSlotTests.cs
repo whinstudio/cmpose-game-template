@@ -77,7 +77,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         public void Spawn_puts_the_panel_under_the_slot()
         {
             var binder = new UiBinder(new TableLocalizer(new FakeStringSource(), new FakeLog(), false),
-                new FixedThemeSource(Resources.Load<Palette>("Theme/Light")));
+                new FixedThemeSource(Resources.Load<Palette>("Theme/Light"), Resources.Load<ThemeStyle>(ThemeStyle.ResourcePath)));
             var view = SampleView.Spawn(slot.Content, binder);
             try
             {

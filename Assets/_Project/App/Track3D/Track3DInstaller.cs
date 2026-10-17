@@ -27,6 +27,7 @@ namespace Kturker.UnityBase.App.Track3D
             builder.RegisterEntryPoint<SettingsPresenter>();
             builder.RegisterEntryPoint<PausePresenter>();
             builder.RegisterEntryPoint<GameRenderMarker>();
+            builder.RegisterEntryPoint<FrameTimeMarker>();
             new Track3DGameInstaller(registerViews).Install(builder);
             new ShowcaseGameInstaller(registerViews).Install(builder);
         }

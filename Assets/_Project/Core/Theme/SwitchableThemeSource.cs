@@ -18,10 +18,11 @@ namespace Kturker.UnityBase.Core.Theme
         private readonly ILog log;
         private readonly Palette light;
         private readonly Palette dark;
+        private readonly ThemeStyle style;
         private bool started;
         private bool isDark;
 
-        public SwitchableThemeSource(IPreferences preferences, ISystemDarkMode system, PauseService pause, ILog log, Palette light, Palette dark)
+        public SwitchableThemeSource(IPreferences preferences, ISystemDarkMode system, PauseService pause, ILog log, Palette light, Palette dark, ThemeStyle style)
         {
             this.preferences = preferences;
             this.system = system;
@@ -29,11 +30,13 @@ namespace Kturker.UnityBase.Core.Theme
             this.log = log;
             this.light = light;
             this.dark = dark;
+            this.style = style;
         }
 
         public ThemeMode Mode { get; private set; }
         public bool IsDark => isDark;
         public Palette Current => isDark ? dark : light;
+        public ThemeStyle Style => style;
 
         public event Action Changed;
 

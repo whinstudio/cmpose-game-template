@@ -1,0 +1,18 @@
+{
+  "shell.tapToStart": "Başlamak için dokun",
+  "shell.best": "En iyi: {0}",
+  "shell.level": "Seviye {0}",
+  "shell.gameOver": "Oyun bitti",
+  "shell.newBest": "Yeni rekor!",
+  "shell.retry": "Tekrar",
+  "shell.menu": "Menü",
+  "shell.continue": "Devam et",
+  "shell.continueAd": "Devam et (reklam)",
+  "shell.next": "Sonraki",
+  "shell.complete": "Tamamlandı!",
+  "shell.failed": "Başarısız",
+  "shell.reward": "Ödül",
+  "shell.perfect": "Mükemmel!",
+  "shell.great": "Harika!",
+  "shell.awesome": "Süper!"
+}

@@ -124,6 +124,8 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
 
         private const string SettingsPrefab = "Assets/_Project/App/Settings/SettingsPanel.prefab";
+        // The settings modal's card: a column that grows with the rows the presenter shows
+        private const string SettingsColumn = "Panel/SafeArea/Card";
         // cmpose:networkInspector
         private const string InspectorPrefab = "Assets/_Project/Core/NetworkInspector/Resources/NetworkInspector/InspectorOverlay.prefab";
         // /cmpose:networkInspector
@@ -255,6 +257,11 @@ namespace Kturker.UnityBase.Tests.EditMode
             screens.Add(("Game/Sample", StageSample(stage), SideMargin));
             screens.Add(("Game/Guide", stage.AddFromScene("Assets/_Project/Scenes/Game.unity", "Canvas/Guide"), SideMargin));
             screens.Add(("Game/Pause", stage.AddFromScene("Assets/_Project/Scenes/Game.unity", "Canvas/Pause"), SideMargin));
+            screens.Add(("Game/ShellHud", stage.AddFromScene("Assets/_Project/Scenes/Game.unity", "Canvas/SafeArea/ShellHud"), SideMargin));
+            screens.Add(("Game/StartHint", stage.AddFromScene("Assets/_Project/Scenes/Game.unity", "Canvas/SafeArea/StartHint"), SideMargin));
+            screens.Add(("Game/ShellGameOver", stage.AddFromScene("Assets/_Project/Scenes/Game.unity", "Canvas/ShellGameOver"), SideMargin));
+            screens.Add(("Game/LevelComplete", stage.AddFromScene("Assets/_Project/Scenes/Game.unity", "Canvas/LevelComplete"), SideMargin));
+            screens.Add(("Game/LevelFailed", stage.AddFromScene("Assets/_Project/Scenes/Game.unity", "Canvas/LevelFailed"), SideMargin));
             // /cmpose:sample
             // cmpose:runner2D
             screens.Add(("Runner2D/Hud", stage.AddFromScene("Assets/_Project/Features/Showcase/Runner2D/Scenes/Runner2D.unity", "Canvas/SafeArea/Hud"), SideMargin));
@@ -290,7 +297,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         {
             var gameOver = stage.AddFromScene("Assets/_Project/Features/Showcase/Runner2D/Scenes/Runner2D.unity", "Canvas/GameOver");
             // cmpose:ads
-            stage.Add(Load("Assets/_Project/Features/Showcase/Common/Ads/Resources/ShowcaseAds/Continue.prefab"), gameOver.transform.Find("Panel/SafeArea/Actions"));
+            stage.Add(Load("Assets/_Project/Features/Showcase/Common/Ads/Resources/ShowcaseAds/Continue.prefab"), gameOver.transform.Find("Panel/SafeArea/Card/Content/Actions"));
             // /cmpose:ads
             return gameOver;
         }
@@ -327,6 +334,10 @@ namespace Kturker.UnityBase.Tests.EditMode
                     {
                         foreach (var rect in screen.GetComponentsInChildren<RectTransform>(true))
                         {
+                            // A kit box's soft shadow is blur around the box, not content: the box itself is checked
+                            if (IsKitShadow(rect)) continue;
+                            // Background shapes (KitDecor) are not content: they may run off the screen's sides
+                            if (rect.GetComponent<KitDecor>() != null) continue;
                             var r = stage.RectOf(rect);
                             // A rect as wide as the screen is a full-screen layer (panel, safe area, module scroll)
                             if (r.xMin <= 0.5f && r.xMax >= stage.Size.x - 0.5f) continue;
@@ -339,6 +350,12 @@ namespace Kturker.UnityBase.Tests.EditMode
                 }
             }
             Assert.That(problems, Is.Empty);
+        }
+
+        private static bool IsKitShadow(Transform t)
+        {
+            var themed = t.GetComponent<ThemedGraphic>();
+            return t.name == "Shadow" && themed != null && themed.Role == ThemeRole.Scrim;
         }
 
         // cmpose:networkInspector
@@ -388,7 +405,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var paywall = Load(PaywallPrefab);
             for (var i = 0; ; i++)
             {
-                var row = paywall.transform.Find($"Panel/SafeArea/Row{i}");
+                var row = paywall.transform.Find($"Panel/SafeArea/Plans/Row{i}");
                 if (row == null)
                 {
                     Assert.That(i, Is.GreaterThan(0), "no paywall rows");
@@ -399,17 +416,19 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
         // /cmpose:purchases
 
-        // Slider rails and the checkbox box take the Control role (Primary fill and mark read on it in both palettes)
+        // Slider rails take the Control role (the Primary fill reads on it in both palettes); the vibration row is a kit
+        // switch, whose track turns Control when off (KitTests)
         [Test]
         public void Settings_controls_use_the_control_role()
         {
-            var column = Load(SettingsPrefab).transform.Find("Panel/SafeArea/Column");
-            foreach (var path in new[] { "Music/Background", "Sfx/Background", "Vibration/Box" })
+            var column = Load(SettingsPrefab).transform.Find(SettingsColumn);
+            foreach (var path in new[] { "Music/Rail", "Sfx/Rail" })
                 Assert.That(column.Find(path).GetComponent<ThemedGraphic>().Role, Is.EqualTo(ThemeRole.Control), path);
+            Assert.That(column.Find("Vibration/Switch").GetComponent<KitSwitch>(), Is.Not.Null, "vibration switch");
         }
 
         // The vibration row reads like the other settings rows: its label left-aligned where their titles start, its
-        // box in the share where their value buttons sit
+        // switch in the share where their value buttons sit
         [Test]
         public void The_vibration_row_lines_up_with_the_other_settings_rows()
         {
@@ -417,16 +436,16 @@ namespace Kturker.UnityBase.Tests.EditMode
             {
                 using (var stage = new Stage(phone))
                 {
-                    var column = stage.Add(Load(SettingsPrefab)).transform.Find("Panel/SafeArea/Column");
+                    var column = stage.Add(Load(SettingsPrefab)).transform.Find(SettingsColumn);
                     var label = column.Find("Vibration/Label").GetComponent<TMP_Text>();
                     var title = column.Find("Section0/Title").GetComponent<TMP_Text>();
                     var labelRect = stage.RectOf(label.rectTransform);
                     var titleRect = stage.RectOf(title.rectTransform);
                     Assert.That(label.alignment, Is.EqualTo(title.alignment), $"{phone}: alignment");
                     Assert.That(labelRect.xMin, Is.EqualTo(titleRect.xMin).Within(1f), $"{phone}: label start");
-                    var box = stage.RectOf((RectTransform)column.Find("Vibration/Box"));
+                    var box = stage.RectOf((RectTransform)column.Find("Vibration/Switch"));
                     var value = stage.RectOf((RectTransform)column.Find("Section0/Value"));
-                    Assert.That(box.center.x, Is.EqualTo(value.center.x).Within(1f), $"{phone}: box in the value share");
+                    Assert.That(box.center.x, Is.EqualTo(value.center.x).Within(1f), $"{phone}: switch in the value share");
                 }
             }
         }
@@ -444,14 +463,15 @@ namespace Kturker.UnityBase.Tests.EditMode
         // /cmpose:network
 
         // Labels code writes at runtime, by button name: the keys (measured in every language) and the literal texts
-        // the settings rows' value buttons, the menu's game buttons and the game-over Continue button can show
+        // the settings rows' value buttons, the menu's game buttons (also "Level n") and the end cards' Continue buttons can
+        // show
         private static (Dictionary<string, List<string>> Keys, Dictionary<string, List<string>> Texts) RuntimeLabels()
         {
             var keys = new Dictionary<string, List<string>>
             {
                 ["Value"] = new List<string>(),
-                ["Play"] = new List<string> { "menu.play" },
-                ["ContinueButton"] = new List<string>()
+                ["Play"] = new List<string> { "menu.play", "shell.level" },
+                ["ContinueButton"] = new List<string> { "shell.continue", "shell.continueAd" }
             };
             var texts = new Dictionary<string, List<string>>();
             // cmpose:uiTheme
@@ -484,7 +504,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
 
         // Every language table's text of every button label key fits its button at the label's smallest auto-size
-        // (MakeButton: 30) without the ellipsis: whole words on as many lines as the label's height holds, on the
+        // (KitFactory.Button: 30) without the ellipsis: whole words on as many lines as the label's height holds, on the
         // narrower phone too (buttons that stretch with the screen are narrower there)
         [Test]
         public void Button_labels_fit_in_every_language_at_the_smallest_size()
@@ -556,7 +576,7 @@ namespace Kturker.UnityBase.Tests.EditMode
                                 var height = box.height - label.margin.y - label.margin.w;
                                 if (!fonts.TryGetValue(label.font, out var font))
                                 {
-                                    var file = AssetDatabase.LoadAssetAtPath<Font>(AssetDatabase.GUIDToAssetPath(label.font.creationSettings.sourceFontFileGUID));
+                                    var file = SourceFontOf(label.font);
                                     Assert.That(file, Is.Not.Null, $"{label.font.name}: no source font file");
                                     font = TMP_FontAsset.CreateFontAsset(file);
                                     fonts.Add(label.font, font);
@@ -606,6 +626,19 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(problems, Is.Empty);
         }
 
+        // A dynamic font's source file, or for a bundled static one the TTF beside it ("<Font> SDF.asset" next to
+        // "<Font>.ttf", see FontBuilder: a static atlas keeps no link to its file)
+        private static Font SourceFontOf(TMP_FontAsset asset)
+        {
+            var file = AssetDatabase.LoadAssetAtPath<Font>(AssetDatabase.GUIDToAssetPath(asset.creationSettings.sourceFontFileGUID));
+            if (file != null) return file;
+            var path = AssetDatabase.GetAssetPath(asset);
+            const string suffix = " SDF.asset";
+            return path.EndsWith(suffix, StringComparison.Ordinal)
+                ? AssetDatabase.LoadAssetAtPath<Font>(path.Substring(0, path.Length - suffix.Length) + ".ttf")
+                : null;
+        }
+
         [Test]
         public void Button_labels_shrink_to_fit_their_button()
         {
@@ -643,6 +676,128 @@ namespace Kturker.UnityBase.Tests.EditMode
                 }
             });
             Assert.That(problems, Is.Empty);
+        }
+
+        // Every button is the kit's (rounded, themed, pressed with a spring), or a kit box that presses like one (the
+        // paywall's package rows); every toggle is a KitSwitch and every slider a KitSlider
+        [Test]
+        public void Every_button_is_a_kit_button()
+        {
+            var problems = new List<string>();
+            ForEachRoot((where, root) =>
+            {
+                foreach (var button in root.GetComponentsInChildren<Button>(true))
+                {
+                    var kitBox = button.GetComponent<KitElement>() != null && button.GetComponent<PressFeedback>() != null;
+                    if (button.GetComponent<KitButton>() == null && !kitBox) problems.Add($"{where}: {PathOf(button.transform)} is not a kit button");
+                }
+                foreach (var toggle in root.GetComponentsInChildren<Toggle>(true))
+                {
+                    if (toggle.GetComponent<KitSwitch>() == null) problems.Add($"{where}: {PathOf(toggle.transform)} is not a KitSwitch");
+                }
+                foreach (var slider in root.GetComponentsInChildren<Slider>(true))
+                {
+                    if (slider.GetComponent<KitSlider>() == null) problems.Add($"{where}: {PathOf(slider.transform)} is not a KitSlider");
+                }
+            });
+            Assert.That(problems, Is.Empty);
+        }
+
+        // The style picks every text's font from its role (Display, Title, Body, Caption)
+        [Test]
+        public void Every_text_has_a_text_role()
+        {
+            var problems = new List<string>();
+            ForEachRoot((where, root) =>
+            {
+                foreach (var text in root.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (text.GetComponent<ThemedText>() == null) problems.Add($"{where}: {PathOf(text.transform)} has no ThemedText");
+                }
+            });
+            Assert.That(problems, Is.Empty);
+        }
+
+        // Scenes and prefabs are written with the default family's fonts: TMP's Liberation Sans (only a fallback of the
+        // bundled fonts) is never a text's own font
+        [Test]
+        public void No_liberation_sans_in_scenes()
+        {
+            var problems = new List<string>();
+            ForEachRoot((where, root) =>
+            {
+                foreach (var text in root.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (text.font == null || text.font.name.IndexOf("LiberationSans", StringComparison.OrdinalIgnoreCase) >= 0)
+                        problems.Add($"{where}: {PathOf(text.transform)} uses {(text.font == null ? "no font" : text.font.name)}");
+                }
+            });
+            Assert.That(problems, Is.Empty);
+        }
+
+        // Every view's panel opens with the kit's motion: a sheet (modal) or a screen transition (full screen), and a
+        // full-screen one is filled with the style's background
+        [Test]
+        public void Every_panel_enters_with_a_kit_transition()
+        {
+            var problems = new List<string>();
+            var panels = 0;
+            ForEachRoot((where, root) =>
+            {
+                foreach (var view in root.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (view == null) continue;
+                    var field = new SerializedObject(view).FindProperty("panel");
+                    if (field == null || field.propertyType != SerializedPropertyType.ObjectReference) continue;
+                    var panel = field.objectReferenceValue as GameObject;
+                    if (panel == null) continue;
+                    panels++;
+                    var transition = panel.GetComponent<ScreenTransition>();
+                    if (panel.GetComponent<KitSheet>() == null && transition == null)
+                        problems.Add($"{where}: {PathOf(panel.transform)} ({view.GetType().Name}) has no KitSheet or ScreenTransition");
+                    if (transition != null && panel.GetComponent<KitBackground>() == null)
+                        problems.Add($"{where}: {PathOf(panel.transform)} is a full-screen panel without KitBackground");
+                }
+            });
+            Assert.That(panels, Is.GreaterThanOrEqualTo(4), "panels found");
+            Assert.That(problems, Is.Empty);
+        }
+
+        // The menu: the style's background and its drifting shapes behind it, the title in the display font, a breathing
+        // Play button, the other actions quieter with their icons, and the whole screen playing in when the scene starts
+        [Test]
+        public void The_menu_leads_with_a_breathing_play_button_under_a_display_title()
+        {
+            var scene = EditorSceneManager.OpenScene("Assets/_Project/Scenes/Menu.unity", OpenSceneMode.Additive);
+            try
+            {
+                var canvas = scene.GetRootGameObjects().Single(r => r.name == "Canvas").transform;
+                Assert.That(canvas.Find("Background").GetComponent<KitBackground>(), Is.Not.Null, "background");
+                Assert.That(canvas.Find("Background").GetSiblingIndex(), Is.EqualTo(0), "background behind everything");
+                var menu = canvas.Find("SafeArea/Menu");
+                var entrance = menu.GetComponent<ScreenTransition>();
+                Assert.That(entrance != null && entrance.EnterOnStart, Is.True, "menu enters on start");
+                Assert.That(menu.Find("Title").GetComponent<ThemedText>().Role, Is.EqualTo(TextRole.Display), "title");
+                var play = menu.Find("Play").GetComponent<KitButton>();
+                Assert.That(play.Variant, Is.EqualTo(KitButtonVariant.Play), "play variant");
+                Assert.That(play.GetComponent<IdlePulse>(), Is.Not.Null, "play breathes");
+                foreach (var (name, icon) in new[] { ("Settings", KitSprites.Gear), ("About", KitSprites.Info) })
+                {
+                    var button = menu.Find(name).GetComponent<KitButton>();
+                    Assert.That(button.Variant, Is.EqualTo(KitButtonVariant.Secondary), name);
+                    Assert.That(button.Icon != null ? button.Icon.sprite : null, Is.SameAs(icon), $"{name} icon");
+                }
+                // Soft shapes over the background, behind the safe area's content, so a game without a logo still has a
+                // dressed title screen
+                var decor = canvas.Find("Decor");
+                Assert.That(decor, Is.Not.Null, "decor");
+                Assert.That(decor.GetSiblingIndex(), Is.LessThan(canvas.Find("SafeArea").GetSiblingIndex()), "decor behind the content");
+                Assert.That(decor.GetComponentsInChildren<KitDecor>(true).Length, Is.GreaterThanOrEqualTo(6), "decor shapes");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+            }
         }
     }
 }

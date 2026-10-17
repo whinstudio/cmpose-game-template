@@ -1,6 +1,8 @@
 using System;
+using Kturker.UnityBase.Core.Localization;
 using Kturker.UnityBase.Core.Presentation;
 using NUnit.Framework;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEditor;
@@ -26,6 +28,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         public const float SelectedOnRow = 1.10f;
         public const float NonText = 3f;
         public const float SmallText = 3f;
+        public const float BodyText = 4.5f;
 
         public static float Ratio(Color a, Color b)
         {
@@ -58,6 +61,23 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(Ratio(primary, control), Is.GreaterThanOrEqualTo(NonText), $"{name}: primary on control");
             Assert.That(Ratio(control, surface), Is.GreaterThanOrEqualTo(controlOnSurface), $"{name}: control on surface");
         }
+
+        // The roles a game adds to the shell's: Accent (a second call to action, OnAccent text on it), Success, Danger
+        public static readonly ThemeRole[] AccentAndStatus = { ThemeRole.Accent, ThemeRole.OnAccent, ThemeRole.Success, ThemeRole.Danger };
+
+        public static void AssertAccentAndStatus(Palette palette, string name)
+        {
+            foreach (var role in AccentAndStatus)
+                Assert.That(palette.Get(role).a, Is.EqualTo(1f), $"{name}: {role} is opaque");
+            Assert.That(palette.Get(ThemeRole.Accent), Is.Not.EqualTo(palette.Get(ThemeRole.Primary)), $"{name}: accent is not primary");
+            Assert.That(palette.Get(ThemeRole.Success), Is.Not.EqualTo(palette.Get(ThemeRole.Danger)), $"{name}: success is not danger");
+        }
+
+        public static void AssertAccentReads(Palette palette, string name) =>
+            Assert.That(Ratio(palette.Get(ThemeRole.OnAccent), palette.Get(ThemeRole.Accent)), Is.GreaterThanOrEqualTo(BodyText), $"{name}: text on accent");
+
+        public static void AssertDangerReads(Palette palette, string name) =>
+            Assert.That(Ratio(palette.Get(ThemeRole.Danger), palette.Get(ThemeRole.Surface)), Is.GreaterThanOrEqualTo(NonText), $"{name}: danger on surface");
     }
 
     public sealed class ThemeTests
@@ -85,6 +105,101 @@ namespace Kturker.UnityBase.Tests.EditMode
             var light = AssetDatabase.LoadAssetAtPath<Palette>("Assets/_Project/Core/Presentation/Resources/Theme/Light.asset");
             Assert.That(light, Is.Not.Null);
             Contrast.AssertBoxes(light, "light", accentOnRow: 3f, controlOnSurface: 1.4f);
+        }
+
+        private static Palette LightAsset() =>
+            AssetDatabase.LoadAssetAtPath<Palette>("Assets/_Project/Core/Presentation/Resources/Theme/Light.asset");
+
+        [Test]
+        public void New_roles_have_colours_in_the_light_palette()
+        {
+            Contrast.AssertAccentAndStatus(LightAsset(), "light");
+        }
+
+        [Test]
+        public void Accent_reads_on_accent_in_the_light_palette()
+        {
+            Contrast.AssertAccentReads(LightAsset(), "light");
+        }
+
+        [Test]
+        public void Danger_reads_on_surface_in_the_light_palette()
+        {
+            Contrast.AssertDangerReads(LightAsset(), "light");
+        }
+
+        [Test]
+        public void The_style_asset_loads_from_resources()
+        {
+            var style = ThemeStyle.Load();
+            // Generated projects carry the family the generator applied, not only the template's default
+            Assert.That(new[] { "bright", "neon", "pastel", "bold", "nature", "clean" }, Does.Contain(style.FamilyId));
+            Assert.That(style.DisplayFont, Is.Not.Null);
+            Assert.That(style.BodyFont, Is.Not.Null);
+            Assert.That(style.CornerRadius, Is.InRange(0f, 48f));
+            Assert.That(style.ShadowStrength, Is.InRange(0f, 1f));
+            Assert.That(style.WorldColors.Count, Is.InRange(3, 4));
+        }
+
+        [Test]
+        public void Themed_text_uses_the_display_font_for_titles()
+        {
+            var display = TMP_Settings.defaultFontAsset;
+            // A second font of its own (a copy of the default would share its atlas, an asset that must not be destroyed)
+            var body = TMP_FontAsset.CreateFontAsset(AssetDatabase.LoadAssetAtPath<Font>(AssetDatabase.GUIDToAssetPath(display.creationSettings.sourceFontFileGUID)));
+            var style = ScriptableObject.CreateInstance<ThemeStyle>();
+            var serialized = new SerializedObject(style);
+            serialized.FindProperty("displayFont").objectReferenceValue = display;
+            serialized.FindProperty("bodyFont").objectReferenceValue = body;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            var source = new FakeThemeSource { Current = Make(Color.white), Style = style };
+            var root = new GameObject("Root", typeof(RectTransform));
+            try
+            {
+                var binder = new UiBinder(new TableLocalizer(new FakeStringSource(), new FakeLog(), false), source);
+                foreach (TextRole role in Enum.GetValues(typeof(TextRole)))
+                {
+                    var go = new GameObject(role.ToString(), typeof(RectTransform));
+                    go.transform.SetParent(root.transform, false);
+                    go.AddComponent<TextMeshProUGUI>();
+                    var themed = go.AddComponent<ThemedText>();
+                    var field = new SerializedObject(themed);
+                    field.FindProperty("role").enumValueIndex = (int)role;
+                    field.ApplyModifiedPropertiesWithoutUndo();
+                }
+                binder.BindTree(root);
+                Assert.That(root.transform.Find("Display").GetComponent<TMP_Text>().font, Is.SameAs(display));
+                Assert.That(root.transform.Find("Title").GetComponent<TMP_Text>().font, Is.SameAs(display));
+                Assert.That(root.transform.Find("Body").GetComponent<TMP_Text>().font, Is.SameAs(body));
+                Assert.That(root.transform.Find("Caption").GetComponent<TMP_Text>().font, Is.SameAs(body));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(source.Current);
+                Object.DestroyImmediate(style);
+                Object.DestroyImmediate(body);
+            }
+        }
+
+        [Test]
+        public void Themed_text_keeps_its_font_when_the_style_has_none()
+        {
+            var style = ScriptableObject.CreateInstance<ThemeStyle>();
+            var source = new FakeThemeSource { Style = style };
+            var go = new GameObject("Title", typeof(RectTransform));
+            try
+            {
+                var text = go.AddComponent<TextMeshProUGUI>();
+                var before = text.font;
+                go.AddComponent<ThemedText>().Bind(source);
+                Assert.That(text.font, Is.SameAs(before));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(style);
+            }
         }
 
         [Test]

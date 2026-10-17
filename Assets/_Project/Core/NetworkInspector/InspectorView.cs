@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Kturker.UnityBase.Core.Localization;
+using Kturker.UnityBase.Core.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -29,7 +30,7 @@ namespace Kturker.UnityBase.Core.NetworkInspector
 
         private void Awake()
         {
-            panel.SetActive(false);
+            KitScreens.Hide(panel);
             openButton.onClick.AddListener(OnOpen);
             closeButton.onClick.AddListener(OnClose);
             clearButton.onClick.AddListener(OnClear);
@@ -48,7 +49,7 @@ namespace Kturker.UnityBase.Core.NetworkInspector
             foreach (var row in rows) row.onClick.RemoveAllListeners();
         }
 
-        public void SetOpen(bool open) => panel.SetActive(open);
+        public void SetOpen(bool open) => KitScreens.Set(panel, open);
 
         public void ShowRows(IReadOnlyList<string> summaries)
         {

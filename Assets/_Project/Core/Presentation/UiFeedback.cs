@@ -21,5 +21,11 @@ namespace Kturker.UnityBase.Core.Presentation
             audio.PlaySfx(sounds.Click);
             haptics.Play(HapticStrength.Light);
         }
+
+        public void Success() => haptics.Play(HapticEvent.Success);
+
+        public void Failure() => haptics.Play(HapticEvent.Failure);
+
+        public void Impact(HapticStrength strength) => haptics.Play(strength);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using Kturker.UnityBase.Core.Presentation;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,7 +21,7 @@ namespace Kturker.UnityBase.App.About
 
         private void Awake()
         {
-            panel.SetActive(false);
+            KitScreens.Hide(panel);
             privacyButton.onClick.AddListener(OnPrivacy);
             termsButton.onClick.AddListener(OnTerms);
             closeButton.onClick.AddListener(OnClose);
@@ -39,10 +40,10 @@ namespace Kturker.UnityBase.App.About
             privacyButton.gameObject.SetActive(privacyVisible);
             termsButton.gameObject.SetActive(termsVisible);
             licenses.text = licenseText;
-            panel.SetActive(true);
+            KitScreens.Show(panel);
         }
 
-        public void Hide() => panel.SetActive(false);
+        public void Hide() => KitScreens.Hide(panel);
 
         private void OnPrivacy() => PrivacyClicked?.Invoke();
 

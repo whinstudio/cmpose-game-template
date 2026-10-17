@@ -19,6 +19,7 @@ using Kturker.UnityBase.Core.Preferences;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Core.Review;
 using Kturker.UnityBase.Core.Update;
+using Kturker.UnityBase.Features.Shell.GameShell;
 // cmpose:sample
 using Kturker.UnityBase.Features.Sample.Presentation;
 // /cmpose:sample
@@ -121,6 +122,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(root.Resolve<ILocalizer>().Get("menu.play"), Is.EqualTo("Play"));
             Assert.That(root.Resolve<UiBinder>(), Is.SameAs(root.Resolve<UiBinder>()));
             Assert.That(root.Resolve<IThemeSource>().Current, Is.Not.Null);
+            Assert.That(root.Resolve<IThemeSource>().Style, Is.Not.Null);
             Assert.That(root.Resolve<PauseService>(), Is.SameAs(root.Resolve<PauseService>()));
             Assert.That(root.Resolve<DeepLinkRouter>(), Is.SameAs(root.Resolve<DeepLinkRouter>()));
             Assert.That(root.Resolve<DeepLinkQueue>(), Is.SameAs(root.Resolve<DeepLinkQueue>()));
@@ -148,8 +150,10 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(games, Does.Contain(SceneId.Track3D));
             Assert.That(root.Resolve<GameScene>().Scene, Is.EqualTo(SceneId.Track3D));
             // /cmpose:track3D
+            Assert.That(root.Resolve<ILevelProgress>(), Is.SameAs(root.Resolve<ILevelProgress>()));
             // cmpose:saveSystem
             Assert.That(root.Resolve<ISaveStore>(), Is.InstanceOf<FileSaveStore>().And.SameAs(root.Resolve<ISaveStore>()));
+            Assert.That(root.Resolve<ILevelProgress>(), Is.InstanceOf<LevelProgress>());
             // /cmpose:saveSystem
             // cmpose:uiTheme
             Assert.That(root.Resolve<IThemeSource>(), Is.SameAs(root.Resolve<SwitchableThemeSource>()));
@@ -274,6 +278,11 @@ namespace Kturker.UnityBase.Tests.EditMode
                 builder.RegisterInstance<ISettingsView>(new FakeSettingsView());
                 builder.RegisterInstance<IPauseView>(new FakePauseView());
                 builder.RegisterInstance<IGuideView>(new FakeGuideView());
+                builder.RegisterInstance<IShellHudView>(new FakeShellHudView());
+                builder.RegisterInstance<IStartHintView>(new FakeStartHintView());
+                builder.RegisterInstance<IGameOverCard>(new FakeGameOverCard());
+                builder.RegisterInstance<ILevelCompleteCard>(new FakeLevelCompleteCard());
+                builder.RegisterInstance<ILevelFailedCard>(new FakeLevelFailedCard());
                 // cmpose:network
                 builder.RegisterInstance<IGitHubUserCardView>(new FakeGitHubUserCardView());
                 // /cmpose:network
@@ -288,10 +297,16 @@ namespace Kturker.UnityBase.Tests.EditMode
             var startables = scope.Resolve<IReadOnlyList<IStartable>>();
             Assert.That(startables.OfType<SceneUiBinding>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<GameRenderMarker>().Count(), Is.EqualTo(1));
+            Assert.That(scope.Resolve<IReadOnlyList<ITickable>>().OfType<FrameTimeMarker>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<SamplePresenter>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<PausePresenter>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<GuidePresenter>().Count(), Is.EqualTo(1));
             Assert.That(scope.Resolve<ISettingsPanel>(), Is.SameAs(startables.OfType<SettingsPresenter>().Single()));
+            Assert.That(scope.Resolve<IGameShell>(), Is.InstanceOf<GameShell>().And.SameAs(scope.Resolve<GameShell>()));
+            Assert.That(scope.Resolve<IShellAds>(), Is.Not.Null);
+            // cmpose:ads
+            Assert.That(scope.Resolve<IShellAds>(), Is.InstanceOf<RewardedShellAds>());
+            // /cmpose:ads
             var counter = scope.Resolve<ICompletionCounter>();
             Assert.That(counter, Is.Not.Null);
             // cmpose:saveSystem
@@ -330,6 +345,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var startables = scope.Resolve<IReadOnlyList<IStartable>>();
             Assert.That(startables.OfType<SceneUiBinding>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<GameRenderMarker>().Count(), Is.EqualTo(1));
+            Assert.That(scope.Resolve<IReadOnlyList<ITickable>>().OfType<FrameTimeMarker>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<PausePresenter>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<GameOverPresenter>().Count(), Is.EqualTo(1));
             Assert.That(scope.Resolve<ISettingsPanel>(), Is.SameAs(startables.OfType<SettingsPresenter>().Single()));
@@ -369,6 +385,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var startables = scope.Resolve<IReadOnlyList<IStartable>>();
             Assert.That(startables.OfType<SceneUiBinding>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<GameRenderMarker>().Count(), Is.EqualTo(1));
+            Assert.That(scope.Resolve<IReadOnlyList<ITickable>>().OfType<FrameTimeMarker>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<PausePresenter>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<GameOverPresenter>().Count(), Is.EqualTo(1));
             Assert.That(scope.Resolve<ISettingsPanel>(), Is.SameAs(startables.OfType<SettingsPresenter>().Single()));

@@ -8,8 +8,10 @@
         "Kturker.UnityBase.Core.Haptics",
         "Kturker.UnityBase.Core.Localization",
         "VContainer",
+        "UniTask",
         "Unity.TextMeshPro",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "Unity.RenderPipelines.Core.Runtime"
     ],
     "autoReferenced": true
 }

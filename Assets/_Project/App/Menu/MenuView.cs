@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Kturker.UnityBase.Core.Localization;
 using Kturker.UnityBase.Core.Presentation;
+using Kturker.UnityBase.Features.Shell.GameShell;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -70,6 +71,12 @@ namespace Kturker.UnityBase.App.Menu
                 gameButtons.Add(button);
             }
             playButton.gameObject.SetActive(labelKeys.Count > 0);
+        }
+
+        public void ShowLevel(int index, int level)
+        {
+            if (index < 0 || index >= gameButtons.Count) return;
+            gameButtons[index].GetComponentInChildren<LocalizedText>(true).SetKey(ShellKeys.Level, level);
         }
 
         private void OnSettings() => SettingsClicked?.Invoke();

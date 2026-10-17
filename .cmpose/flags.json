@@ -5,6 +5,7 @@
       "paths": [
         "Assets/_Project/Core/Save",
         "Assets/_Project/Features/Sample/Presentation/SavedCompletionCounter.cs",
+        "Assets/_Project/Features/Shell/GameShell/LevelProgress.cs",
         "Assets/_Project/Features/Showcase/Common/Save"
       ],
       "asmdefs": ["Kturker.UnityBase.Core.Save", "Kturker.UnityBase.Features.Showcase.Common.Save"],
@@ -47,6 +48,10 @@
         "Assets/_Project/Core/Leaderboards/Resources/Strings/fr",
         "Assets/_Project/Core/Leaderboards/Resources/Strings/es",
         "Assets/_Project/Core/Leaderboards/Resources/Strings/it",
+        "Assets/_Project/Features/Shell/GameShell/Resources/Strings/tr",
+        "Assets/_Project/Features/Shell/GameShell/Resources/Strings/fr",
+        "Assets/_Project/Features/Shell/GameShell/Resources/Strings/es",
+        "Assets/_Project/Features/Shell/GameShell/Resources/Strings/it",
         "Assets/_Project/Features/Showcase/Common/Resources/Strings/tr",
         "Assets/_Project/Features/Showcase/Common/Resources/Strings/fr",
         "Assets/_Project/Features/Showcase/Common/Resources/Strings/es",
@@ -97,6 +102,7 @@
         "Assets/_Project/Core/Ads",
         "Assets/_Project/Features/Sample/Ads",
         "Assets/_Project/Features/Shell/Ads",
+        "Assets/_Project/Features/Shell/GameShell/RewardedShellAds.cs",
         "Assets/_Project/Features/Showcase/Common/Ads",
         "Assets/GoogleMobileAds"
       ],
@@ -127,6 +133,7 @@
         "Assets/_Project/Tests/EditMode/SamplePresenterTests.cs",
         "Assets/_Project/Tests/EditMode/ModuleSlotTests.cs",
         "Assets/_Project/Tests/EditMode/GuidePresenterTests.cs",
+        "Assets/_Project/Tests/PlayMode/GameShellFlowTests.cs",
         "Assets/_Project/Core/Ads/Tests/SampleAdsPresenterTests.cs",
         "Assets/_Project/Core/Leaderboards/Tests/SampleLeaderboardsPresenterTests.cs",
         "Assets/_Project/Core/Network/Tests/GitHubUserPresenterTests.cs",

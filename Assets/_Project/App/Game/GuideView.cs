@@ -1,4 +1,5 @@
 using System;
+using Kturker.UnityBase.Core.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,15 +15,15 @@ namespace Kturker.UnityBase.App.Game
 
         private void Awake()
         {
-            panel.SetActive(false);
+            KitScreens.Hide(panel);
             gotItButton.onClick.AddListener(OnDismiss);
         }
 
         private void OnDestroy() => gotItButton.onClick.RemoveListener(OnDismiss);
 
-        public void Show() => panel.SetActive(true);
+        public void Show() => KitScreens.Show(panel);
 
-        public void Hide() => panel.SetActive(false);
+        public void Hide() => KitScreens.Hide(panel);
 
         private void OnDismiss() => DismissClicked?.Invoke();
     }

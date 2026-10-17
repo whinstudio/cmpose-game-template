@@ -27,6 +27,7 @@ namespace Kturker.UnityBase.App.Runner2D
             builder.RegisterEntryPoint<SettingsPresenter>();
             builder.RegisterEntryPoint<PausePresenter>();
             builder.RegisterEntryPoint<GameRenderMarker>();
+            builder.RegisterEntryPoint<FrameTimeMarker>();
             new Runner2DGameInstaller(registerViews).Install(builder);
             new ShowcaseGameInstaller(registerViews).Install(builder);
         }

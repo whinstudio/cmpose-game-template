@@ -14,6 +14,7 @@
         "Kturker.UnityBase.Core.Update",
         "Kturker.UnityBase.Core.Localization",
         "Kturker.UnityBase.Features.Sample.Installer",
+        "Kturker.UnityBase.Features.Shell.GameShell",
         "Kturker.UnityBase.Features.Showcase.Installer",
         "Kturker.UnityBase.Features.Showcase.Runner2D",
         "Kturker.UnityBase.Features.Showcase.Track3D",

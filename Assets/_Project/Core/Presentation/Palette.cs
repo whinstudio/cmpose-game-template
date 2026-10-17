@@ -19,6 +19,10 @@ namespace Kturker.UnityBase.Core.Presentation
         [SerializeField] private Color picture = Color.white;
         [SerializeField] private Color surfaceVariant = Color.gray;
         [SerializeField] private Color control = Color.gray;
+        [SerializeField] private Color accent = new Color(1f, 0.5f, 0f);
+        [SerializeField] private Color onAccent = Color.white;
+        [SerializeField] private Color success = Color.green;
+        [SerializeField] private Color danger = Color.red;
 
         public Color Get(ThemeRole role)
         {
@@ -35,6 +39,10 @@ namespace Kturker.UnityBase.Core.Presentation
                 case ThemeRole.Picture: return picture;
                 case ThemeRole.SurfaceVariant: return surfaceVariant;
                 case ThemeRole.Control: return control;
+                case ThemeRole.Accent: return accent;
+                case ThemeRole.OnAccent: return onAccent;
+                case ThemeRole.Success: return success;
+                case ThemeRole.Danger: return danger;
                 default: throw new ArgumentOutOfRangeException(nameof(role), role, null);
             }
         }
@@ -54,6 +62,10 @@ namespace Kturker.UnityBase.Core.Presentation
                 case ThemeRole.Picture: picture = color; break;
                 case ThemeRole.SurfaceVariant: surfaceVariant = color; break;
                 case ThemeRole.Control: control = color; break;
+                case ThemeRole.Accent: accent = color; break;
+                case ThemeRole.OnAccent: onAccent = color; break;
+                case ThemeRole.Success: success = color; break;
+                case ThemeRole.Danger: danger = color; break;
                 default: throw new ArgumentOutOfRangeException(nameof(role), role, null);
             }
         }

@@ -6,5 +6,9 @@ namespace Kturker.UnityBase.Core.Haptics
         public void Vibrate(HapticStrength strength)
         {
         }
+
+        public void Vibrate(HapticEvent e)
+        {
+        }
     }
 }
