@@ -30,8 +30,8 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
   those parts are included) and About (version, privacy and terms links, open-source licences). Settings are saved
   with PlayerPrefs.
 - **Game:** a pause button at the top right opens Resume / Settings / Menu; the game also pauses (without the
-  panel) when the app goes to the background. The "Start here" panel shows until you press "Got it". The sample's
-  Complete button is a positive moment for review requests. The sample also counts how many times Complete was
+  panel) when the app goes to the background. The "Start here" panel shows only in the Unity Editor (never in a
+  player build) until you press "Got it". The sample's Complete button is a positive moment for review requests. The sample also counts how many times Complete was
   pressed and keeps the count across restarts.
 - **Buttons** play a click sound and a light vibration (vibration on devices only).
 - **Legal links:** set `privacyUrl` and `termsUrl` in `Assets/_Project/Core/About/AppConfig.asset`; a blank URL
@@ -166,7 +166,8 @@ ads.ShowBanner();                                  // and ads.HideBanner()
 
 At start the game asks for consent with Google's UMP form where the law requires it, then (iOS) shows the App
 Tracking Transparency prompt; Settings → Privacy choices reopens the form where it applies. Premium players
-(purchases flag) see no ads and get rewards without one.
+(purchases flag) see no ads and get rewards without one. Compass capture runs (flag file
+`compass-autoplay`) skip consent entirely.
 
 The template uses Google's **test** IDs, which show test ads in every build. Before you send the game to the stores:
 1. In AdMob, add the Android and iOS apps with a banner, an interstitial and a rewarded ad unit each; set up the

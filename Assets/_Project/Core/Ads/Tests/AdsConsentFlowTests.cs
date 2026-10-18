@@ -25,9 +25,11 @@ namespace Kturker.UnityBase.Core.Ads.Tests
                 (_, __) => UniTask.CompletedTask);
         }
 
-        private AdsConsentFlow Start(bool enabled = true, bool development = false, bool testIds = false, bool debugEea = false)
+        private AdsConsentFlow Start(bool enabled = true, bool development = false, bool testIds = false, bool debugEea = false,
+            bool automation = false)
         {
-            var flow = new AdsConsentFlow(gateway, tracking, ads, log, enabled, development, testIds, debugEea);
+            var flow = new AdsConsentFlow(gateway, tracking, ads, log, enabled, development, testIds, debugEea,
+                automation: automation);
             flow.Start();
             return flow;
         }
@@ -44,6 +46,47 @@ namespace Kturker.UnityBase.Core.Ads.Tests
             Assert.That(gateway.DebugEea, Is.False);
             Assert.That(log.Lines, Has.Some.EqualTo("MARKER CMPOSE_ATT requested"));
             Assert.That(Marker, Is.EqualTo("MARKER CMPOSE_ADS available=true consent=notRequired att=authorized"));
+        }
+
+        [Test]
+        public void NoAutomation_RunsTodaysOrder()
+        {
+            Start(automation: false);
+
+            Assert.That(calls, Is.EqualTo(new[] { "consentInfo", "consentForm", "att", "initialize" }));
+            Assert.That(ads.IsAvailable, Is.True);
+            Assert.That(log.Lines, Has.None.Contains("consent=automation"));
+            Assert.That(Marker, Is.EqualTo("MARKER CMPOSE_ADS available=true consent=notRequired att=authorized"));
+        }
+
+        [Test]
+        public void Automation_SkipsConsentTrackingAndAds()
+        {
+            tracking.Status = TrackingStatus.NotDetermined;
+
+            var flow = Start(automation: true);
+
+            Assert.That(calls, Is.Empty);
+            Assert.That(tracking.Requests, Is.Zero);
+            Assert.That(ads.IsAvailable, Is.False);
+            Assert.That(log.Lines, Has.Some.EqualTo("MARKER CMPOSE_ADS consent=automation"));
+            Assert.That(log.Lines, Has.None.EqualTo("MARKER CMPOSE_ATT requested"));
+        }
+
+        [Test]
+        public void Automation_ShowOptionsDoesNothing()
+        {
+            gateway.PrivacyOptionsRequired = true;
+            var flow = Start(automation: true);
+            var changes = 0;
+            flow.Changed += () => changes++;
+
+            Assert.That(flow.OptionsRequired, Is.False);
+            flow.ShowOptionsAsync().GetAwaiter().GetResult();
+
+            Assert.That(calls, Is.Empty);
+            Assert.That(changes, Is.Zero);
+            Assert.That(ads.IsAvailable, Is.False);
         }
 
         [Test]

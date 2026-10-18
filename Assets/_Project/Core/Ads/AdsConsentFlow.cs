@@ -8,7 +8,8 @@ namespace Kturker.UnityBase.Core.Ads
     // Start-up of the ads flag, in Google's order and without holding up the boot: UMP consent info, the UMP form
     // when required, the ATT prompt on iOS when not asked yet, then Google Mobile Ads when consent allows ads. A UMP
     // error starts ads only in a development build. The editor touches neither SDK. Also the privacy options form,
-    // after which ads start (once) or stop as consent now says.
+    // after which ads start (once) or stop as consent now says. Compass's capture runs (flag file `compass-autoplay`)
+    // skip consent and ads.
     public sealed class AdsConsentFlow : IStartable, IDisposable, IAdsPrivacy
     {
         public const string TestIdsWarning = "Ads use Google test IDs: replace them in AdsConfig before you ship";
@@ -21,6 +22,7 @@ namespace Kturker.UnityBase.Core.Ads
         private readonly bool developmentBuild;
         private readonly bool testIds;
         private readonly bool debugEea;
+        private readonly bool automation;
         private bool started;
         private bool busy;
         private bool disposed;
@@ -28,7 +30,7 @@ namespace Kturker.UnityBase.Core.Ads
         private TrackingStatus att = TrackingStatus.NotApplicable;
 
         public AdsConsentFlow(IGmaGateway gateway, ITrackingAuthorization tracking, GmaAds ads, ILog log, bool enabled,
-            bool developmentBuild, bool testIds, bool debugEea)
+            bool developmentBuild, bool testIds, bool debugEea, bool automation)
         {
             this.gateway = gateway;
             this.tracking = tracking;
@@ -38,9 +40,10 @@ namespace Kturker.UnityBase.Core.Ads
             this.developmentBuild = developmentBuild;
             this.testIds = testIds;
             this.debugEea = debugEea;
+            this.automation = automation;
         }
 
-        public bool OptionsRequired => enabled && gateway.PrivacyOptionsRequired;
+        public bool OptionsRequired => enabled && !automation && gateway.PrivacyOptionsRequired;
 
         public event Action Changed;
 
@@ -50,7 +53,7 @@ namespace Kturker.UnityBase.Core.Ads
 
         public async UniTask ShowOptionsAsync()
         {
-            if (!enabled || busy) return;
+            if (!enabled || automation || busy) return;
             busy = true;
             string error;
             try
@@ -77,6 +80,13 @@ namespace Kturker.UnityBase.Core.Ads
         {
             if (!enabled)
             {
+                Mark();
+                return;
+            }
+            if (automation)
+            {
+                consent = "automation";
+                log.Marker("CMPOSE_ADS consent=automation");
                 Mark();
                 return;
             }

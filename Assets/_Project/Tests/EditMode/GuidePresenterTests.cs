@@ -11,7 +11,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var prefs = new FakePreferences();
             var view = new FakeGuideView();
             var feedback = new FakeUiFeedback();
-            new GuidePresenter(view, prefs, feedback).Start();
+            new GuidePresenter(view, prefs, feedback, enabled: true).Start();
             Assert.That(view.Shown, Is.EqualTo(1));
 
             view.ClickDismiss();
@@ -30,9 +30,23 @@ namespace Kturker.UnityBase.Tests.EditMode
             prefs.SetBool(GuidePresenter.DismissedKey, true);
             var view = new FakeGuideView();
 
-            new GuidePresenter(view, prefs, new FakeUiFeedback()).Start();
+            new GuidePresenter(view, prefs, new FakeUiFeedback(), enabled: true).Start();
 
             Assert.That(view.Shown, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Disabled_NeverShowsAndWritesNothing()
+        {
+            var prefs = new FakePreferences();
+            var view = new FakeGuideView();
+
+            new GuidePresenter(view, prefs, new FakeUiFeedback(), enabled: false).Start();
+            view.ClickDismiss();
+
+            Assert.That(view.Shown, Is.EqualTo(0));
+            Assert.That(prefs.Values.ContainsKey(GuidePresenter.DismissedKey), Is.False);
+            Assert.That(prefs.Saves, Is.EqualTo(0));
         }
     }
 }

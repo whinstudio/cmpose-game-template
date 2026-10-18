@@ -25,7 +25,8 @@ namespace Kturker.UnityBase.Core.Ads
             builder.RegisterEntryPoint<AdsConsentFlow>(resolver => new AdsConsentFlow(resolver.Resolve<IGmaGateway>(),
                     resolver.Resolve<ITrackingAuthorization>(), resolver.Resolve<GmaAds>(), resolver.Resolve<ILog>(),
                     enabled: !Application.isEditor, developmentBuild: development, testIds: AdsConfig.UsesTestIds(units),
-                    debugEea: development && AdsConfig.DebugGeographyEea), Lifetime.Singleton)
+                    debugEea: development && AdsConfig.DebugGeographyEea, automation: AutomationRun.Active),
+                Lifetime.Singleton)
                 .AsSelf();
             builder.Register<ISettingsSection, PrivacySection>(Lifetime.Singleton);
         }

@@ -1,7 +1,9 @@
 using Kturker.UnityBase.App.Settings;
+using Kturker.UnityBase.Core.Preferences;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Features.Sample.Installer;
 using Kturker.UnityBase.Features.Shell.GameShell;
+using UnityEngine;
 using VContainer;
 using VContainer.Unity;
 
@@ -26,7 +28,9 @@ namespace Kturker.UnityBase.App.Game
             builder.RegisterEntryPoint<SceneUiBinding>();
             builder.RegisterEntryPoint<SettingsPresenter>();
             builder.RegisterEntryPoint<PausePresenter>();
-            builder.RegisterEntryPoint<GuidePresenter>();
+            builder.RegisterEntryPoint<GuidePresenter>(resolver => new GuidePresenter(resolver.Resolve<IGuideView>(),
+                    resolver.Resolve<IPreferences>(), resolver.Resolve<IUiFeedback>(), enabled: Application.isEditor),
+                Lifetime.Singleton);
             builder.RegisterEntryPoint<GameRenderMarker>();
             builder.RegisterEntryPoint<FrameTimeMarker>();
             new GameShellInstaller(registerViews).Install(builder);
