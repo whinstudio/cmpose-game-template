@@ -20,11 +20,14 @@ namespace Kturker.UnityBase.Tests.EditMode
         {
             canvas = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas));
             made.Add(canvas);
+            // A game Compass dressed ships a skin: these tests start without one either way
+            GameSkin.ForTests(GameSkin.Parse("{}", _ => null, _ => null));
         }
 
         [TearDown]
         public void Clean()
         {
+            GameSkin.ForTests(null);
             foreach (var o in made)
                 if (o != null) Object.DestroyImmediate(o);
             made.Clear();
@@ -55,6 +58,20 @@ namespace Kturker.UnityBase.Tests.EditMode
         private FakeThemeSource Theme(ThemeStyle style) => new FakeThemeSource { Current = MakePalette(0.2f), Style = style };
 
         private static Image Part(Component kit, string name) => kit.transform.Find(name).GetComponent<Image>();
+
+        // The skin of SkinSprites.Json (a pixel pack; json: another) with its sprites made here; font: the skin's font
+        // source (null: none)
+        private GameSkin Skin(Font font = null, string json = null)
+        {
+            var sprites = new Dictionary<string, Sprite>();
+            var skin = GameSkin.Parse(json ?? SkinSprites.Json, path =>
+            {
+                if (!sprites.TryGetValue(path, out var sprite)) sprites[path] = sprite = SkinSprites.Make(made, path.Substring(path.LastIndexOf('/') + 1));
+                return sprite;
+            }, _ => font);
+            GameSkin.ForTests(skin);
+            return skin;
+        }
 
         [Test]
         public void Kit_sprites_load_from_resources_as_nine_slices()
@@ -490,6 +507,186 @@ namespace Kturker.UnityBase.Tests.EditMode
 
             Assert.That(button.Radius, Is.EqualTo(24f).Within(0.01f));
             Assert.That(button.Body.color, Is.EqualTo(theme.Current.Get(ThemeRole.Primary)));
+        }
+
+        [Test]
+        public void Unskinned_kit_is_unchanged()
+        {
+            var theme = Theme(MakeStyle(20f, SurfaceStyle.Raised, 0.5f));
+            var button = KitFactory.Button(canvas.transform, "Button", KitButtonVariant.Primary);
+            var card = KitFactory.Card(canvas.transform, "Card");
+            var sheet = KitFactory.Sheet(canvas.transform, "Sheet", SheetPlacement.Center, 600f);
+            button.Bind(theme);
+            card.Bind(theme);
+            sheet.Bind(theme);
+
+            Assert.That(button.Body.sprite, Is.SameAs(KitSprites.Rounded));
+            Assert.That(button.Body.color, Is.EqualTo(theme.Current.Get(ThemeRole.Primary)));
+            Assert.That(button.Label.color, Is.EqualTo(theme.Current.Get(ThemeRole.OnPrimary)));
+            Assert.That(Part(button, "Edge").gameObject.activeSelf, Is.True, "raised: edge");
+            Assert.That(Part(button, "Shine").gameObject.activeSelf, Is.True, "raised: shine");
+            Assert.That(card.Body.sprite, Is.SameAs(KitSprites.Rounded));
+            Assert.That(card.Body.color, Is.EqualTo(theme.Current.Get(ThemeRole.Surface)));
+            var panel = sheet.Panel.GetComponent<KitCard>();
+            Assert.That(panel.Body.sprite, Is.SameAs(KitSprites.Rounded));
+            Assert.That(panel.Body.color, Is.EqualTo(theme.Current.Get(ThemeRole.Surface)));
+            Assert.That(theme.Style.FontFor(TextRole.Display), Is.SameAs(theme.Style.DisplayFont));
+
+            button.OnPointerDown(new PointerEventData(null));
+            Assert.That(button.Body.sprite, Is.SameAs(KitSprites.Rounded), "no pressed sprite without a skin");
+        }
+
+        // Kenney sprites keep their own colours: the body is white whatever the palette, the label takes the skin's colour
+        [Test]
+        public void Skinned_button_uses_sliced_sprite_and_hides_layers()
+        {
+            var skin = Skin(json: SkinSprites.Soft);
+            var theme = Theme(MakeStyle(20f, SurfaceStyle.Raised, 0.5f));
+            var button = KitFactory.Button(canvas.transform, "Button", KitButtonVariant.Primary);
+            var icon = KitFactory.Button(canvas.transform, "Icon", KitButtonVariant.Icon, KitSprites.Gear);
+            button.Bind(theme);
+            icon.Bind(theme);
+
+            var entry = skin.Button(KitButtonVariant.Primary);
+            Assert.That(button.Body.sprite, Is.SameAs(entry.Normal));
+            Assert.That(button.Body.type, Is.EqualTo(Image.Type.Sliced));
+            Assert.That(button.Body.pixelsPerUnitMultiplier, Is.EqualTo(0.25f).Within(1e-5f));
+            foreach (var layer in new[] { "Shadow", "Edge", "Shine" })
+                Assert.That(Part(button, layer).gameObject.activeSelf, Is.False, layer);
+            Assert.That(icon.Body.sprite, Is.SameAs(skin.Button(KitButtonVariant.Icon).Normal), "icon variant");
+            Assert.That(icon.Body.pixelsPerUnitMultiplier, Is.EqualTo(0.25f).Within(1e-5f), "no pill on a skinned icon button");
+
+            theme.Switch(MakePalette(0.9f));
+            Assert.That(button.Body.color, Is.EqualTo(Color.white), "body after a palette change");
+            Assert.That(button.Label.color, Is.EqualTo(entry.Text), "label after a palette change");
+            Assert.That(icon.Icon.color, Is.EqualTo(skin.Button(KitButtonVariant.Icon).Text), "glyph");
+        }
+
+        // A skin without an icon entry dresses the other buttons; icon buttons keep today's round, themed layers
+        [Test]
+        public void Icon_button_without_skin_entry_keeps_kit_shape()
+        {
+            GameSkin.ForTests(GameSkin.Parse(SkinSprites.WithoutIcon, path => SkinSprites.Make(made, path), _ => null));
+            var theme = Theme(MakeStyle(20f, SurfaceStyle.Raised, 0.5f));
+            var icon = KitFactory.Button(canvas.transform, "Icon", KitButtonVariant.Icon, KitSprites.Gear);
+            var primary = KitFactory.Button(canvas.transform, "Primary", KitButtonVariant.Primary);
+            icon.Bind(theme);
+            primary.Bind(theme);
+
+            Assert.That(primary.Body.sprite, Is.Not.SameAs(KitSprites.Rounded), "the primary button is dressed");
+            Assert.That(icon.Body.sprite, Is.SameAs(KitSprites.Rounded));
+            Assert.That(icon.Radius, Is.EqualTo(KitSprites.Pill).Within(0.5f));
+            Assert.That(icon.Body.color, Is.EqualTo(theme.Current.Get(ThemeRole.Primary)));
+            Assert.That(icon.Icon.color, Is.EqualTo(theme.Current.Get(ThemeRole.OnPrimary)));
+            Assert.That(Part(icon, "Edge").gameObject.activeSelf, Is.True, "raised: edge");
+            Assert.That(Part(icon, "Shine").gameObject.activeSelf, Is.True, "raised: shine");
+
+            icon.OnPointerDown(new PointerEventData(null));
+            Assert.That(icon.Body.sprite, Is.SameAs(KitSprites.Rounded), "no pressed sprite");
+        }
+
+        [Test]
+        public void Skinned_button_swaps_sprite_while_pressed()
+        {
+            var skin = Skin();
+            var button = KitFactory.Button(canvas.transform, "Button", KitButtonVariant.Secondary);
+            button.Bind(Theme(MakeStyle(20f, SurfaceStyle.Soft)));
+            var kit = button;
+            var entry = skin.Button(KitButtonVariant.Secondary);
+
+            kit.OnPointerDown(new PointerEventData(null));
+            Assert.That(button.Body.sprite, Is.SameAs(entry.Pressed), "down");
+            kit.OnPointerUp(new PointerEventData(null));
+            Assert.That(button.Body.sprite, Is.SameAs(entry.Normal), "up");
+
+            button.Button.interactable = false;
+            kit.OnPointerDown(new PointerEventData(null));
+            Assert.That(button.Body.sprite, Is.SameAs(entry.Normal), "a disabled button does not press");
+        }
+
+        [Test]
+        public void Skinned_card_and_dialog_use_panel_sprites()
+        {
+            var skin = Skin(json: SkinSprites.Soft);
+            var theme = Theme(MakeStyle(20f, SurfaceStyle.Raised, 0.5f));
+            var card = KitFactory.Card(canvas.transform, "Card", true);
+            var bottom = KitFactory.Sheet(canvas.transform, "Bottom", SheetPlacement.Bottom, 900f);
+            var dialog = KitFactory.Sheet(canvas.transform, "Dialog", SheetPlacement.Center, 600f);
+            var inner = KitFactory.Card(dialog.Content, "Inner");
+            card.Bind(theme);
+            bottom.Bind(theme);
+            dialog.Bind(theme);
+            theme.Switch(MakePalette(0.7f));
+
+            var cases = new[]
+            {
+                (card, skin.Card, "card"),
+                (bottom.Panel.GetComponent<KitCard>(), skin.Sheet, "bottom sheet"),
+                (dialog.Panel.GetComponent<KitCard>(), skin.Dialog, "dialog"),
+                (inner, skin.Card, "a card in a dialog")
+            };
+            foreach (var (kit, sprite, what) in cases)
+            {
+                Assert.That(kit.Body.sprite, Is.SameAs(sprite), what);
+                Assert.That(kit.Body.type, Is.EqualTo(Image.Type.Sliced), what);
+                Assert.That(kit.Body.pixelsPerUnitMultiplier, Is.EqualTo(0.25f).Within(1e-5f), what);
+                Assert.That(kit.Body.color, Is.EqualTo(Color.white), what);
+                foreach (var layer in new[] { "Shadow", "Edge" })
+                    Assert.That(Part(kit, layer).gameObject.activeSelf, Is.False, $"{what}: {layer}");
+            }
+        }
+
+        // A pixel pack's edges carry patterns (stitches, studs) that a stretched slice smears: drawn tiled, they repeat
+        [Test]
+        public void Pixel_skin_draws_tiled()
+        {
+            var skin = Skin();
+            var theme = Theme(MakeStyle(20f, SurfaceStyle.Raised, 0.5f));
+            var button = KitFactory.Button(canvas.transform, "Button", KitButtonVariant.Primary);
+            var card = KitFactory.Card(canvas.transform, "Card");
+            button.Bind(theme);
+            card.Bind(theme);
+
+            Assert.That(skin.Pixel, Is.True);
+            Assert.That(button.Body.type, Is.EqualTo(Image.Type.Tiled), "button");
+            Assert.That(button.Body.fillCenter, Is.True, "button centre");
+            Assert.That(button.Body.pixelsPerUnitMultiplier, Is.EqualTo(0.25f).Within(1e-5f), "button scale");
+            Assert.That(card.Body.type, Is.EqualTo(Image.Type.Tiled), "card");
+            Assert.That(card.Body.pixelsPerUnitMultiplier, Is.EqualTo(0.25f).Within(1e-5f), "card scale");
+        }
+
+        [Test]
+        public void Soft_skin_draws_sliced()
+        {
+            var skin = Skin(json: SkinSprites.Soft);
+            var theme = Theme(MakeStyle(20f, SurfaceStyle.Raised, 0.5f));
+            var button = KitFactory.Button(canvas.transform, "Button", KitButtonVariant.Primary);
+            var card = KitFactory.Card(canvas.transform, "Card");
+            button.Bind(theme);
+            card.Bind(theme);
+
+            Assert.That(skin.Pixel, Is.False);
+            Assert.That(button.Body.type, Is.EqualTo(Image.Type.Sliced), "button");
+            Assert.That(card.Body.type, Is.EqualTo(Image.Type.Sliced), "card");
+        }
+
+        [Test]
+        public void Display_font_comes_from_skin()
+        {
+            var source = AssetDatabase.LoadAssetAtPath<Font>("Assets/_Project/Core/Presentation/Fonts/Inter/Inter-Regular.ttf");
+            Assert.That(source, Is.Not.Null);
+            var skin = Skin(source);
+            var style = MakeStyle(20f, SurfaceStyle.Soft);
+
+            var display = style.FontFor(TextRole.Display);
+            Assert.That(display, Is.Not.Null);
+            made.Add(display);
+            Assert.That(display, Is.SameAs(skin.DisplayFont));
+            Assert.That(style.FontFor(TextRole.Title), Is.SameAs(display));
+            Assert.That(style.FontFor(TextRole.Body), Is.SameAs(style.BodyFont), "body text keeps the family's font");
+            Assert.That(display.atlasPopulationMode, Is.EqualTo(TMPro.AtlasPopulationMode.Dynamic));
+            var fallback = ThemeStyle.Load().DisplayFont;
+            Assert.That(display.fallbackFontAssetTable, Is.EqualTo(new List<TMPro.TMP_FontAsset> { fallback }), "falls back to the theme's display font");
         }
     }
 }

@@ -58,6 +58,13 @@ Buttons spring when pressed, panels slide and fade in (`KitScreens.Show`), and a
 also plays while the game is paused. Every text needs a `ThemedText` (its font role) and every image a
 `ThemedGraphic` (its colour role); the EditMode `UiCoverageTests` check the template's screens for both.
 
+Your game's own look goes on top of the family. Put a title logo at `Assets/_Project/Resources/Branding/title-logo.png`
+(imported as a Sprite, transparent) and the menu and the boot screen show it instead of the title text; a picture at
+`Branding/menu-background.png` covers the menu's background (under a light dim, in place of the drifting shapes).
+`Resources/GameSkin.json` can give the boot screen a brand colour behind the logo
+(`{"version":1,"brand":{"background":"#RRGGBB"}}`) and dress the buttons and panels in sprites of your own. Leave the
+files out and the screens keep the family's look.
+
 <!-- cmpose:multiLang -->
 ## Texts and languages
 

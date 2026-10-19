@@ -15,7 +15,7 @@ namespace Kturker.UnityBase.Tests.EditMode
     {
         private static readonly string[] Languages = { "en", "tr", "fr", "es", "it" };
         private const string BundledFonts = "Assets/_Project/Core/Presentation/Fonts";
-        private const string Required = "İıĞğŞşÇçÖöÜü0123456789";
+        internal const string Required = "İıĞğŞşÇçÖöÜü0123456789";
 
         private static TMP_FontAsset[] Fonts()
         {
@@ -25,7 +25,8 @@ namespace Kturker.UnityBase.Tests.EditMode
             return fonts;
         }
 
-        private static string TableCharacters()
+        // Every character of the shipped tables (SkinFontTests checks the skin font with it too)
+        internal static string TableCharacters()
         {
             var values = new List<string>();
             foreach (var language in Languages)

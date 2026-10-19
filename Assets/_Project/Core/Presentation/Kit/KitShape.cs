@@ -41,6 +41,30 @@ namespace Kturker.UnityBase.Core.Presentation
             return pill != null && pill.enabled ? KitSprites.Pill : KitSprites.RoundedRadius / image.pixelsPerUnitMultiplier;
         }
 
+        // A skin sprite (GameSkin) on the body in its own colours, sliceScale units to a source pixel, tiled (a pixel
+        // pack: edges and centre repeat) or sliced; the other layers off
+        public static void Dress(Image shadow, Image edge, Image body, Image shine, Sprite sprite, float sliceScale, bool tiled)
+        {
+            var pill = body.GetComponent<KitPill>();
+            if (pill != null) pill.enabled = false;
+            body.sprite = sprite;
+            body.type = tiled ? Image.Type.Tiled : Image.Type.Sliced;
+            body.fillCenter = true;
+            body.pixelsPerUnitMultiplier = 1f / sliceScale;
+            Fix(body, Color.white);
+            foreach (var layer in new[] { shadow, edge, shine })
+                if (layer != null) layer.gameObject.SetActive(false);
+        }
+
+        // A fixed colour on a themed graphic (null: its role's again)
+        public static void Fix(Graphic graphic, Color? colour)
+        {
+            var themed = graphic.GetComponent<ThemedGraphic>();
+            if (themed == null) themed = graphic.gameObject.AddComponent<ThemedGraphic>();
+            themed.SetFixed(colour);
+            if (colour.HasValue) graphic.color = colour.Value;
+        }
+
         public static void Layers(Image shadow, Image edge, Image body, Image shine, float radius, ThemeStyle style,
             ThemeRole bodyRole, ThemeRole? outline = null, float depthScale = 1f)
         {
@@ -114,6 +138,7 @@ namespace Kturker.UnityBase.Core.Presentation
         {
             var themed = graphic.GetComponent<ThemedGraphic>();
             if (themed == null) themed = graphic.gameObject.AddComponent<ThemedGraphic>();
+            themed.SetFixed(null);
             if (themed.Role != role) themed.SetRole(role);
             themed.SetTone(shade, opacity);
         }

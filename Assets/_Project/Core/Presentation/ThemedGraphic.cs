@@ -4,12 +4,14 @@ using UnityEngine.UI;
 namespace Kturker.UnityBase.Core.Presentation
 {
     // Colours the Graphic (Image, TMP text) on this object from its role; UiBinder binds it. A tone darkens the role's
-    // colour (shade 0..1 towards black: the base under a raised button) and scales its alpha (opacity: a shadow).
+    // colour (shade 0..1 towards black: the base under a raised button) and scales its alpha (opacity: a shadow). A
+    // fixed colour replaces the role's (a skin sprite drawn in its own colours, GameSkin).
     public sealed class ThemedGraphic : MonoBehaviour
     {
         [SerializeField] private ThemeRole role;
         [SerializeField, Range(0f, 1f)] private float shade;
         [SerializeField, Range(0f, 1f)] private float opacity = 1f;
+        private Color? fixedColour;
         private Graphic graphic;
         private IThemeSource source;
 
@@ -28,6 +30,14 @@ namespace Kturker.UnityBase.Core.Presentation
         {
             shade = Mathf.Clamp01(shadeValue);
             opacity = Mathf.Clamp01(opacityValue);
+            Apply();
+        }
+
+        // Paints colour whatever the palette; null returns to the role
+        public void SetFixed(Color? colour)
+        {
+            if (fixedColour == colour) return;
+            fixedColour = colour;
             Apply();
         }
 
@@ -59,7 +69,7 @@ namespace Kturker.UnityBase.Core.Presentation
         {
             if (!this || source == null) return;
             if (graphic == null) graphic = GetComponent<Graphic>();
-            graphic.color = Tone(source.Current.Get(role), shade, opacity);
+            graphic.color = fixedColour ?? Tone(source.Current.Get(role), shade, opacity);
         }
     }
 }

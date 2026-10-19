@@ -15,6 +15,11 @@ namespace Kturker.UnityBase.App.Menu
         private const float GameGap = 16f;
 
         [SerializeField] private TMP_Text title;
+        [SerializeField] private Image titleLogo;
+        [SerializeField] private GameObject titleStroke;
+        [SerializeField] private Image brandBackdrop;
+        [SerializeField] private Image brandScrim;
+        [SerializeField] private GameObject decor;
         [SerializeField] private TMP_Text version;
         [SerializeField] private Button playButton;
         [SerializeField] private Button settingsButton;
@@ -36,6 +41,7 @@ namespace Kturker.UnityBase.App.Menu
 
         private void Awake()
         {
+            ShowBranding(GameBranding.TitleLogo, GameBranding.MenuBackground);
             settingsButton.onClick.AddListener(OnSettings);
             aboutButton.onClick.AddListener(OnAbout);
         }
@@ -48,6 +54,30 @@ namespace Kturker.UnityBase.App.Menu
         }
 
         public void SetTitle(string text) => title.text = text;
+
+        // The game's logo in place of the title text and its stroke; the game's picture, covering the screen under a
+        // light Scrim, in place of the decor shapes. Null keeps that part as the theme draws it.
+        public void ShowBranding(Sprite logo, Sprite background)
+        {
+            var hasLogo = logo != null;
+            titleLogo.sprite = logo;
+            titleLogo.preserveAspect = true;
+            titleLogo.gameObject.SetActive(hasLogo);
+            title.gameObject.SetActive(!hasLogo);
+            titleStroke.SetActive(!hasLogo);
+
+            var hasBackground = background != null;
+            brandBackdrop.sprite = background;
+            if (hasBackground)
+            {
+                var fitter = brandBackdrop.GetComponent<AspectRatioFitter>();
+                fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+                fitter.aspectRatio = background.rect.width / background.rect.height;
+            }
+            brandBackdrop.gameObject.SetActive(hasBackground);
+            brandScrim.gameObject.SetActive(hasBackground);
+            decor.SetActive(!hasBackground);
+        }
 
         public void SetVersion(string text) => version.text = text;
 

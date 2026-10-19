@@ -119,6 +119,10 @@ namespace Kturker.UnityBase.Core.Presentation
             }
         }
 
+        // The skin sprite of the panel (its KitCard draws it): the sheet's at the bottom, the dialog's in the centre
+        public static Sprite PanelSprite(GameSkin skin, SheetPlacement placement) =>
+            placement == SheetPlacement.Bottom ? skin.Sheet : skin.Dialog;
+
         protected override void Apply(Palette palette, ThemeStyle style)
         {
         }

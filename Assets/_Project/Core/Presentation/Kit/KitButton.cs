@@ -1,14 +1,16 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Kturker.UnityBase.Core.Presentation
 {
     // A themed button (KitFactory.Button builds it): rounded to the style's radius, standing on the style's surface,
     // coloured by its variant. The Button, PressFeedback and the Label child sit on the same object. An icon button
-    // (KitFactory.Button with a sprite) shows the glyph in a faint disc at its left, the label beside it.
+    // (KitFactory.Button with a sprite) shows the glyph in a faint disc at its left, the label beside it. A game skin
+    // (GameSkin) draws the body with its sprite instead, the pressed sprite while the finger is down.
     [RequireComponent(typeof(Button))]
-    public sealed class KitButton : KitElement
+    public sealed class KitButton : KitElement, IPointerDownHandler, IPointerUpHandler
     {
         [SerializeField] private KitButtonVariant variant;
         [SerializeField] private Image shadow;
@@ -18,6 +20,8 @@ namespace Kturker.UnityBase.Core.Presentation
         [SerializeField] private TMP_Text label;
         [SerializeField] private Image iconBack;
         [SerializeField] private Image icon;
+        // The skin entry the body is dressed with (null: the kit's own shape)
+        private SkinButton skin;
 
         // The disc behind an icon: the glyph's colour, faint
         public const float IconBackOpacity = 0.14f;
@@ -89,25 +93,59 @@ namespace Kturker.UnityBase.Core.Presentation
             }
         }
 
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            if (skin == null || body == null || !Button.IsInteractable()) return;
+            body.sprite = skin.Pressed;
+        }
+
+        public void OnPointerUp(PointerEventData eventData) => Release();
+
+        private void OnDisable() => Release();
+
+        private void Release()
+        {
+            if (skin != null && body != null) body.sprite = skin.Normal;
+        }
+
         protected override void Apply(Palette palette, ThemeStyle style)
         {
             if (body == null) return;
+            var current = GameSkin.Current;
+            skin = current?.Button(variant);
+            if (skin != null)
+            {
+                Dress(current);
+                return;
+            }
             var radius = RadiusFor(variant, style != null ? style.CornerRadius : 0f);
             ThemeRole? outline = variant == KitButtonVariant.Secondary ? ThemeRole.Control : (ThemeRole?)null;
             KitShape.Layers(shadow, edge, body, shine, radius, style, BodyRole(variant), outline);
             if (label != null)
             {
                 var themed = Themed(label);
+                themed.SetFixed(null);
                 if (themed.Role != LabelRole(variant)) themed.SetRole(LabelRole(variant));
             }
             if (icon == null) return;
             var role = IconRole(variant);
             var glyph = Themed(icon);
+            glyph.SetFixed(null);
             if (glyph.Role != role) glyph.SetRole(role);
             if (iconBack == null) return;
             var back = Themed(iconBack);
+            back.SetFixed(null);
             if (back.Role != role) back.SetRole(role);
             back.SetTone(0f, IconBackOpacity);
+        }
+
+        // The skin's sprite in its own colours; the label and the glyph in the skin's text colour
+        private void Dress(GameSkin current)
+        {
+            KitShape.Dress(shadow, edge, body, shine, skin.Normal, current.SliceScale, current.Pixel);
+            if (label != null) KitShape.Fix(label, skin.Text);
+            if (icon != null) KitShape.Fix(icon, skin.Text);
+            if (iconBack != null) KitShape.Fix(iconBack, ThemedGraphic.Tone(skin.Text, 0f, IconBackOpacity));
         }
     }
 }
