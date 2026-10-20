@@ -29,6 +29,7 @@ namespace Kturker.UnityBase.Core.Ads.Tests
         public int BannerHides;
         public readonly List<string> LoadedUnits = new List<string>();
         public readonly List<string> Banners = new List<string>();
+        public readonly List<BannerPosition> BannerPositions = new List<BannerPosition>();
         private Action<bool> bannerLoaded;
 
         public FakeGmaGateway(List<string> calls = null) => Calls = calls ?? new List<string>();
@@ -90,9 +91,12 @@ namespace Kturker.UnityBase.Core.Ads.Tests
             return UniTask.FromResult(RewardedReply);
         }
 
-        public void ShowBanner(string adUnitId, Action<bool> loaded)
+        public int BannerHeight { get; set; }
+
+        public void ShowBanner(string adUnitId, BannerPosition position, Action<bool> loaded)
         {
             Banners.Add(adUnitId);
+            BannerPositions.Add(position);
             bannerLoaded = loaded;
         }
 
@@ -144,6 +148,9 @@ namespace Kturker.UnityBase.Core.Ads.Tests
     public sealed class FakeAds : IAds
     {
         public bool IsAvailable { get; set; } = true;
+        public bool CapReached;
+        public bool RewardedAvailable => IsAvailable && !CapReached;
+        public int BannerHeight => BannerVisible ? 120 : 0;
         public event Action Changed;
         public readonly List<string> BannerCalls = new List<string>();
         public bool BannerVisible;

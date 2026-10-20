@@ -6,7 +6,8 @@ using VContainer.Unity;
 
 namespace Kturker.UnityBase.Features.Shell.Ads
 {
-    // The menu's banner: at the bottom of the menu, hidden in every other scene (SafeArea keeps the menu above it)
+    // The menu's banner: at the top of the menu, hidden in every other scene (the game, its end panel and the windows
+    // never show one; SafeArea keeps the menu below it, IAds.BannerHeight tells how much room it takes)
     public sealed class MenuBanner : IStartable, IDisposable
     {
         private readonly ISceneLoader loader;

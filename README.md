@@ -26,9 +26,18 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
 
 ## What is in the box
 
-- **Menu:** Play, Settings (music and sound effect volume, vibration and Rate the app, plus Theme and Language when
-  those parts are included) and About (version, privacy and terms links, open-source licences). Settings are saved
-  with PlayerPrefs.
+- **Menu:** a top bar (the currency on the left, shown by the economy, see "Economy"; the settings gear in the right corner), the title
+  or your logo in the middle, round feature buttons in a column at each side and a big Play at the bottom. Settings:
+  music and sound effect volume, vibration and Rate the app, plus Theme and Language when those parts are included,
+  and About as the last row (version, privacy and terms links, open-source licences). Settings are saved with
+  PlayerPrefs. While the ads banner shows at the top of the menu, the top bar moves down one button height more, so
+  no button sits next to the ad. Add a feature's button to a side column (up to three per side) with
+  `IMenuSideButtons` (the menu's `MenuView`):
+
+  ```csharp
+  var gift = sides.AddSideButton(MenuSide.Left, giftIcon, "mygame.gift", OpenGift);  // a white glyph sprite, a caption key
+  gift.SetBadge(MenuBadge.Timer, "2:59:41");  // or MenuBadge.Dot (ready), MenuBadge.Ad (a rewarded ad), MenuBadge.None
+  ```
 - **Game:** a pause button at the top right opens Resume / Settings / Menu; the game also pauses (without the
   panel) when the app goes to the background. The "Start here" panel shows only in the Unity Editor (never in a
   player build) until you press "Got it". The sample's Complete button is a positive moment for review requests. The sample also counts how many times Complete was
@@ -173,7 +182,7 @@ ads.ShowBanner();                                  // and ads.HideBanner()
 
 At start the game asks for consent with Google's UMP form where the law requires it, then (iOS) shows the App
 Tracking Transparency prompt; Settings → Privacy choices reopens the form where it applies. Premium players
-(purchases flag) see no ads and get rewards without one. Compass capture runs (flag file
+(purchases flag) see no forced ads (no interstitial, no banner); rewarded ads stay opt-in and Continue is free. Compass capture runs (flag file
 `compass-autoplay`) skip consent entirely.
 
 The template uses Google's **test** IDs, which show test ads in every build. Before you send the game to the stores:
@@ -244,6 +253,84 @@ in the save slot `levels`, so the level flow needs the save system: without it `
 editor and falls back to the endless HUD on a device. With ads, a finished run or level is a natural break for an
 interstitial. Every card opens and animates while the game is paused. The shell's texts are in
 `Features/Shell/GameShell/Resources/Strings`.
+
+## Economy
+
+A game with `Assets/_Project/Compass/Resources/GameEconomy.json` (Compass writes it) has a currency, boosters and the
+extras its planner chose (`Features/Economy`); without the file none of this shows and the template behaves as before.
+The template gives the infrastructure; the economy itself is designed for each game:
+
+- **The currency** is the game's own: any English name, a colour and an optional icon
+  (`"currency":{"name":"acorns","color":"#B5651D","icon":"Art/game-icons/currency"}`). Its name in each language is
+  `economy.currency.name` in the game's tables (the file's name until then); it is drawn in its own colour whatever the
+  theme, as its icon or, without one, a disc with the name's first letter. The menu shows it at the top left, the
+  Game scene's counter pill with its icon, every price next to it. Texts take the name as an argument and never add a
+  suffix to it ("80 acorns", "You have 100 acorns", "Acorns: not enough"; Turkish "Sende: 100 palamut").
+- **Extras**, 0 to 3 (`"extras":[{"id":"daily","kind":"supply"},{"id":"scratch","kind":"custom"}]`, absent: none). Three
+  are ready-made and only need their section of values in the file: **Supply** (`supply`, left column: free currency
+  every few hours, then a short ladder of ad rows that resets at local midnight), **Daily** (`login`, left: the 7-day
+  login bonus; a missed day starts again at day 1) and **Spin** (`wheel`, right: the lucky wheel, free every few runs
+  or won levels, a few more spins a day for an ad; "i" lists every slice's odds). A `custom` extra is the game's own
+  code (a scratch card, a chest, a collection book), written on the helpers below.
+
+The badges show a red dot when something can be taken, a video mark when only an ad can, and the countdown while
+waiting.
+
+Game code earns the currency and applies boosters; the windows (the booster offer, the pre-run picker) come with the
+template:
+
+```csharp
+economy.Earn(10);                                            // IEconomy: currency collected, a level's reward
+var chosen = await boosters.ChooseForRunAsync(token);        // IBoosters: the preRun boosters the player took (or none)
+boosters.Used += id => { if (id == "bomb") ClearAround(); };  // an inRun booster's HUD button was pressed and paid
+```
+
+A booster in stock is used at once; otherwise its window offers it for the currency (its price next to the currency's
+icon, enabled while the amount reaches it) or for a rewarded ad (once per booster per run, used at once, never
+stocked); with neither it says the currency is not enough. A rewarded ad that is not ready, closed early or fails gives
+nothing. Ads give currency only through an extra (the supply's ad rows, the wheel's ad spins, a custom extra's ad), and
+every rewarded ad counts towards the daily cap. With the purchases flag a premium purchase pays a welcome bundle once
+(the paywall lists it under its packages; a restore does not pay it again). During a Compass capture run
+(`CompassAutoPlay`) no economy window opens, no ad is asked for and no booster is used.
+
+### Writing a custom extra
+
+A custom extra (`"kind":"custom"`) is plain C# over the template's parts, in the game's own code:
+
+```csharp
+// The menu scope: its round button (after the ready extras', in the left column while it has room)
+var button = extraButtons.AddExtraButton("scratch", icon, () => windows.OpenExtra(scratchContent));  // IEconomyExtraButtons
+button.SetBadge(MenuBadge.Dot);                                           // or Timer / Ad / None, kept up to date by you
+
+// Its window: IEconomyExtraContent fills the economy's frame (title economy.extra.<id>.name, Close, banner hidden,
+// never during an AutoPlay run)
+public void Show(RectTransform parent, IEconomyExtraFrame frame) { /* KitFactory parts under parent */ }
+
+// State that survives restarts (saved with the wallet): numbers and short JSON per extra
+var values = extrasStore.For("scratch");                                  // IEconomyExtrasStore
+var cards = new DailyCounter(values, "cards", 3, clock);                  // three cards a day, reset at local midnight
+var free = new Cooldown(values, "free", TimeSpan.FromHours(4), clock);    // a free one every four hours
+var streak = new Streak(values, "days", 7, clock);                        // consecutive days, 1..7 then 1 again
+var prize = WeightedPick.Pick(prizes, p => p.Weight, random);             // and WeightedPick.Odds: show the odds
+
+// A reward for an ad: only through IEconomyAds, inside the frame's busy state
+frame.Busy = true;
+var watched = await economyAds.ShowRewardedAsync(frame.Token);
+frame.Busy = false;
+if (watched && cards.TryUse()) economy.Earn(25);
+```
+
+Rules: an extra that gives currency or boosters for an ad is limited per day (`DailyCounter`) and uses only
+`IEconomyAds`; nothing random is sold for real money, and an extra with random rewards shows their odds; the clock
+helpers never pay twice when the device's clock is turned back. Name the extra in every language
+(`economy.extra.<id>.name`) and test it in EditMode (NUnit category `CompassEconomy`, its id in the test's name: its
+reward and its limit).
+
+Name the currency and each booster in every language: `economy.currency.name`, `economy.booster.<id>.name` and
+`economy.booster.<id>.desc` in `Resources/Strings/<language>/` (en, tr, fr, es, it); `EconomyStringsTests` fails while
+one is missing. Icons are white glyphs under `Resources/Art/game-icons/`: a booster's is drawn in the theme's colours
+(without one it shows a circle with its name's first letter), the currency's in its own colour. The windows' texts are
+in `Features/Economy/Resources/Strings`.
 
 ## Game world: presentation and juice
 

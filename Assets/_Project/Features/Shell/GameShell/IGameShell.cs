@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using Kturker.UnityBase.Core.Presentation;
 
 namespace Kturker.UnityBase.Features.Shell.GameShell
 {
@@ -22,6 +23,10 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
 
         // An optional second counter (coins, lives); hidden until the first call
         void SetCounter(int value);
+
+        // The counter's icon: a currency's glyph or fallback disc in its own colour (the economy sets it); null: the
+        // plain Accent dot
+        void SetCounterIcon(CurrencyMark mark);
 
         // A short localized message that pops and fades, e.g. "shell.perfect"
         void Toast(string key);

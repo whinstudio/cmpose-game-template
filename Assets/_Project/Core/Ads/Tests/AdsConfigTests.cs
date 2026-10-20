@@ -35,6 +35,16 @@ namespace Kturker.UnityBase.Core.Ads.Tests
         }
 
         [Test]
+        public void Interstitial_pacing_is_unchanged()
+        {
+            Assert.That((AdsConfig.InterstitialStartDelaySeconds, AdsConfig.InterstitialGapSeconds, AdsConfig.InterstitialEvery),
+                Is.EqualTo((60, 60, 2)));
+        }
+
+        [Test]
+        public void Rewarded_ads_are_capped_at_fifteen_a_day() => Assert.That(AdsConfig.RewardedDailyCap, Is.EqualTo(15));
+
+        [Test]
         public void Pacing_and_the_tracking_prompt_have_their_defaults()
         {
             Assert.That(AdsConfig.InterstitialStartDelaySeconds, Is.EqualTo(60));

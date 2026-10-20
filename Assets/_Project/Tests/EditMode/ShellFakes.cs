@@ -14,6 +14,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         public readonly List<int> Counted = new List<int>();
         public int? Best;
         public int? Counter;
+        public Kturker.UnityBase.Core.Presentation.CurrencyMark CounterIcon;
         public readonly List<string> Toasts = new List<string>();
 
         public void Show(int? level)
@@ -35,6 +36,7 @@ namespace Kturker.UnityBase.Tests.EditMode
 
         public void ShowBest(int best) => Best = best;
         public void ShowCounter(int value) => Counter = value;
+        public void ShowCounterIcon(Kturker.UnityBase.Core.Presentation.CurrencyMark mark) => CounterIcon = mark;
         public void Toast(string key) => Toasts.Add(key);
     }
 
@@ -173,11 +175,11 @@ namespace Kturker.UnityBase.Tests.EditMode
         public readonly IShellAds Ads;
         public readonly GameShell Shell;
 
-        public ShellRig(ILevelProgress progress = null, IShellAds ads = null, bool strict = true)
+        public ShellRig(ILevelProgress progress = null, IShellAds ads = null, bool strict = true, ShellRunEvents runs = null)
         {
             Progress = progress ?? new FakeLevelProgress();
             Ads = ads ?? new NoShellAds();
-            Shell = new GameShell(Hud, Hint, GameOver, LevelComplete, LevelFailed, Progress, Ads, Feedback, Log, strict);
+            Shell = new GameShell(Hud, Hint, GameOver, LevelComplete, LevelFailed, Progress, Ads, Feedback, Log, strict, runs);
         }
     }
 }

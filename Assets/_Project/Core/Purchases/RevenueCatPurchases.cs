@@ -36,6 +36,7 @@ namespace Kturker.UnityBase.Core.Purchases
         public bool IsPremium { get; private set; }
 
         public event Action Changed;
+        public event Action PremiumPurchased;
 
         public void Start()
         {
@@ -78,6 +79,7 @@ namespace Kturker.UnityBase.Core.Purchases
             var reply = await gateway.PurchaseAsync(packageId).AttachExternalCancellation(cancellation);
             if (!reply.IsOk) return Failed("Purchase", reply.Error);
             Update(reply.Value);
+            PremiumPurchased?.Invoke();
             return PurchaseResult.Success;
         }
 

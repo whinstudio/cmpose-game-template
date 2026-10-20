@@ -35,7 +35,8 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             builder.Register(resolver => new GameShell(resolver.Resolve<IShellHudView>(), resolver.Resolve<IStartHintView>(),
                     resolver.Resolve<IGameOverCard>(), resolver.Resolve<ILevelCompleteCard>(), resolver.Resolve<ILevelFailedCard>(),
                     resolver.Resolve<ILevelProgress>(), resolver.Resolve<IShellAds>(), resolver.Resolve<IUiFeedback>(),
-                    resolver.Resolve<ILog>(), Application.isEditor), Lifetime.Scoped)
+                    resolver.Resolve<ILog>(), Application.isEditor,
+                    resolver.TryResolve<ShellRunEvents>(out var runs) ? runs : null), Lifetime.Scoped)
                 .As<IGameShell>().AsSelf();
         }
     }

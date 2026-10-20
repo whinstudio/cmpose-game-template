@@ -17,6 +17,7 @@ namespace Kturker.UnityBase.App.Settings
         [SerializeField] private Toggle vibrationToggle;
         [SerializeField] private SettingsRowView[] rows;
         [SerializeField] private Button rateButton;
+        [SerializeField] private Button aboutButton;
         [SerializeField] private Button closeButton;
         private Action[] rowHandlers;
 
@@ -24,12 +25,14 @@ namespace Kturker.UnityBase.App.Settings
         public event Action<float> SfxChanged;
         public event Action<bool> VibrationChanged;
         public event Action RateClicked;
+        public event Action AboutClicked;
         public event Action CloseClicked;
         public event Action<int> SectionClicked;
 
         public bool IsOpen => panel.activeSelf;
         public Slider SfxSlider => sfxSlider;
         public Button CloseButton => closeButton;
+        public Button AboutButton => aboutButton;
 
         private void Awake()
         {
@@ -38,6 +41,7 @@ namespace Kturker.UnityBase.App.Settings
             sfxSlider.onValueChanged.AddListener(OnSfx);
             vibrationToggle.onValueChanged.AddListener(OnVibration);
             rateButton.onClick.AddListener(OnRate);
+            aboutButton.onClick.AddListener(OnAbout);
             closeButton.onClick.AddListener(OnClose);
             rowHandlers = new Action[rows.Length];
             for (var i = 0; i < rows.Length; i++)
@@ -54,6 +58,7 @@ namespace Kturker.UnityBase.App.Settings
             sfxSlider.onValueChanged.RemoveListener(OnSfx);
             vibrationToggle.onValueChanged.RemoveListener(OnVibration);
             rateButton.onClick.RemoveListener(OnRate);
+            aboutButton.onClick.RemoveListener(OnAbout);
             closeButton.onClick.RemoveListener(OnClose);
             for (var i = 0; i < rows.Length; i++) rows[i].Clicked -= rowHandlers[i];
         }
@@ -67,6 +72,8 @@ namespace Kturker.UnityBase.App.Settings
         }
 
         public void SetRateVisible(bool visible) => rateButton.gameObject.SetActive(visible);
+
+        public void SetAboutVisible(bool visible) => aboutButton.gameObject.SetActive(visible);
 
         // Rows beyond the slots are not shown (RowSlots: SceneBuilder builds that many)
         public void ShowSections(IReadOnlyList<SettingsRow> sections)
@@ -87,6 +94,8 @@ namespace Kturker.UnityBase.App.Settings
         private void OnVibration(bool value) => VibrationChanged?.Invoke(value);
 
         private void OnRate() => RateClicked?.Invoke();
+
+        private void OnAbout() => AboutClicked?.Invoke();
 
         private void OnClose() => CloseClicked?.Invoke();
     }

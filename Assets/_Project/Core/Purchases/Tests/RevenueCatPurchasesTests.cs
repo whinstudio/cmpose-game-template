@@ -202,6 +202,27 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
         }
 
         [Test]
+        public void Premium_purchased_fires_on_a_purchase_only()
+        {
+            var purchases = Make(out var gateway, out _, out _);
+            gateway.Offerings = Offering(Monthly, Annual);
+            var purchased = 0;
+            purchases.PremiumPurchased += () => purchased++;
+
+            gateway.CustomerReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Ok(FakeRevenueCatGateway.Premium);
+            purchases.Start();
+            gateway.RestoreReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Ok(FakeRevenueCatGateway.Premium);
+            Run(purchases.RestoreAsync(CancellationToken.None));
+            gateway.PurchaseReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Failed(StoreErrorKind.Cancelled);
+            Run(purchases.PurchaseAsync("$rc_annual", CancellationToken.None));
+            Assert.That(purchased, Is.Zero, "a refresh, a restore and a cancelled purchase are not purchases");
+
+            gateway.PurchaseReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Ok(FakeRevenueCatGateway.Premium);
+            Run(purchases.PurchaseAsync("$rc_annual", CancellationToken.None));
+            Assert.That(purchased, Is.EqualTo(1));
+        }
+
+        [Test]
         public void It_is_the_premium_status_and_announces_premium_changes()
         {
             var purchases = Make(out var gateway, out _, out _);

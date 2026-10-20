@@ -10,6 +10,7 @@
         "Kturker.UnityBase.Core.Presentation",
         "Kturker.UnityBase.Core.Localization",
         "Kturker.UnityBase.Core.About",
+        "Kturker.UnityBase.Features.Economy",
         "Kturker.UnityBase.Tests.EditMode",
         "UniTask",
         "VContainer",

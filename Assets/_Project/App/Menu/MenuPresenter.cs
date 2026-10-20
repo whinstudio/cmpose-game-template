@@ -10,8 +10,8 @@ using Kturker.UnityBase.Features.Shell.GameShell;
 
 namespace Kturker.UnityBase.App.Menu
 {
-    // The menu: one Play button per game (the first reads "Level n" once the shell's level flow has begun), Settings and
-    // About
+    // The menu: one Play button per game (the first reads "Level n" once the shell's level flow has begun) and the
+    // settings gear; About opens from the settings panel's last row, which only the menu offers
     public sealed class MenuPresenter : Presenter<IMenuView>
     {
         private readonly ISceneLoader loader;
@@ -46,7 +46,7 @@ namespace Kturker.UnityBase.App.Menu
             if (games.Count > 0 && levels.Started) View.ShowLevel(0, levels.Current);
             View.GameClicked += OnGame;
             View.SettingsClicked += OnSettings;
-            View.AboutClicked += OnAbout;
+            settings.OfferAbout(about);
             log.Marker("CMPOSE_BOOT menu-ready");
         }
 
@@ -54,7 +54,6 @@ namespace Kturker.UnityBase.App.Menu
         {
             View.GameClicked -= OnGame;
             View.SettingsClicked -= OnSettings;
-            View.AboutClicked -= OnAbout;
         }
 
         private void OnGame(int index)
@@ -68,12 +67,6 @@ namespace Kturker.UnityBase.App.Menu
         {
             feedback.Click();
             settings.Open();
-        }
-
-        private void OnAbout()
-        {
-            feedback.Click();
-            about.Open();
         }
     }
 }

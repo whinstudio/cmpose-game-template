@@ -171,5 +171,39 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(theme.Selections, Is.EqualTo(new[] { 1 }));
             Assert.That(hidden.Selections, Is.Empty);
         }
+
+        // The menu offers its About panel: the settings panel's last row closes the panel (saving once) and opens About
+        [Test]
+        public void About_opens_from_settings()
+        {
+            var about = new FakeAboutPanel();
+            Assert.That(view.AboutVisible, Is.False, "no About row before the scene offers one");
+
+            presenter.OfferAbout(about);
+            Assert.That(view.AboutVisible, Is.True, "About row");
+            view.ClickAbout();
+            Assert.That(about.Opened, Is.EqualTo(0), "a closed panel ignores the row");
+
+            presenter.Open();
+            view.ClickAbout();
+
+            Assert.That(about.Opened, Is.EqualTo(1));
+            Assert.That(presenter.IsOpen, Is.False, "settings closed");
+            Assert.That(view.Hidden, Is.EqualTo(1));
+            Assert.That(prefs.Saves, Is.EqualTo(1));
+            Assert.That(feedback.Clicks, Is.EqualTo(1));
+        }
+
+        // Game scenes have no About panel: the row stays hidden and pressing it does nothing
+        [Test]
+        public void About_row_stays_hidden_without_an_about_panel()
+        {
+            presenter.Open();
+            view.ClickAbout();
+
+            Assert.That(view.AboutVisible, Is.False);
+            Assert.That(presenter.IsOpen, Is.True);
+            Assert.That(feedback.Clicks, Is.EqualTo(0));
+        }
     }
 }

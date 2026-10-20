@@ -21,7 +21,8 @@ namespace Kturker.UnityBase.Core.Ads.Tests
             gateway = new FakeGmaGateway(calls);
             tracking = new FakeTracking(calls);
             log = new FakeLog();
-            ads = new GmaAds(gateway, null, new InterstitialPacer(new FakeClock(), 0, 0, 1), new AdUnits("b", "i", "r"), log,
+            ads = new GmaAds(gateway, null, new InterstitialPacer(new FakeClock(), 0, 0, 1),
+                new RewardedCap(new FakePreferences(), new FakeClock(), AdsConfig.RewardedDailyCap), new AdUnits("b", "i", "r"), log,
                 (_, __) => UniTask.CompletedTask);
         }
 

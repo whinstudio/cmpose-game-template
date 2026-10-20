@@ -19,6 +19,7 @@ using Kturker.UnityBase.Core.Preferences;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Core.Review;
 using Kturker.UnityBase.Core.Update;
+using Kturker.UnityBase.Features.Economy;
 using Kturker.UnityBase.Features.Shell.GameShell;
 // cmpose:sample
 using Kturker.UnityBase.Features.Sample.Presentation;
@@ -151,9 +152,24 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(root.Resolve<GameScene>().Scene, Is.EqualTo(SceneId.Track3D));
             // /cmpose:track3D
             Assert.That(root.Resolve<ILevelProgress>(), Is.SameAs(root.Resolve<ILevelProgress>()));
+            Assert.That(root.Resolve<IShellRunEvents>(), Is.SameAs(root.Resolve<ShellRunEvents>()));
+            Assert.That(root.Resolve<IEconomy>(), Is.SameAs(root.Resolve<Economy>()));
+            Assert.That(root.Resolve<Supply>(), Is.SameAs(root.Resolve<Supply>()));
+            Assert.That(root.Resolve<Wheel>(), Is.SameAs(root.Resolve<Wheel>()));
+            Assert.That(root.Resolve<LoginBonus>(), Is.SameAs(root.Resolve<LoginBonus>()));
+            var initializables = root.Resolve<IReadOnlyList<IInitializable>>();
+            Assert.That(initializables.OfType<WelcomeBundle>().Single(), Is.SameAs(root.Resolve<WelcomeBundle>()));
+            Assert.That(initializables.OfType<WheelRunCounter>().Count(), Is.EqualTo(1));
+            Assert.That(root.Resolve<IPaywallBonus>(), Is.InstanceOf<WelcomeBonusLine>());
+            var windows = root.Resolve<EconomyWindows>();
+            Assert.That(root.Resolve<IEconomyWindows>(), Is.SameAs(windows));
+            Assert.That(root.Resolve<IBoosterOffer>(), Is.SameAs(windows));
+            Assert.That(root.Resolve<IBoosterPicker>(), Is.SameAs(windows));
+            Assert.That(root.Resolve<IReadOnlyList<ITickable>>(), Has.Some.SameAs(windows));
             // cmpose:saveSystem
             Assert.That(root.Resolve<ISaveStore>(), Is.InstanceOf<FileSaveStore>().And.SameAs(root.Resolve<ISaveStore>()));
             Assert.That(root.Resolve<ILevelProgress>(), Is.InstanceOf<LevelProgress>());
+            Assert.That(root.Resolve<IEconomyStore>(), Is.InstanceOf<SavedEconomyStore>());
             // /cmpose:saveSystem
             // cmpose:uiTheme
             Assert.That(root.Resolve<IThemeSource>(), Is.SameAs(root.Resolve<SwitchableThemeSource>()));
@@ -177,6 +193,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(root.Resolve<IPaywall>(), Is.InstanceOf<PaywallHost>().And.SameAs(root.Resolve<IPaywall>()));
             Assert.That(startables.OfType<FirstLaunchPaywall>().Count(), Is.EqualTo(1));
             Assert.That(root.Resolve<IPremiumStatus>(), Is.SameAs(root.Resolve<IPurchases>()));
+            Assert.That(root.Resolve<IPremiumPurchaseEvents>(), Is.InstanceOf<PurchasesPremiumEvents>());
             // /cmpose:purchases
             // cmpose:ads
             Assert.That(root.Resolve<IAds>(), Is.InstanceOf<GmaAds>().And.SameAs(root.Resolve<GmaAds>()));
@@ -186,6 +203,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(root.Resolve<ITrackingAuthorization>(), Is.InstanceOf<NoTrackingAuthorization>());
             Assert.That(root.Resolve<IAdsPrivacy>(), Is.SameAs(startables.OfType<AdsConsentFlow>().Single()));
             Assert.That(startables.OfType<MenuBanner>().Count(), Is.EqualTo(1));
+            Assert.That(root.Resolve<IEconomyAds>(), Is.InstanceOf<RewardedEconomyAds>());
             // /cmpose:ads
             // cmpose:leaderboards
             Assert.That(root.Resolve<IGameServices>(), Is.InstanceOf<GameServices>().And.SameAs(startables.OfType<GameServices>().Single()));
@@ -218,6 +236,9 @@ namespace Kturker.UnityBase.Tests.EditMode
                 builder.RegisterInstance<ISettingsView>(new FakeSettingsView());
                 builder.RegisterInstance<IAboutView>(new FakeAboutView());
                 builder.RegisterInstance<IUpdateView>(new FakeUpdateView());
+                var sides = new FakeMenuSideButtons();
+                builder.RegisterInstance<IMenuSideButtons>(sides);
+                builder.RegisterInstance<IMenuCoins>(sides);
                 // cmpose:showcase
                 builder.RegisterInstance<IShowcaseMenuView>(new FakeShowcaseMenuView());
                 // cmpose:purchases
@@ -236,6 +257,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(startables.OfType<SceneUiBinding>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<MenuPresenter>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<UpdatePresenter>().Count(), Is.EqualTo(1));
+            Assert.That(startables.OfType<EconomyMenu>().Count(), Is.EqualTo(1));
             Assert.That(scope.Resolve<ISettingsPanel>(), Is.SameAs(startables.OfType<SettingsPresenter>().Single()));
             Assert.That(scope.Resolve<IAboutPanel>(), Is.SameAs(startables.OfType<AboutPresenter>().Single()));
             // cmpose:showcase
@@ -283,6 +305,7 @@ namespace Kturker.UnityBase.Tests.EditMode
                 builder.RegisterInstance<IGameOverCard>(new FakeGameOverCard());
                 builder.RegisterInstance<ILevelCompleteCard>(new FakeLevelCompleteCard());
                 builder.RegisterInstance<ILevelFailedCard>(new FakeLevelFailedCard());
+                builder.RegisterInstance<IBoosterBarView>(new FakeBoosterBarView());
                 // cmpose:network
                 builder.RegisterInstance<IGitHubUserCardView>(new FakeGitHubUserCardView());
                 // /cmpose:network
@@ -304,6 +327,9 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(scope.Resolve<ISettingsPanel>(), Is.SameAs(startables.OfType<SettingsPresenter>().Single()));
             Assert.That(scope.Resolve<IGameShell>(), Is.InstanceOf<GameShell>().And.SameAs(scope.Resolve<GameShell>()));
             Assert.That(scope.Resolve<IShellAds>(), Is.Not.Null);
+            Assert.That(scope.Resolve<IBoosters>(), Is.InstanceOf<Boosters>().And.SameAs(scope.Resolve<Boosters>()));
+            Assert.That(startables.OfType<BoosterBar>().Count(), Is.EqualTo(1));
+            Assert.That(startables.OfType<EconomyHud>().Count(), Is.EqualTo(1));
             // cmpose:ads
             Assert.That(scope.Resolve<IShellAds>(), Is.InstanceOf<RewardedShellAds>());
             // /cmpose:ads

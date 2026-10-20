@@ -1,3 +1,5 @@
+using Kturker.UnityBase.Core.Presentation;
+
 namespace Kturker.UnityBase.Features.Shell.GameShell
 {
     // The HUD in the safe area: the score (counting), "Best: n" (endless) or "Level n" (levels), the optional counter
@@ -11,6 +13,8 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         void CountScore(int score);
         void ShowBest(int best);
         void ShowCounter(int value);
+        // null: the counter's plain dot
+        void ShowCounterIcon(CurrencyMark mark);
         void Toast(string key);
     }
 }

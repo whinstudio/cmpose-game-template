@@ -19,11 +19,17 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
         private readonly IUiFeedback feedback;
         private readonly UiBinder binder;
         private readonly ILog log;
+        private readonly IPaywallBonus bonus;
+        private readonly ILocalizer localizer;
         private PaywallView view;
         private PaywallPresenter presenter;
 
-        public PaywallHost(IPurchases purchases, AboutInfo about, IUrlOpener urls, IUiFeedback feedback, UiBinder binder, ILog log)
+        // bonus may be null (no economy)
+        public PaywallHost(IPurchases purchases, AboutInfo about, IUrlOpener urls, IUiFeedback feedback, UiBinder binder, ILog log,
+            IPaywallBonus bonus = null, ILocalizer localizer = null)
         {
+            this.bonus = bonus;
+            this.localizer = localizer;
             this.purchases = purchases;
             this.about = about;
             this.urls = urls;
@@ -55,7 +61,7 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
             view = UnityEngine.Object.Instantiate(prefab);
             UnityEngine.Object.DontDestroyOnLoad(view.gameObject);
             binder.BindTree(view.gameObject);
-            presenter = new PaywallPresenter(view, purchases, about, urls, feedback, log);
+            presenter = new PaywallPresenter(view, purchases, about, urls, feedback, log, bonus, localizer);
             presenter.Start();
             return true;
         }

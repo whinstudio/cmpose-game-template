@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Kturker.UnityBase.App.About;
 using Kturker.UnityBase.Core.Audio;
 using Kturker.UnityBase.Core.Haptics;
 using Kturker.UnityBase.Core.Preferences;
@@ -10,6 +11,7 @@ namespace Kturker.UnityBase.App.Settings
     // Sliders and the toggle write through at once; Close saves the preferences once. Opening an open panel or
     // closing a closed one does nothing. "Rate the app" opens the store page (hidden on iOS without an App Store ID).
     // Feature flags add section rows (ISettingsSection; one without options is hidden); pressing a row selects its next option.
+    // The last row, About, shows once the scene offers its About panel (the menu): it closes this panel, then opens About.
     public sealed class SettingsPresenter : Presenter<ISettingsView>, ISettingsPanel
     {
         private readonly AudioPreferences audio;
@@ -20,6 +22,7 @@ namespace Kturker.UnityBase.App.Settings
         private readonly IReadOnlyList<ISettingsSection> sections;
         // The sections that have options, in order: the rows the view shows
         private readonly List<ISettingsSection> shown = new List<ISettingsSection>();
+        private IAboutPanel about;
 
         public SettingsPresenter(ISettingsView view, AudioPreferences audio, HapticsService haptics, IPreferences preferences,
             IUiFeedback feedback, ReviewPrompter review, IReadOnlyList<ISettingsSection> sections) : base(view)
@@ -37,10 +40,12 @@ namespace Kturker.UnityBase.App.Settings
         public override void Start()
         {
             View.SetRateVisible(review.CanOpenStorePage);
+            View.SetAboutVisible(about != null);
             View.MusicChanged += OnMusic;
             View.SfxChanged += OnSfx;
             View.VibrationChanged += OnVibration;
             View.RateClicked += OnRate;
+            View.AboutClicked += OnAbout;
             View.CloseClicked += OnClose;
             foreach (var section in sections) section.Changed += RenderSections;
             View.SectionClicked += OnSection;
@@ -53,6 +58,7 @@ namespace Kturker.UnityBase.App.Settings
             View.SfxChanged -= OnSfx;
             View.VibrationChanged -= OnVibration;
             View.RateClicked -= OnRate;
+            View.AboutClicked -= OnAbout;
             View.CloseClicked -= OnClose;
             foreach (var section in sections) section.Changed -= RenderSections;
             View.SectionClicked -= OnSection;
@@ -63,6 +69,12 @@ namespace Kturker.UnityBase.App.Settings
             if (IsOpen) return;
             IsOpen = true;
             View.Show(audio.Music, audio.Sfx, haptics.Enabled);
+        }
+
+        public void OfferAbout(IAboutPanel panel)
+        {
+            about = panel;
+            View.SetAboutVisible(about != null);
         }
 
         private void OnMusic(float value) => audio.Music = value;
@@ -80,8 +92,22 @@ namespace Kturker.UnityBase.App.Settings
         private void OnClose()
         {
             if (!IsOpen) return;
-            IsOpen = false;
             feedback.Click();
+            Close();
+        }
+
+        // About draws under this panel's canvas, so the panel closes (and saves) first
+        private void OnAbout()
+        {
+            if (!IsOpen || about == null) return;
+            feedback.Click();
+            Close();
+            about.Open();
+        }
+
+        private void Close()
+        {
+            IsOpen = false;
             preferences.Save();
             View.Hide();
         }

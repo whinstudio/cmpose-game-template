@@ -24,6 +24,8 @@ namespace Kturker.UnityBase.Core.Presentation
         public const float IconGlyph = 50f;
         public const float IconInset = 26f;
         public const float IconGap = 10f;
+        // The share of a round Icon button its glyph covers
+        public const float IconFill = 0.5f;
 
         public static KitButton Button(Transform parent, string name, KitButtonVariant variant)
         {
@@ -52,11 +54,24 @@ namespace Kturker.UnityBase.Core.Presentation
             return kit;
         }
 
-        // A button with icon (a white glyph sprite, e.g. KitSprites.Gear) in a disc at its left; the label keeps the rest
+        // A button with icon (a white glyph sprite, e.g. KitSprites.Gear) in a disc at its left; the label keeps the rest.
+        // The round Icon variant has no room for both: its glyph fills the middle (IconFill of the circle), no disc.
         public static KitButton Button(Transform parent, string name, KitButtonVariant variant, Sprite icon)
         {
             var kit = Button(parent, name, variant);
             var role = KitButton.IconRole(variant);
+            if (variant == KitButtonVariant.Icon)
+            {
+                var centred = Layer("Icon", kit.gameObject, role, false);
+                var box = centred.rectTransform;
+                box.anchorMin = Vector2.one * (0.5f - IconFill / 2f);
+                box.anchorMax = Vector2.one * (0.5f + IconFill / 2f);
+                centred.sprite = icon;
+                centred.preserveAspect = true;
+                centred.transform.SetSiblingIndex(kit.Label.transform.GetSiblingIndex());
+                kit.InitIcon(null, centred);
+                return kit;
+            }
             var back = Layer("IconBack", kit.gameObject, role, false);
             var rect = back.rectTransform;
             rect.anchorMin = new Vector2(0f, 0.5f);

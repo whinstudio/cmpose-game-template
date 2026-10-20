@@ -19,6 +19,9 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
         void Select(int index);
         void ShowUnavailable();
         void ShowMessage(string key);
+
+        // The welcome bundle's line under the packages (null hides it)
+        void ShowBonus(string text);
         void SetBusy(bool busy);
     }
 }

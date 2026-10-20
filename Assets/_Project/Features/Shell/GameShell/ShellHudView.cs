@@ -4,9 +4,9 @@ using UnityEngine;
 
 namespace Kturker.UnityBase.Features.Shell.GameShell
 {
-    // The shell's HUD in the safe area (SceneBuilder builds it under the pause button): the counter pill top left,
-    // "Level n" top centre, the score in the display font under them, "Best: n" under the score, the toast in the
-    // middle. Its content stays hidden until Show; touches go through to the game.
+    // The shell's HUD in the safe area (SceneBuilder builds it under the pause button): the counter pill top left (a
+    // plain Accent dot as its icon, or the economy's currency), "Level n" top centre, the score in the display font
+    // under them, "Best: n" under the score, the toast in the middle. Its content stays hidden until Show; touches go through to the game.
     public sealed class ShellHudView : MonoBehaviour, IShellHudView
     {
         // A HUD count is quick: points arrive one after another
@@ -19,6 +19,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         [SerializeField] private LocalizedText level;
         [SerializeField] private GameObject counterPill;
         [SerializeField] private CountUpText counter;
+        [SerializeField] private FallbackIcon counterIcon;
         [SerializeField] private ShellToast toast;
         private bool counterShown;
         private bool shown;
@@ -62,6 +63,8 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             counterShown = true;
             counter.SetValue(value);
         }
+
+        public void ShowCounterIcon(CurrencyMark mark) => counterIcon.ShowCurrency(mark);
 
         public void Toast(string key) => toast.Play(key);
     }

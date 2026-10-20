@@ -75,24 +75,33 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
 
         [Test]
-        public void Settings_and_about_open_their_panels_with_feedback_and_a_stray_index_does_nothing()
+        public void Settings_opens_its_panel_with_feedback_and_a_stray_index_does_nothing()
         {
             var view = new FakeMenuView();
             var settings = new FakeSettingsPanel();
-            var about = new FakeAboutPanel();
             var feedback = new FakeUiFeedback();
             var loader = new FakeSceneLoader();
-            Create(view, loader, new FakeLog(), settings, about, feedback).Start();
+            Create(view, loader, new FakeLog(), settings, feedback: feedback).Start();
 
             view.ClickSettings();
-            view.ClickAbout();
             view.ClickGame(2);
             view.ClickGame(-1);
 
             Assert.That(settings.Opened, Is.EqualTo(1));
-            Assert.That(about.Opened, Is.EqualTo(1));
-            Assert.That(feedback.Clicks, Is.EqualTo(2));
+            Assert.That(feedback.Clicks, Is.EqualTo(1));
             Assert.That(loader.Requested, Is.Empty);
+        }
+
+        // About left the menu: the settings panel's last row opens it
+        [Test]
+        public void Start_offers_about_to_the_settings_panel()
+        {
+            var settings = new FakeSettingsPanel();
+            var about = new FakeAboutPanel();
+            Create(new FakeMenuView(), new FakeSceneLoader(), new FakeLog(), settings, about).Start();
+
+            Assert.That(settings.Offered, Is.SameAs(about));
+            Assert.That(about.Opened, Is.EqualTo(0), "not opened by itself");
         }
     }
 }

@@ -6,6 +6,9 @@ namespace Kturker.UnityBase.Core.Lifecycle
         User,
 
         // The app went to the background or lost focus
-        Focus
+        Focus,
+
+        // A window over the running game (the economy's booster offer)
+        Window
     }
 }

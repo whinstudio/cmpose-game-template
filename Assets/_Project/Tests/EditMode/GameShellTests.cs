@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Kturker.UnityBase.Core.Haptics;
 using Kturker.UnityBase.Features.Shell.GameShell;
@@ -189,6 +190,38 @@ namespace Kturker.UnityBase.Tests.EditMode
             rig.Shell.Begin(ShellMode.Endless);
             rig.Shell.ShowGameOver(3, 20, false).Forget();
             Assert.That(rig.GameOver.ContinueShown, Is.True, "a new run offers it again");
+        }
+
+        [Test]
+        public void Run_ended_reports_wins_and_losses()
+        {
+            var runs = new ShellRunEvents();
+            var rig = new ShellRig(ads: new FakeShellAds(), runs: runs);
+            var reported = new List<bool>();
+            var relayed = new List<string>();
+            rig.Shell.RunEnded += won => reported.Add(won);
+            runs.RunEnded += won => relayed.Add($"{runs.Mode} {won}");
+
+            rig.Shell.Begin(ShellMode.Endless);
+            var continued = rig.Shell.ShowGameOver(10, 20, false);
+            rig.GameOver.Choose(EndChoice.Continue);
+            Assert.That(Result(continued), Is.EqualTo(EndChoice.Continue));
+            Assert.That(reported, Is.Empty, "a continued run has not ended");
+            var over = rig.Shell.ShowGameOver(12, 20, false);
+            rig.GameOver.Choose(EndChoice.Retry);
+            Result(over);
+
+            rig.Shell.Begin(ShellMode.Levels);
+            var won = rig.Shell.ShowLevelComplete(1, 3, 10);
+            rig.LevelComplete.Choose(EndChoice.Next);
+            Result(won);
+            rig.Shell.Begin(ShellMode.Levels);
+            var failed = rig.Shell.ShowLevelFailed(2);
+            rig.LevelFailed.Choose(EndChoice.Menu);
+            Result(failed);
+
+            Assert.That(reported, Is.EqualTo(new[] { false, true, false }));
+            Assert.That(relayed, Is.EqualTo(new[] { "Endless False", "Levels True", "Levels False" }));
         }
 
         [Test]

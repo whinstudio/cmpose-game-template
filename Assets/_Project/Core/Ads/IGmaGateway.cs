@@ -27,8 +27,11 @@ namespace Kturker.UnityBase.Core.Ads
         // Rewarded, Dismissed or Failed
         UniTask<RewardResult> ShowRewardedAsync();
 
-        // loaded: true once the first ad is in, false when it could not load
-        void ShowBanner(string adUnitId, Action<bool> loaded);
+        // An adaptive banner on the given edge; loaded: true once the first ad is in, false when it could not load
+        void ShowBanner(string adUnitId, BannerPosition position, Action<bool> loaded);
+
+        // Pixels of the loaded banner, 0 while none is loaded
+        int BannerHeight { get; }
         void HideBanner();
     }
 }

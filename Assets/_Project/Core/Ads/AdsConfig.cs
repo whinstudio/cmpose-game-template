@@ -2,7 +2,7 @@ using System;
 
 namespace Kturker.UnityBase.Core.Ads
 {
-    // Ad unit IDs per platform, the interstitial pacing and the iOS tracking prompt. The generator writes the six ID
+    // Ad unit IDs per platform, the interstitial pacing, the daily rewarded cap and the iOS tracking prompt. The generator writes the six ID
     // lines (one const string each, the ID in double quotes); the App IDs live in
     // Assets/GoogleMobileAds/Resources/GoogleMobileAdsSettings.asset. The template ships Google's test IDs: they show
     // test ads in every build, release too (with a warning in the log). Replace both before you ship.
@@ -18,6 +18,8 @@ namespace Kturker.UnityBase.Core.Ads
         public const int InterstitialStartDelaySeconds = 60;
         public const int InterstitialGapSeconds = 60;
         public const int InterstitialEvery = 2;
+        // Rewarded ads watched to the end per local day, all of them together (Continue, the economy's ad rows and spins)
+        public const int RewardedDailyCap = 15;
 
         // Development builds only: UMP treats the device as in the EEA, so its consent form can be tested
         public static readonly bool DebugGeographyEea = false;

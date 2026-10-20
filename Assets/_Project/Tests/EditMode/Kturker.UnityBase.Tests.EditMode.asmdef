@@ -27,6 +27,7 @@
         "Kturker.UnityBase.Features.Sample.Ads",
         "Kturker.UnityBase.Features.Shell.Ads",
         "Kturker.UnityBase.Features.Shell.GameShell",
+        "Kturker.UnityBase.Features.Economy",
         "Kturker.UnityBase.Features.Sample.Leaderboards",
         "Kturker.UnityBase.Core.Leaderboards",
         "Kturker.UnityBase.Features.Sample.Network",

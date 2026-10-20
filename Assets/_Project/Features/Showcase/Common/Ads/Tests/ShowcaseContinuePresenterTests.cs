@@ -89,15 +89,14 @@ namespace Kturker.UnityBase.Features.Showcase.Common.Ads.Tests
         }
 
         [Test]
-        public void A_premium_grant_continues_the_run()
+        public void Premium_continues_the_run_without_an_ad()
         {
-            ads.RewardedReply = RewardResult.Granted;
             Create(new FakePremium { IsPremium = true });
             run.Crash(Result);
 
             view.ClickContinue();
 
-            Assert.That(run.Continues, Is.EqualTo(1));
+            Assert.That((ads.Rewardeds, run.Continues), Is.EqualTo((0, 1)));
         }
 
         [Test]

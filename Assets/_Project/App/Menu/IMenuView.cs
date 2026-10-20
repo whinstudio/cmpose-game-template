@@ -8,8 +8,8 @@ namespace Kturker.UnityBase.App.Menu
     {
         // The index of the game whose Play button was pressed
         event Action<int> GameClicked;
+        // The top bar's gear (About is the settings panel's last row)
         event Action SettingsClicked;
-        event Action AboutClicked;
         void SetTitle(string text);
         void SetVersion(string text);
         void ShowGames(IReadOnlyList<string> labelKeys, UiBinder binder);

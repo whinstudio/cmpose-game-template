@@ -14,6 +14,9 @@ namespace Kturker.UnityBase.Core.Purchases
         // After IsPremium changes
         event Action Changed;
 
+        // After a PurchaseAsync succeeds; never for a restore or a refresh that finds premium on
+        event Action PremiumPurchased;
+
         UniTask<PaywallOffer> OfferAsync(CancellationToken cancellation);
         UniTask<PurchaseResult> PurchaseAsync(string packageId, CancellationToken cancellation);
         UniTask<PurchaseResult> RestoreAsync(CancellationToken cancellation);

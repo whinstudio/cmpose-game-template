@@ -9,10 +9,12 @@ namespace Kturker.UnityBase.App.Settings
         event Action<float> SfxChanged;
         event Action<bool> VibrationChanged;
         event Action RateClicked;
+        event Action AboutClicked;
         event Action CloseClicked;
         event Action<int> SectionClicked;
         void Show(float music, float sfx, bool vibration);
         void SetRateVisible(bool visible);
+        void SetAboutVisible(bool visible);
         void ShowSections(IReadOnlyList<SettingsRow> rows);
         void Hide();
     }

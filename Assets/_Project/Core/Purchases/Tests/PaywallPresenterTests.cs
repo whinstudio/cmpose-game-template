@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Kturker.UnityBase.Core.About;
+using Kturker.UnityBase.Features.Economy;
 using Kturker.UnityBase.Features.Shell.Purchases;
 using Kturker.UnityBase.Tests.EditMode;
 using NUnit.Framework;
@@ -17,6 +18,7 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
         public bool Open;
         public bool Busy;
         public string Message;
+        public string Bonus;
         public bool Privacy;
         public bool Terms;
         public event Action CloseClicked;
@@ -34,6 +36,7 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
         public void ShowUnavailable() => Calls.Add("unavailable");
         public void ShowMessage(string key) { Message = key; Calls.Add($"message {key}"); }
         public void SetBusy(bool busy) => Busy = busy;
+        public void ShowBonus(string text) => Bonus = text;
         public void ClickClose() => CloseClicked?.Invoke();
         public void ClickBuy() => BuyClicked?.Invoke();
         public void ClickRestore() => RestoreClicked?.Invoke();
@@ -251,6 +254,59 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
             Assert.That(view.Message, Is.Null);
             Assert.That(purchases.Purchased.Count, Is.EqualTo(1));
             Assert.That(log.Lines.Any(l => l.Contains("CMPOSE_PURCHASE ")), Is.False);
+        }
+
+        // A game economy whose welcome bundle is 600 coins, 3 bombs and 3 shields
+        private const string EconomyJson =
+            "{\"version\":1,\"currency\":{\"name\":\"coins\",\"color\":\"#F9B817\"}," +
+            "\"boosters\":[{\"id\":\"bomb\",\"price\":80,\"offer\":\"inRun\",\"start\":0}," +
+            "{\"id\":\"shield\",\"price\":120,\"offer\":\"preRun\",\"start\":0}]," +
+            "\"supply\":{\"freeCoins\":15,\"freeHours\":3,\"adCoins\":[20]}," +
+            "\"wheel\":{\"freeEvery\":4,\"adSpinsPerDay\":3,\"slices\":[{\"coins\":15,\"weight\":1}]}," +
+            "\"login\":[{\"coins\":15},{\"coins\":15},{\"coins\":30},{\"coins\":30},{\"coins\":45},{\"coins\":45},{\"coins\":200}]," +
+            "\"extras\":[{\"id\":\"supply\",\"kind\":\"supply\"},{\"id\":\"wheel\",\"kind\":\"wheel\"},{\"id\":\"login\",\"kind\":\"login\"}]," +
+            "\"welcome\":{\"coins\":600,\"boosters\":{\"bomb\":3,\"shield\":3}}}";
+
+        [Test]
+        public void Paywall_shows_the_welcome_bundle_when_bound()
+        {
+            var view = new FakePaywallView();
+            var purchases = new FakePurchases { Offer = Offer };
+            var economy = new Economy(EconomyConfig.Parse(EconomyJson), new MemoryEconomyStore());
+            var bundle = new WelcomeBundle(economy, new PurchasesPremiumEvents(purchases));
+            bundle.Initialize();
+            var presenter = new PaywallPresenter(view, purchases, new AboutInfo("1.0.0", "", "", ""), new FakeUrlOpener(), new FakeUiFeedback(),
+                new FakeLog(), new WelcomeBonusLine(economy, new FakeLocalizer()), new FakeLocalizer());
+            presenter.Start();
+
+            presenter.Open(PaywallSource.Menu);
+
+            Assert.That(view.Bonus, Is.EqualTo("economy.welcome.line(+600 coins, +3 economy.booster.bomb.name, +3 economy.booster.shield.name)"));
+            view.ClickBuy();
+            purchases.RaisePremiumPurchased();
+            Assert.That(economy.Coins, Is.EqualTo(600));
+            presenter.Open(PaywallSource.Settings);
+            Assert.That(view.Bonus, Is.Null, "given once: the line goes");
+            bundle.Dispose();
+        }
+
+        [Test]
+        public void Paywall_without_economy_is_unchanged()
+        {
+            var presenter = Make(out var view, out _, out _, out _);
+            presenter.Open(PaywallSource.First);
+
+            Assert.That(view.Calls, Is.EqualTo(new[] { "open", "loading", "packages 4" }));
+            Assert.That(view.Bonus, Is.Null);
+
+            // An economy without GameEconomy.json binds a line with nothing in it
+            var offView = new FakePaywallView();
+            var off = new PaywallPresenter(offView, new FakePurchases { Offer = Offer }, new AboutInfo("1.0.0", "", "", ""), new FakeUrlOpener(),
+                new FakeUiFeedback(), new FakeLog(), new WelcomeBonusLine(new Economy(null, new MemoryEconomyStore()), new FakeLocalizer()), new FakeLocalizer());
+            off.Start();
+            off.Open(PaywallSource.First);
+            Assert.That(offView.Calls, Is.EqualTo(new[] { "open", "loading", "packages 4" }));
+            Assert.That(offView.Bonus, Is.Null);
         }
     }
 }

@@ -10,7 +10,8 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
 {
     // SceneBuilder builds the prefab (Resources/ShellPurchases/Paywall): a full-screen panel with the title, two
     // feature lines and a card that is a column as tall as what it shows: Rows package rows (rounded, with a savings
-    // pill; hidden ones leave no gap), a status line, Continue, Restore and Close, the legal links
+    // pill; hidden ones leave no gap), the welcome bundle's line (IPaywallBonus), a status line, Continue, Restore and
+    // Close, the legal links
     public sealed class PaywallView : MonoBehaviour, IPaywallView
     {
         public const int Rows = 4;
@@ -24,6 +25,7 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
         [SerializeField] private LocalizedText[] rowBadges;
         // The savings pill around each badge text
         [SerializeField] private GameObject[] rowBadgeBoxes;
+        [SerializeField] private LocalizedText bonus;
         [SerializeField] private LocalizedText status;
         [SerializeField] private Button buyButton;
         [SerializeField] private Button restoreButton;
@@ -109,6 +111,12 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
 
         public void ShowUnavailable() => ShowStatus(PurchasesKeys.Unavailable);
 
+        public void ShowBonus(string text)
+        {
+            bonus.gameObject.SetActive(!string.IsNullOrEmpty(text));
+            if (!string.IsNullOrEmpty(text)) bonus.SetLiteral(text);
+        }
+
         public void ShowMessage(string key)
         {
             status.gameObject.SetActive(true);
@@ -125,6 +133,7 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
         private void ShowStatus(string key)
         {
             foreach (var row in rows) row.gameObject.SetActive(false);
+            bonus.gameObject.SetActive(false);
             buyButton.gameObject.SetActive(false);
             ShowMessage(key);
         }

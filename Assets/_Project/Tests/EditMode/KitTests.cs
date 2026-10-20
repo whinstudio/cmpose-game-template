@@ -688,5 +688,57 @@ namespace Kturker.UnityBase.Tests.EditMode
             var fallback = ThemeStyle.Load().DisplayFont;
             Assert.That(display.fallbackFontAssetTable, Is.EqualTo(new List<TMPro.TMP_FontAsset> { fallback }), "falls back to the theme's display font");
         }
+
+        // A currency without an icon file: a disc in its own colour (with a darker rim) and its initial in black or white,
+        // whichever reads; with a glyph, the glyph in that colour; null: the plain disc (the HUD without an economy)
+        [Test]
+        public void Fallback_icon_uses_the_currency_colour_and_initial()
+        {
+            var root = new GameObject("Icon", typeof(RectTransform));
+            root.transform.SetParent(canvas.transform, false);
+            Image Layer(string name)
+            {
+                var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(root.transform, false);
+                return go.GetComponent<Image>();
+            }
+            var glyph = Layer("Glyph");
+            var disc = Layer("Disc");
+            var letterGo = new GameObject("Letter", typeof(RectTransform), typeof(TMPro.TextMeshProUGUI));
+            letterGo.transform.SetParent(root.transform, false);
+            var letter = letterGo.AddComponent<Kturker.UnityBase.Core.Localization.LocalizedText>();
+            var icon = root.AddComponent<FallbackIcon>();
+            var wiring = new SerializedObject(icon);
+            wiring.FindProperty("glyph").objectReferenceValue = glyph;
+            wiring.FindProperty("disc").objectReferenceValue = disc;
+            wiring.FindProperty("letter").objectReferenceValue = letter;
+            wiring.ApplyModifiedPropertiesWithoutUndo();
+
+            var purple = new Color(0.56f, 0.27f, 0.68f);
+            icon.ShowCurrency(new CurrencyMark(null, purple, FallbackIcon.LetterOf("sparks")));
+            Assert.That(icon.UsesFallback, Is.True);
+            Assert.That((glyph.enabled, disc.gameObject.activeSelf, letterGo.activeSelf), Is.EqualTo((false, true, true)));
+            Assert.That(disc.color, Is.EqualTo(purple), "the disc in the currency's colour");
+            Assert.That(disc.GetComponent<Outline>().effectColor, Is.EqualTo(KitGlyph.Rim(purple)), "with a darker rim");
+            Assert.That(letterGo.GetComponent<TMPro.TMP_Text>().text, Is.EqualTo("S"));
+            Assert.That(letterGo.GetComponent<TMPro.TMP_Text>().color, Is.EqualTo(Color.white), "white on a dark colour");
+            Assert.That(new CurrencyMark(null, new Color(1f, 0.85f, 0.3f), "G").LetterColour.grayscale, Is.LessThan(0.2f), "dark on a light one");
+
+            var texture = new Texture2D(4, 4);
+            made.Add(texture);
+            var sprite = Sprite.Create(texture, new Rect(0f, 0f, 4f, 4f), new Vector2(0.5f, 0.5f));
+            made.Add(sprite);
+            icon.ShowCurrency(new CurrencyMark(sprite, purple, "S"));
+            Assert.That(icon.UsesFallback, Is.False);
+            Assert.That((glyph.enabled, glyph.sprite, disc.gameObject.activeSelf, letterGo.activeSelf), Is.EqualTo((true, sprite, false, false)));
+            Assert.That(glyph.color, Is.EqualTo(purple), "the glyph in the currency's colour");
+
+            icon.ShowCurrency(null);
+            Assert.That((glyph.enabled, disc.gameObject.activeSelf, letterGo.activeSelf), Is.EqualTo((false, true, false)), "the plain disc");
+            Assert.That(disc.GetComponent<Outline>().enabled, Is.False, "back in its role, no rim");
+
+            Assert.That(FallbackIcon.LetterOf("élan"), Is.EqualTo("É"));
+            Assert.That(FallbackIcon.LetterOf("  "), Is.EqualTo("?"));
+        }
     }
 }

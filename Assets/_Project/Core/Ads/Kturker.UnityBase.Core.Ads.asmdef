@@ -3,6 +3,7 @@
     "rootNamespace": "Kturker.UnityBase.Core.Ads",
     "references": [
         "Kturker.UnityBase.Core.Domain",
+        "Kturker.UnityBase.Core.Preferences",
         "Kturker.UnityBase.Core.Presentation",
         "Kturker.UnityBase.Core.Update",
         "UniTask",

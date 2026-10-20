@@ -15,6 +15,7 @@ using Kturker.UnityBase.Core.Preferences;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Core.Review;
 using Kturker.UnityBase.Core.Update;
+using Kturker.UnityBase.Features.Economy;
 
 namespace Kturker.UnityBase.Tests.EditMode
 {
@@ -140,14 +141,12 @@ namespace Kturker.UnityBase.Tests.EditMode
         public (int Index, int Level)? LevelShown;
         public event Action<int> GameClicked;
         public event Action SettingsClicked;
-        public event Action AboutClicked;
         public void SetTitle(string text) => Title = text;
         public void SetVersion(string text) => Version = text;
         public void ShowGames(IReadOnlyList<string> labelKeys, UiBinder binder) => GameKeys = new List<string>(labelKeys);
         public void ShowLevel(int index, int level) => LevelShown = (index, level);
         public void ClickGame(int index) => GameClicked?.Invoke(index);
         public void ClickSettings() => SettingsClicked?.Invoke();
-        public void ClickAbout() => AboutClicked?.Invoke();
     }
 
     // Typed in-memory store: a value of another type reads as the default, like a key PlayerPrefs cannot read
@@ -214,8 +213,10 @@ namespace Kturker.UnityBase.Tests.EditMode
     public sealed class FakeSettingsPanel : ISettingsPanel
     {
         public int Opened;
+        public IAboutPanel Offered;
         public bool IsOpen => Opened > 0;
         public void Open() => Opened++;
+        public void OfferAbout(IAboutPanel about) => Offered = about;
     }
 
     public sealed class FakeAboutPanel : IAboutPanel
@@ -254,6 +255,10 @@ namespace Kturker.UnityBase.Tests.EditMode
         public event Action RateClicked;
         public void SetRateVisible(bool visible) => RateVisible = visible;
         public void ClickRate() => RateClicked?.Invoke();
+        public bool AboutVisible;
+        public event Action AboutClicked;
+        public void SetAboutVisible(bool visible) => AboutVisible = visible;
+        public void ClickAbout() => AboutClicked?.Invoke();
         public IReadOnlyList<SettingsRow> Rows = new List<SettingsRow>();
         public int SectionRenders;
         public event Action<int> SectionClicked;
@@ -451,5 +456,311 @@ namespace Kturker.UnityBase.Tests.EditMode
     public static class TestGames
     {
         public static readonly GameScene Game = new GameScene(SceneId.Game, "menu.play");
+    }
+
+    // Writes "key" or "key(arg,arg)", so tests read which text a presenter asked for
+    public sealed class FakeLocalizer : ILocalizer
+    {
+        public string Language => "en";
+        public event Action Changed;
+        public string Get(string key, params object[] args) =>
+            args == null || args.Length == 0 ? key : $"{key}({string.Join(",", args)})";
+        public void Change() => Changed?.Invoke();
+    }
+
+    public sealed class FakeEconomyAds : IEconomyAds
+    {
+        public bool RewardedAvailable { get; set; } = true;
+        public bool Earns = true;
+        public Exception Failure;
+        public int Shows;
+        public bool BannerHeld;
+        // When set, ShowRewardedAsync waits for it (the ad is on screen)
+        public UniTaskCompletionSource<bool> Pending;
+
+        public UniTask<bool> ShowRewardedAsync(CancellationToken ct)
+        {
+            Shows++;
+            if (Failure != null) throw Failure;
+            return Pending != null ? Pending.Task : UniTask.FromResult(Earns);
+        }
+
+        public void HoldBanner(bool held) => BannerHeld = held;
+    }
+
+    public sealed class FakeMenuSideButton : IMenuSideButton
+    {
+        public MenuSide Side;
+        public UnityEngine.Sprite Icon;
+        public string LabelKey;
+        public Action OnClick;
+        public MenuBadge Badge;
+        public string Timer;
+
+        public void SetBadge(MenuBadge badge, string timer = null)
+        {
+            Badge = badge;
+            Timer = badge == MenuBadge.Timer ? timer : null;
+        }
+
+        public void Click() => OnClick?.Invoke();
+    }
+
+    public sealed class FakeMenuSideButtons : IMenuSideButtons, IMenuCoins
+    {
+        public readonly List<FakeMenuSideButton> Buttons = new List<FakeMenuSideButton>();
+        public int? Coins;
+        public CurrencyMark CoinMark;
+        public int CoinWrites;
+
+        public IMenuSideButton AddSideButton(MenuSide side, UnityEngine.Sprite icon, string labelKey, Action onClick)
+        {
+            var button = new FakeMenuSideButton { Side = side, Icon = icon, LabelKey = labelKey, OnClick = onClick };
+            Buttons.Add(button);
+            return button;
+        }
+
+        public void SetCoins(int? count, CurrencyMark mark)
+        {
+            Coins = count;
+            CoinMark = mark;
+            CoinWrites++;
+        }
+
+        public FakeMenuSideButton Find(string labelKey) => Buttons.Find(b => b.LabelKey == labelKey);
+    }
+
+    public sealed class FakeEconomyWindows : IEconomyWindows
+    {
+        public readonly List<string> Opened = new List<string>();
+        public bool OpenSupply() { Opened.Add("supply"); return true; }
+        public bool OpenWheel() { Opened.Add("wheel"); return true; }
+        public bool OpenLogin() { Opened.Add("login"); return true; }
+        public bool OpenExtra(IEconomyExtraContent content) { Opened.Add(content.ExtraId); return true; }
+    }
+
+    public sealed class FakeBoosterOfferView : IBoosterOfferView
+    {
+        public bool Open;
+        public int Opened;
+        public string NameKey;
+        public UnityEngine.Sprite Icon;
+        public int Price;
+        public int Coins;
+        public EconomyCurrency Currency;
+        public object[] MessageArgs;
+        public bool CanBuy;
+        public bool AdShown;
+        public string Message;
+        public bool Busy;
+        public event Action BuyClicked;
+        public event Action WatchClicked;
+        public event Action CloseClicked;
+
+        public void SetOpen(bool open)
+        {
+            if (open && !Open) Opened++;
+            Open = open;
+        }
+
+        public void ShowBooster(string nameKey, string descriptionKey, UnityEngine.Sprite icon)
+        {
+            NameKey = nameKey;
+            Icon = icon;
+        }
+
+        public void ShowPrice(int price, int coins, EconomyCurrency currency)
+        {
+            Price = price;
+            Coins = coins;
+            Currency = currency;
+        }
+
+        public void SetActions(bool canBuy, bool adShown)
+        {
+            CanBuy = canBuy;
+            AdShown = adShown;
+        }
+
+        public void ShowMessage(string key, params object[] args)
+        {
+            Message = key;
+            MessageArgs = args;
+        }
+
+        public void SetBusy(bool busy) => Busy = busy;
+        public void ClickBuy() => BuyClicked?.Invoke();
+        public void ClickWatch() => WatchClicked?.Invoke();
+        public void ClickClose() => CloseClicked?.Invoke();
+    }
+
+    public sealed class FakeBoosterPickerView : IBoosterPickerView
+    {
+        public bool Open;
+        public int Opened;
+        public IReadOnlyList<PickerRow> Rows = new PickerRow[0];
+        public EconomyCurrency Currency;
+        public event Action<int> RowClicked;
+        public event Action PlayClicked;
+        public int MaxRows => 3;
+
+        public void SetOpen(bool open)
+        {
+            if (open && !Open) Opened++;
+            Open = open;
+        }
+
+        public void ShowRows(IReadOnlyList<PickerRow> rows, EconomyCurrency currency)
+        {
+            Rows = rows;
+            Currency = currency;
+        }
+
+        public void ClickRow(int index) => RowClicked?.Invoke(index);
+        public void ClickPlay() => PlayClicked?.Invoke();
+    }
+
+    public sealed class FakeBoosterBarView : IBoosterBarView
+    {
+        public IReadOnlyList<BoosterSlot> Shown = new BoosterSlot[0];
+        public readonly Dictionary<int, int> Counts = new Dictionary<int, int>();
+        public event Action<int> Clicked;
+        public int Slots => 3;
+        public void Show(IReadOnlyList<BoosterSlot> slots) => Shown = slots;
+        public void SetCount(int index, int count) => Counts[index] = count;
+        public void Click(int index) => Clicked?.Invoke(index);
+    }
+
+    public sealed class FakeSupplyWindowView : ISupplyWindowView
+    {
+        public bool Open;
+        public int FreeCoins;
+        public bool FreeReady;
+        public string FreeTimer;
+        public IReadOnlyList<SupplyRow> Rows = new SupplyRow[0];
+        public CurrencyMark Currency;
+        public string Message;
+        public bool Busy;
+        public event Action FreeClicked;
+        public event Action<int> AdClicked;
+        public event Action CloseClicked;
+        public int MaxAdRows => 4;
+        public void SetOpen(bool open) => Open = open;
+
+        public void ShowFree(int coins, bool ready, string timer)
+        {
+            FreeCoins = coins;
+            FreeReady = ready;
+            FreeTimer = timer;
+        }
+
+        public void ShowAdRows(IReadOnlyList<SupplyRow> rows) => Rows = rows;
+
+        public void ShowCurrency(CurrencyMark mark) => Currency = mark;
+
+        public void ShowMessage(string key) => Message = key;
+        public void SetBusy(bool busy) => Busy = busy;
+        public void ClickFree() => FreeClicked?.Invoke();
+        public void ClickAd(int row) => AdClicked?.Invoke(row);
+        public void ClickClose() => CloseClicked?.Invoke();
+    }
+
+    public sealed class FakeWheelWindowView : IWheelWindowView
+    {
+        public bool Open;
+        public IReadOnlyList<WheelSliceLabel> Slices = new WheelSliceLabel[0];
+        public bool FreeReady;
+        public bool AdShown;
+        public string Status;
+        public string Note;
+        public IReadOnlyList<string> Odds;
+        public readonly List<int> SpunTo = new List<int>();
+        public event Action SpinClicked;
+        public event Action SpinAdClicked;
+        public event Action InfoClicked;
+        public event Action CloseClicked;
+        public int MaxSlices => 8;
+        public void SetOpen(bool open) => Open = open;
+        public void ShowSlices(IReadOnlyList<WheelSliceLabel> slices) => Slices = slices;
+
+        public void ShowControls(bool freeReady, bool adShown, string status, string note)
+        {
+            FreeReady = freeReady;
+            AdShown = adShown;
+            Status = status;
+            Note = note;
+        }
+
+        public void ShowOdds(IReadOnlyList<string> lines) => Odds = lines;
+
+        public UniTask SpinTo(int index, CancellationToken ct)
+        {
+            SpunTo.Add(index);
+            return UniTask.CompletedTask;
+        }
+
+        public void SetBusy(bool busy)
+        {
+        }
+
+        public void ClickSpin() => SpinClicked?.Invoke();
+        public void ClickSpinAd() => SpinAdClicked?.Invoke();
+        public void ClickInfo() => InfoClicked?.Invoke();
+        public void ClickClose() => CloseClicked?.Invoke();
+    }
+
+    public sealed class FakeLoginBonusView : ILoginBonusView
+    {
+        public bool Open;
+        public IReadOnlyList<LoginDay> Days = new LoginDay[0];
+        public bool ClaimReady;
+        public string Next;
+        public event Action ClaimClicked;
+        public event Action CloseClicked;
+        public void SetOpen(bool open) => Open = open;
+        public void ShowDays(IReadOnlyList<LoginDay> days) => Days = days;
+
+        public void ShowClaim(bool ready, string next)
+        {
+            ClaimReady = ready;
+            Next = next;
+        }
+
+        public void ClickClaim() => ClaimClicked?.Invoke();
+        public void ClickClose() => CloseClicked?.Invoke();
+    }
+
+    public sealed class FakeExtraWindowView : IExtraWindowView
+    {
+        public bool Open;
+        public string Title;
+        public bool Busy;
+        public event Action CloseClicked;
+        public UnityEngine.RectTransform Content => null;
+        public void SetOpen(bool open) => Open = open;
+        public void ShowTitle(string key) => Title = key;
+        public void SetBusy(bool busy) => Busy = busy;
+        public void ClickClose() => CloseClicked?.Invoke();
+    }
+
+    // A custom extra's content that records what the frame did with it
+    public sealed class FakeExtraContent : IEconomyExtraContent
+    {
+        public FakeExtraContent(string id) => ExtraId = id;
+
+        public string ExtraId { get; }
+        public int Shown;
+        public int Ticks;
+        public int Hidden;
+        public IEconomyExtraFrame Frame;
+
+        public void Show(UnityEngine.RectTransform parent, IEconomyExtraFrame frame)
+        {
+            Shown++;
+            Frame = frame;
+        }
+
+        public void Tick() => Ticks++;
+        public void Hide() => Hidden++;
     }
 }

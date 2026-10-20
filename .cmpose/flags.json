@@ -6,6 +6,7 @@
         "Assets/_Project/Core/Save",
         "Assets/_Project/Features/Sample/Presentation/SavedCompletionCounter.cs",
         "Assets/_Project/Features/Shell/GameShell/LevelProgress.cs",
+        "Assets/_Project/Features/Economy/SavedEconomyStore.cs",
         "Assets/_Project/Features/Showcase/Common/Save"
       ],
       "asmdefs": ["Kturker.UnityBase.Core.Save", "Kturker.UnityBase.Features.Showcase.Common.Save"],
@@ -52,6 +53,10 @@
         "Assets/_Project/Features/Shell/GameShell/Resources/Strings/fr",
         "Assets/_Project/Features/Shell/GameShell/Resources/Strings/es",
         "Assets/_Project/Features/Shell/GameShell/Resources/Strings/it",
+        "Assets/_Project/Features/Economy/Resources/Strings/tr",
+        "Assets/_Project/Features/Economy/Resources/Strings/fr",
+        "Assets/_Project/Features/Economy/Resources/Strings/es",
+        "Assets/_Project/Features/Economy/Resources/Strings/it",
         "Assets/_Project/Features/Showcase/Common/Resources/Strings/tr",
         "Assets/_Project/Features/Showcase/Common/Resources/Strings/fr",
         "Assets/_Project/Features/Showcase/Common/Resources/Strings/es",
@@ -91,7 +96,8 @@
       "paths": [
         "Assets/_Project/Core/Purchases",
         "Assets/_Project/Features/Shell/Purchases",
-        "Assets/_Project/Features/Showcase/Common/Purchases"
+        "Assets/_Project/Features/Showcase/Common/Purchases",
+        "Assets/_Project/Features/Economy/PurchasesPremiumEvents.cs"
       ],
       "asmdefs": ["Kturker.UnityBase.Core.Purchases", "Kturker.UnityBase.Features.Shell.Purchases", "Kturker.UnityBase.Features.Showcase.Common.Purchases"],
       "packages": ["com.revenuecat.purchases-unity", "com.google.external-dependency-manager"]
@@ -103,6 +109,7 @@
         "Assets/_Project/Features/Sample/Ads",
         "Assets/_Project/Features/Shell/Ads",
         "Assets/_Project/Features/Shell/GameShell/RewardedShellAds.cs",
+        "Assets/_Project/Features/Economy/RewardedEconomyAds.cs",
         "Assets/_Project/Features/Showcase/Common/Ads",
         "Assets/GoogleMobileAds"
       ],

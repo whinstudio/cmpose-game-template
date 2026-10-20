@@ -10,9 +10,10 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
     // IGameShell over the scene's shell views. One end card at a time, the HUD hidden under it: opening another one (or Begin, or leaving the
     // scene) closes the open one and cancels its task (OperationCanceledException). A press is taken once; presses
     // while a rewarded ad is on screen are ignored. Continue is offered once per run (Begin starts a run) while
-    // IShellAds has a rewarded ad; each landing star taps lightly; every other choice first gives IShellAds its break (an interstitial). strict
-    // (the editor) throws where a device logs.
-    public sealed class GameShell : IGameShell, IDisposable
+    // IShellAds has a rewarded ad; each landing star taps lightly; every other choice ends the run (RunEnded, and the
+    // root's ShellRunEvents when given) and then gives IShellAds its break (an interstitial). strict (the editor)
+    // throws where a device logs.
+    public sealed class GameShell : IGameShell, IShellRunEvents, IDisposable
     {
         public const int MaxStars = 3;
 
@@ -26,6 +27,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         private readonly IUiFeedback feedback;
         private readonly ILog log;
         private readonly bool strict;
+        private readonly ShellRunEvents runs;
         private readonly CancellationTokenSource cancellation = new CancellationTokenSource();
         private IShellCard open;
         private UniTaskCompletionSource<EndChoice> pending;
@@ -33,7 +35,8 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         private bool continued;
 
         public GameShell(IShellHudView hud, IStartHintView hint, IGameOverCard gameOver, ILevelCompleteCard levelComplete,
-            ILevelFailedCard levelFailed, ILevelProgress progress, IShellAds ads, IUiFeedback feedback, ILog log, bool strict)
+            ILevelFailedCard levelFailed, ILevelProgress progress, IShellAds ads, IUiFeedback feedback, ILog log, bool strict,
+            ShellRunEvents runs = null)
         {
             this.hud = hud;
             this.hint = hint;
@@ -45,8 +48,14 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             this.feedback = feedback;
             this.log = log;
             this.strict = strict;
+            this.runs = runs;
             levelComplete.StarFilled += OnStarFilled;
         }
+
+        public event Action<bool> RunEnded;
+
+        // After Begin showed the HUD for a new run or level (the economy writes the coins into its counter again)
+        public event Action Begun;
 
         public ShellMode Mode { get; private set; }
 
@@ -66,6 +75,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             CloseOpenCard();
             if (mode == ShellMode.Levels) progress.Start();
             hud.Show(mode == ShellMode.Levels ? CurrentLevel : (int?)null);
+            Begun?.Invoke();
         }
 
         public void SetScore(int score) => hud.CountScore(score);
@@ -73,6 +83,8 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         public void SetBest(int best) => hud.ShowBest(best);
 
         public void SetCounter(int value) => hud.ShowCounter(value);
+
+        public void SetCounterIcon(CurrencyMark mark) => hud.ShowCounterIcon(mark);
 
         public void Toast(string key)
         {
@@ -92,7 +104,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
                 gameOver.CelebrateNewBest();
                 feedback.Success();
             }
-            return Choose(gameOver, true, id);
+            return Choose(gameOver, true, false, id);
         }
 
         public UniTask<EndChoice> ShowLevelComplete(int level, int stars, int reward)
@@ -102,7 +114,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             levelComplete.Show(level, shown, Math.Max(0, reward));
             if (shown > 0) levelComplete.Celebrate();
             feedback.Success();
-            return Choose(levelComplete, false, id);
+            return Choose(levelComplete, false, true, id);
         }
 
         public UniTask<EndChoice> ShowLevelFailed(int level)
@@ -110,7 +122,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             var id = Open(levelFailed);
             levelFailed.Show(level);
             feedback.Failure();
-            return Choose(levelFailed, true, id);
+            return Choose(levelFailed, true, false, id);
         }
 
         public void CompleteLevel(int level, int stars)
@@ -168,7 +180,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             waiting?.TrySetResult(choice);
         }
 
-        private async UniTask<EndChoice> Choose(IShellCard card, bool continuable, int id)
+        private async UniTask<EndChoice> Choose(IShellCard card, bool continuable, bool won, int id)
         {
             var token = cancellation.Token;
             var offer = continuable && !continued && ads.RewardedAvailable;
@@ -195,6 +207,8 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
                 }
                 feedback.Click();
                 Close(card, id);
+                RunEnded?.Invoke(won);
+                runs?.Report(Mode, won);
                 await Break(token);
                 return choice;
             }

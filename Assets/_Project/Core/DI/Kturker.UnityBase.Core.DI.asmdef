@@ -26,6 +26,7 @@
         "Kturker.UnityBase.Features.Shell.Ads",
         "Kturker.UnityBase.Core.Leaderboards",
         "Kturker.UnityBase.Features.Shell.GameShell",
+        "Kturker.UnityBase.Features.Economy",
         "VContainer"
     ],
     "autoReferenced": true

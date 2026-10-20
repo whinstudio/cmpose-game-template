@@ -20,6 +20,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         {
             "Assets/_Project/Core/DI/ProjectLifetimeScope.prefab",
             "Assets/_Project/App/Settings/SettingsPanel.prefab",
+            "Assets/_Project/Features/Economy/Resources/Economy/EconomyWindows.prefab",
             // cmpose:sample
             "Assets/_Project/Features/Sample/Resources/Sample/SampleView.prefab",
             // /cmpose:sample
@@ -124,6 +125,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
 
         private const string SettingsPrefab = "Assets/_Project/App/Settings/SettingsPanel.prefab";
+        private const string EconomyPrefab = "Assets/_Project/Features/Economy/Resources/Economy/EconomyWindows.prefab";
         // The settings modal's card: a column that grows with the rows the presenter shows
         private const string SettingsColumn = "Panel/SafeArea/Card";
         // cmpose:networkInspector
@@ -245,7 +247,8 @@ namespace Kturker.UnityBase.Tests.EditMode
                 ("Boot", stage.AddFromScene("Assets/_Project/Scenes/Boot.unity", "Canvas/SafeArea"), SideMargin),
                 ("Menu", StageMenu(stage), SideMargin),
                 ("Menu/About", stage.AddFromScene(menu, "Canvas/About"), SideMargin),
-                ("Menu/Update", stage.AddFromScene(menu, "UpdatePanel"), SideMargin)
+                ("Menu/Update", stage.AddFromScene(menu, "UpdatePanel"), SideMargin),
+                ("Economy", stage.Add(Load(EconomyPrefab)), SideMargin)
             };
             // cmpose:networkInspector
             screens.Add(("Inspector", stage.Add(Load(InspectorPrefab)), SideMargin));
@@ -414,6 +417,23 @@ namespace Kturker.UnityBase.Tests.EditMode
                 Assert.That(row.GetComponent<ThemedGraphic>().Role, Is.EqualTo(ThemeRole.Track), row.name);
             }
         }
+
+        // The welcome bundle's line (IPaywallBonus) is wired, hidden until bound and sits under the packages, above the
+        // status line; the presenter writes it whenever packages show
+        [Test]
+        public void Paywall_bonus_line_sits_under_the_packages()
+        {
+            var paywall = Load(PaywallPrefab);
+            var view = paywall.GetComponent<Kturker.UnityBase.Features.Shell.Purchases.PaywallView>();
+            var bonus = new SerializedObject(view).FindProperty("bonus").objectReferenceValue as LocalizedText;
+            Assert.That(bonus, Is.Not.Null, "PaywallView.bonus is wired");
+            Assert.That(bonus.gameObject.activeSelf, Is.False, "hidden until a bonus is bound");
+            var plans = paywall.transform.Find("Panel/SafeArea/Plans");
+            Assert.That(bonus.transform.parent, Is.SameAs(plans), "in the packages' column");
+            var lastRow = plans.Find($"Row{Kturker.UnityBase.Features.Shell.Purchases.PaywallView.Rows - 1}");
+            Assert.That(bonus.transform.GetSiblingIndex(), Is.GreaterThan(lastRow.GetSiblingIndex()), "under the packages");
+            Assert.That(bonus.transform.GetSiblingIndex(), Is.LessThan(plans.Find("Status").GetSiblingIndex()), "above the status line");
+        }
         // /cmpose:purchases
 
         // Slider rails take the Control role (the Primary fill reads on it in both palettes); the vibration row is a kit
@@ -471,7 +491,9 @@ namespace Kturker.UnityBase.Tests.EditMode
             {
                 ["Value"] = new List<string>(),
                 ["Play"] = new List<string> { "menu.play", "shell.level" },
-                ["ContinueButton"] = new List<string> { "shell.continue", "shell.continueAd" }
+                ["ContinueButton"] = new List<string> { "shell.continue", "shell.continueAd" },
+                // The booster offer's price next to the currency's icon
+                ["OfferBuy"] = new List<string> { "economy.price" }
             };
             var texts = new Dictionary<string, List<string>>();
             // cmpose:uiTheme
@@ -764,7 +786,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
 
         // The menu: the style's background and its drifting shapes behind it, the title in the display font, a breathing
-        // Play button, the other actions quieter with their icons, and the whole screen playing in when the scene starts
+        // Play button, the settings gear, and the whole screen playing in when the scene starts
         [Test]
         public void The_menu_leads_with_a_breathing_play_button_under_a_display_title()
         {
@@ -781,12 +803,14 @@ namespace Kturker.UnityBase.Tests.EditMode
                 var play = menu.Find("Play").GetComponent<KitButton>();
                 Assert.That(play.Variant, Is.EqualTo(KitButtonVariant.Play), "play variant");
                 Assert.That(play.GetComponent<IdlePulse>(), Is.Not.Null, "play breathes");
-                foreach (var (name, icon) in new[] { ("Settings", KitSprites.Gear), ("About", KitSprites.Info) })
-                {
-                    var button = menu.Find(name).GetComponent<KitButton>();
-                    Assert.That(button.Variant, Is.EqualTo(KitButtonVariant.Secondary), name);
-                    Assert.That(button.Icon != null ? button.Icon.sprite : null, Is.SameAs(icon), $"{name} icon");
-                }
+                // The settings gear in the top bar's right corner; About moved into the settings panel
+                var gear = menu.Find("TopBar/Settings").GetComponent<KitButton>();
+                Assert.That(gear.Variant, Is.EqualTo(KitButtonVariant.Icon), "gear variant");
+                Assert.That(gear.Icon != null ? gear.Icon.sprite : null, Is.SameAs(KitSprites.Gear), "gear icon");
+                Assert.That(menu.Find("About"), Is.Null, "no About button on the menu");
+                var about = Load(SettingsPrefab).transform.Find("Panel/SafeArea/Card/About").GetComponent<KitButton>();
+                Assert.That(about.Variant, Is.EqualTo(KitButtonVariant.Secondary), "settings About");
+                Assert.That(about.Icon != null ? about.Icon.sprite : null, Is.SameAs(KitSprites.Info), "About icon");
                 // Soft shapes over the background, behind the safe area's content, so a game without a logo still has a
                 // dressed title screen
                 var decor = canvas.Find("Decor");

@@ -8,7 +8,7 @@ using Kturker.UnityBase.Core.Presentation;
 namespace Kturker.UnityBase.Features.Showcase.Common.Ads
 {
     // The ads flag in the showcase: after a crash, Continue (once per run) shows a rewarded ad and continues the run
-    // when it pays out. Premium players continue without an ad (GmaAds grants the reward) and the label drops "(ad)";
+    // when it pays out. Premium players continue without an ad and the label drops "(ad)";
     // premium comes from IPremiumStatus when a flag registers one (null: nobody is premium). A finished run is a natural
     // break for an interstitial (the pacer decides; GmaAds skips premium). A failed ad counts as not ready. Leaving the
     // scene or finishing the run while the ad is on screen makes its reward change nothing.
@@ -78,7 +78,8 @@ namespace Kturker.UnityBase.Features.Showcase.Common.Ads
         {
             if (watching || !run.CanContinue) return;
             feedback.Click();
-            ContinueAsync().Forget();
+            if (IsPremium) run.Continue();
+            else ContinueAsync().Forget();
         }
 
         private async UniTaskVoid ContinueAsync()

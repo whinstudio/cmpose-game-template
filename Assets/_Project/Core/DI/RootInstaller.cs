@@ -11,6 +11,7 @@ using Kturker.UnityBase.Core.Preferences;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Core.Review;
 using Kturker.UnityBase.Core.Update;
+using Kturker.UnityBase.Features.Economy;
 using Kturker.UnityBase.Features.Shell.GameShell;
 using UnityEngine;
 using VContainer;
@@ -124,6 +125,9 @@ namespace Kturker.UnityBase.Core.DI
             // cmpose:leaderboards
             new LeaderboardsInstaller().Install(builder);
             // /cmpose:leaderboards
+            // Every scene's game shell reports its finished runs here; the economy's wheel counts them
+            builder.Register<ShellRunEvents>(Lifetime.Singleton).As<IShellRunEvents>().AsSelf();
+            new EconomyInstaller().Install(builder);
         }
 
         // The editor counts as Android

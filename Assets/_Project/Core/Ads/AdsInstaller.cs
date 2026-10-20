@@ -1,4 +1,5 @@
 using Kturker.UnityBase.Core.Domain;
+using Kturker.UnityBase.Core.Preferences;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Core.Update;
 using UnityEngine;
@@ -20,6 +21,7 @@ namespace Kturker.UnityBase.Core.Ads
             builder.Register<GmaAds>(resolver => new GmaAds(resolver.Resolve<IGmaGateway>(), Premium(resolver),
                     new InterstitialPacer(resolver.Resolve<IClock>(), AdsConfig.InterstitialStartDelaySeconds * 1000L,
                         AdsConfig.InterstitialGapSeconds * 1000L, AdsConfig.InterstitialEvery),
+                    new RewardedCap(resolver.Resolve<IPreferences>(), resolver.Resolve<IClock>(), AdsConfig.RewardedDailyCap),
                     units, resolver.Resolve<ILog>(), GmaAds.RealDelay), Lifetime.Singleton)
                 .As<IAds>().AsSelf();
             builder.RegisterEntryPoint<AdsConsentFlow>(resolver => new AdsConsentFlow(resolver.Resolve<IGmaGateway>(),

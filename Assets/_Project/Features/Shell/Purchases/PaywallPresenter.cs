@@ -12,6 +12,7 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
 {
     // The paywall's states: loading, packages (Annual selected), unavailable, busy while a purchase or restore
     // runs (every press is ignored then, Close too). Success closes; Cancelled says nothing; Error shows its text.
+    // With a bonus bound (the economy's welcome bundle) its line shows under the packages.
     // Rewrite the view for your game; keep this flow.
     public sealed class PaywallPresenter : IDisposable
     {
@@ -21,14 +22,19 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
         private readonly IUrlOpener urls;
         private readonly IUiFeedback feedback;
         private readonly ILog log;
+        private readonly IPaywallBonus bonus;
+        private readonly ILocalizer localizer;
         private IReadOnlyList<PaywallPackage> packages = new PaywallPackage[0];
         private CancellationTokenSource loading;
         private int selected;
         private bool busy;
         private bool disposed;
 
-        public PaywallPresenter(IPaywallView view, IPurchases purchases, AboutInfo about, IUrlOpener urls, IUiFeedback feedback, ILog log)
+        public PaywallPresenter(IPaywallView view, IPurchases purchases, AboutInfo about, IUrlOpener urls, IUiFeedback feedback, ILog log,
+            IPaywallBonus bonus = null, ILocalizer localizer = null)
         {
+            this.bonus = bonus;
+            this.localizer = localizer;
             this.view = view;
             this.purchases = purchases;
             this.about = about;
@@ -114,6 +120,15 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
             var annual = packages.ToList().FindIndex(p => p.Period == PackagePeriod.Annual);
             selected = annual >= 0 ? annual : 0;
             view.ShowPackages(packages.Select(Row).ToList(), selected);
+            view.ShowBonus(BonusText(bonus, localizer));
+        }
+
+        // "Bonus: +600 coins, +3 Bomb"; null without a bonus or with nothing in it
+        public static string BonusText(IPaywallBonus bonus, ILocalizer localizer)
+        {
+            if (bonus == null || localizer == null || bonus.LineKey == null) return null;
+            var parts = bonus.Args.Select(part => $"+{part.Value} {localizer.Get(part.Key)}").ToList();
+            return parts.Count == 0 ? null : localizer.Get(bonus.LineKey, string.Join(", ", parts));
         }
 
         private void OnPackage(int index)

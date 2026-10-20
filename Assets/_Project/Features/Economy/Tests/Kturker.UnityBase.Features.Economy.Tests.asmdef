@@ -1,0 +1,22 @@
+{
+    "name": "Kturker.UnityBase.Features.Economy.Tests",
+    "rootNamespace": "Kturker.UnityBase.Features.Economy.Tests",
+    "references": [
+        "Kturker.UnityBase.Features.Economy",
+        "Kturker.UnityBase.Features.Shell.GameShell",
+        "Kturker.UnityBase.Core.Domain",
+        "Kturker.UnityBase.Core.Update",
+        "Kturker.UnityBase.Core.Localization",
+        "Kturker.UnityBase.Core.Presentation",
+        "Kturker.UnityBase.Core.Lifecycle",
+        "Kturker.UnityBase.Tests.EditMode",
+        "UniTask",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": ["Editor"],
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

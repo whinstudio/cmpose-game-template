@@ -118,6 +118,29 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(Child(canvas, "Decor").activeSelf, Is.True, "decor");
         }
 
+        // A name that takes two lines at the title's size keeps its Accent stroke under the second line, not across it
+        [Test]
+        public void Title_stroke_sits_below_a_two_line_title()
+        {
+            var view = OpenMenu(out var canvas);
+            // Laid out at the canvas scaler's 1080 x 1920 reference, whatever size the editor's game view has
+            canvas.GetComponent<CanvasScaler>().enabled = false;
+            canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+            ((RectTransform)canvas).sizeDelta = new Vector2(1080f, 1920f);
+            Canvas.ForceUpdateCanvases();
+
+            view.SetTitle("Şanslı Çiftlik Macerası");
+
+            var title = view.Title;
+            Assert.That(title.textInfo.lineCount, Is.GreaterThanOrEqualTo(2), "the name wraps");
+            var textBottom = title.transform.TransformPoint(new Vector3(0f, title.textBounds.min.y, 0f)).y;
+            var corners = new Vector3[4];
+            view.TitleStroke.GetWorldCorners(corners);
+            Assert.That(corners[1].y, Is.LessThan(textBottom), "the stroke's top under the text's last line");
+            Assert.That(textBottom - corners[1].y, Is.LessThan(MenuView.StrokeGap * 3f * view.TitleStroke.lossyScale.y), "close under it");
+            Assert.That(view.TitleStroke.gameObject.activeSelf, Is.True);
+        }
+
         [Test]
         public void Menu_background_replaces_decor()
         {

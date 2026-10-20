@@ -72,7 +72,10 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
         public int Restores;
         public CancellationToken LastOfferToken;
 
+        public event Action PremiumPurchased;
+
         public void RaiseChanged() => Changed?.Invoke();
+        public void RaisePremiumPurchased() => PremiumPurchased?.Invoke();
 
         public UniTask<PaywallOffer> OfferAsync(CancellationToken cancellation)
         {

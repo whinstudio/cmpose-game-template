@@ -10,13 +10,15 @@ namespace Kturker.UnityBase.Core.Ads
 {
     // The only class that sees Google Mobile Ads and UMP. Answers are moved to Unity's main thread before they are
     // returned (banner events through MobileAdsEventExecutor). Nothing throws: a failure is a warning plus a Failed,
-    // false or error-message result. The banner's height goes to SafeArea.ReservedBottom.
+    // false or error-message result. The banner's height goes to SafeArea.ReservedTop or ReservedBottom, the edge it sits on.
     public sealed class GmaGateway : IGmaGateway
     {
         private readonly ILog log;
         private InterstitialAd interstitial;
         private RewardedAd rewarded;
         private BannerView banner;
+        private int bannerHeight;
+        private bool bannerAtTop;
 
         public GmaGateway(ILog log) => this.log = log;
 
@@ -33,6 +35,8 @@ namespace Kturker.UnityBase.Core.Ads
                 }
             }
         }
+
+        public int BannerHeight => banner == null ? 0 : bannerHeight;
 
         public bool CanRequestAds => ConsentInformation.CanRequestAds();
 
@@ -149,17 +153,19 @@ namespace Kturker.UnityBase.Core.Ads
             return result == RewardResult.Dismissed && earned ? RewardResult.Rewarded : result;
         }
 
-        public void ShowBanner(string adUnitId, Action<bool> loaded)
+        public void ShowBanner(string adUnitId, BannerPosition position, Action<bool> loaded)
         {
             HideBanner();
             var size = AdSize.GetCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth(MobileAds.Utils.GetDeviceSafeWidth());
-            var view = new BannerView(adUnitId, size, AdPosition.Bottom);
+            var view = new BannerView(adUnitId, size, position == BannerPosition.Top ? AdPosition.Top : AdPosition.Bottom);
+            bannerAtTop = position == BannerPosition.Top;
             var reported = false;
             banner = view;
             view.OnBannerAdLoaded += () => MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
                 if (banner != view) return;
-                SafeArea.ReservedBottom = view.GetHeightInPixels();
+                bannerHeight = (int)view.GetHeightInPixels();
+                Reserve(bannerHeight);
                 if (reported) return;
                 reported = true;
                 loaded(true);
@@ -179,7 +185,14 @@ namespace Kturker.UnityBase.Core.Ads
             if (banner == null) return;
             banner.Destroy();
             banner = null;
-            SafeArea.ReservedBottom = 0f;
+            bannerHeight = 0;
+            Reserve(0);
+        }
+
+        private void Reserve(float pixels)
+        {
+            SafeArea.ReservedTop = bannerAtTop ? pixels : 0f;
+            SafeArea.ReservedBottom = bannerAtTop ? 0f : pixels;
         }
 
         private static string Message(FormError error) => error == null ? null : error.Message ?? "unknown error";

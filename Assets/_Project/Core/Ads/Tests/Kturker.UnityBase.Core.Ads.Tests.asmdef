@@ -8,6 +8,8 @@
         "Kturker.UnityBase.Core.Presentation",
         "Kturker.UnityBase.Core.Localization",
         "Kturker.UnityBase.Core.Update",
+        "Kturker.UnityBase.Core.Preferences",
+        "Kturker.UnityBase.Features.Economy",
         "Kturker.UnityBase.Features.Sample.Ads",
         "Kturker.UnityBase.Features.Shell.Ads",
         "Kturker.UnityBase.Features.Shell.GameShell",

@@ -1,6 +1,7 @@
 using Kturker.UnityBase.App.Settings;
 using Kturker.UnityBase.Core.Preferences;
 using Kturker.UnityBase.Core.Presentation;
+using Kturker.UnityBase.Features.Economy;
 using Kturker.UnityBase.Features.Sample.Installer;
 using Kturker.UnityBase.Features.Shell.GameShell;
 using UnityEngine;
@@ -9,8 +10,9 @@ using VContainer.Unity;
 
 namespace Kturker.UnityBase.App.Game
 {
-    // Game scene: pause, guide and settings panels, the game shell (IGameShell: HUD, start hint, end cards), then the
-    // feature modules; the generator adds one line per cloned module inside the markers
+    // Game scene: pause, guide and settings panels, the game shell (IGameShell: HUD, start hint, end cards) with the
+    // economy's parts (IBoosters, the HUD's booster buttons and coins), then the feature modules; the generator adds one
+    // line per cloned module inside the markers
     public sealed class GameInstaller : IInstaller
     {
         private readonly bool registerViews;
@@ -34,6 +36,7 @@ namespace Kturker.UnityBase.App.Game
             builder.RegisterEntryPoint<GameRenderMarker>();
             builder.RegisterEntryPoint<FrameTimeMarker>();
             new GameShellInstaller(registerViews).Install(builder);
+            new EconomyGameInstaller(registerViews).Install(builder);
             // cmpose:features:start
             new SampleInstaller(registerViews).Install(builder);
             // cmpose:features:end

@@ -1,0 +1,20 @@
+{
+    "name": "Kturker.UnityBase.Features.Economy",
+    "rootNamespace": "Kturker.UnityBase.Features.Economy",
+    "references": [
+        "Kturker.UnityBase.Core.Domain",
+        "Kturker.UnityBase.Core.Update",
+        "Kturker.UnityBase.Core.Localization",
+        "Kturker.UnityBase.Core.Presentation",
+        "Kturker.UnityBase.Core.Lifecycle",
+        "Kturker.UnityBase.Features.Shell.GameShell",
+        "Kturker.UnityBase.Core.Save",
+        "Kturker.UnityBase.Core.Ads",
+        "Kturker.UnityBase.Core.Purchases",
+        "UniTask",
+        "VContainer",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "autoReferenced": true
+}
