@@ -38,5 +38,30 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(lowered.y, Is.EqualTo(0.875f));
             Assert.That(tooLow.y, Is.EqualTo(bottom.y));
         }
+
+        // Every SafeArea (and the menu's top bar) follows a reservation at once, not on its next Update, so a scene
+        // revealed right after the change already has the room
+        [Test]
+        public void A_reservation_change_is_announced_once_and_an_unchanged_value_is_not()
+        {
+            var changes = 0;
+            void Count() => changes++;
+            SafeArea.ReservationChanged += Count;
+            try
+            {
+                SafeArea.ReservedTop = 168f;
+                SafeArea.ReservedTop = 168f;
+                SafeArea.ReservedBottom = 0f;
+                SafeArea.ReservedTop = 0f;
+
+                Assert.That(changes, Is.EqualTo(2));
+            }
+            finally
+            {
+                SafeArea.ReservationChanged -= Count;
+                SafeArea.ReservedTop = 0f;
+                SafeArea.ReservedBottom = 0f;
+            }
+        }
     }
 }

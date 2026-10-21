@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
+using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Tests.EditMode;
 using NUnit.Framework;
 
@@ -13,6 +14,13 @@ namespace Kturker.UnityBase.Core.Ads.Tests
         private FakeTracking tracking;
         private FakeLog log;
         private GmaAds ads;
+
+        [TearDown]
+        public void ClearReservation()
+        {
+            SafeArea.ReservedTop = 0f;
+            SafeArea.ReservedBottom = 0f;
+        }
 
         [SetUp]
         public void Create()
@@ -175,6 +183,34 @@ namespace Kturker.UnityBase.Core.Ads.Tests
             Assert.That(calls, Is.Empty);
             Assert.That(flow.OptionsRequired, Is.False);
             Assert.That(Marker, Is.EqualTo("MARKER CMPOSE_ADS available=false consent=skipped att=notApplicable"));
+        }
+
+        // The menu asks for the banner before the flow ends; a run that ends without ads keeps no empty room for it
+        [TestCase(false, false, null)]
+        [TestCase(true, true, null)]
+        [TestCase(true, false, "offline")]
+        public void A_run_without_ads_gives_the_banner_room_back(bool enabled, bool automation, string consentError)
+        {
+            gateway.ExpectedBannerHeight = 168;
+            gateway.ConsentInfoError = consentError;
+            ads.ShowBanner();
+            Assert.That(ads.BannerHeight, Is.EqualTo(168));
+
+            Start(enabled: enabled, automation: automation);
+
+            Assert.That(ads.IsAvailable, Is.False);
+            Assert.That(ads.BannerHeight, Is.Zero);
+        }
+
+        [Test]
+        public void A_run_with_ads_keeps_the_banner_room()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            ads.ShowBanner();
+
+            Start();
+
+            Assert.That(ads.BannerHeight, Is.EqualTo(168));
         }
 
         [Test]

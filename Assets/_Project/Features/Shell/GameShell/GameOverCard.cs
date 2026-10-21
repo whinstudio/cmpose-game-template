@@ -15,13 +15,13 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
 
         protected override EndChoice Primary => EndChoice.Retry;
 
-        public void Show(int scoreValue, int bestValue)
+        public void Show(int scoreValue, int bestValue, bool settled)
         {
             newBest.gameObject.SetActive(false);
             best.SetKey(ShellKeys.Best, bestValue);
             Open();
-            score.SetValue(0);
-            score.CountTo(scoreValue);
+            score.SetValue(settled ? scoreValue : 0);
+            if (!settled) score.CountTo(scoreValue);
         }
 
         public void CelebrateNewBest()

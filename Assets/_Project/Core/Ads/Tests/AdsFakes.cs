@@ -93,6 +93,8 @@ namespace Kturker.UnityBase.Core.Ads.Tests
 
         public int BannerHeight { get; set; }
 
+        public int ExpectedBannerHeight { get; set; }
+
         public void ShowBanner(string adUnitId, BannerPosition position, Action<bool> loaded)
         {
             Banners.Add(adUnitId);
@@ -184,6 +186,12 @@ namespace Kturker.UnityBase.Core.Ads.Tests
         {
             BannerCalls.Add("hide");
             BannerVisible = false;
+        }
+
+        public void HoldBanner(bool held)
+        {
+            BannerCalls.Add(held ? "hold" : "release");
+            BannerVisible = !held;
         }
     }
 }

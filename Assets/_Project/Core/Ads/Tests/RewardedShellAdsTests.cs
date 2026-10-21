@@ -33,6 +33,19 @@ namespace Kturker.UnityBase.Core.Ads.Tests
             Assert.That(ads.Rewardeds, Is.Zero);
         }
 
+        // The economy's windows hold the banner (its room stays) instead of asking it away
+        [Test]
+        public void An_economy_window_holds_the_banner()
+        {
+            var ads = new FakeAds();
+            var economy = new RewardedEconomyAds(ads, new FakeLog(), () => false);
+
+            economy.HoldBanner(true);
+            economy.HoldBanner(false);
+
+            Assert.That(ads.BannerCalls, Is.EqualTo(new[] { "hold", "release" }));
+        }
+
         [Test]
         public void The_daily_cap_also_closes_the_economy_ads()
         {

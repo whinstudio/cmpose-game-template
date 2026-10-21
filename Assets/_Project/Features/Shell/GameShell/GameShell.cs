@@ -12,7 +12,8 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
     // while a rewarded ad is on screen are ignored. Continue is offered once per run (Begin starts a run) while
     // IShellAds has a rewarded ad; each landing star taps lightly; every other choice ends the run (RunEnded, and the
     // root's ShellRunEvents when given) and then gives IShellAds its break (an interstitial). strict (the editor)
-    // throws where a device logs.
+    // throws where a device logs. During an automation run (automated: AutomationRun.Active) the cards open settled,
+    // without confetti, so a store shot shows the final result.
     public sealed class GameShell : IGameShell, IShellRunEvents, IDisposable
     {
         public const int MaxStars = 3;
@@ -28,6 +29,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         private readonly ILog log;
         private readonly bool strict;
         private readonly ShellRunEvents runs;
+        private readonly Func<bool> automated;
         private readonly CancellationTokenSource cancellation = new CancellationTokenSource();
         private IShellCard open;
         private UniTaskCompletionSource<EndChoice> pending;
@@ -36,7 +38,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
 
         public GameShell(IShellHudView hud, IStartHintView hint, IGameOverCard gameOver, ILevelCompleteCard levelComplete,
             ILevelFailedCard levelFailed, ILevelProgress progress, IShellAds ads, IUiFeedback feedback, ILog log, bool strict,
-            ShellRunEvents runs = null)
+            ShellRunEvents runs = null, Func<bool> automated = null)
         {
             this.hud = hud;
             this.hint = hint;
@@ -49,6 +51,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             this.log = log;
             this.strict = strict;
             this.runs = runs;
+            this.automated = automated ?? (() => false);
             levelComplete.StarFilled += OnStarFilled;
         }
 
@@ -98,10 +101,11 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         public UniTask<EndChoice> ShowGameOver(int score, int best, bool newBest)
         {
             var id = Open(gameOver);
-            gameOver.Show(score, best);
+            var settled = automated();
+            gameOver.Show(score, best, settled);
             if (newBest)
             {
-                gameOver.CelebrateNewBest();
+                if (!settled) gameOver.CelebrateNewBest();
                 feedback.Success();
             }
             return Choose(gameOver, true, false, id);
@@ -111,8 +115,9 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         {
             var id = Open(levelComplete);
             var shown = Math.Max(0, Math.Min(MaxStars, stars));
-            levelComplete.Show(level, shown, Math.Max(0, reward));
-            if (shown > 0) levelComplete.Celebrate();
+            var settled = automated();
+            levelComplete.Show(level, shown, Math.Max(0, reward), settled);
+            if (shown > 0 && !settled) levelComplete.Celebrate();
             feedback.Success();
             return Choose(levelComplete, false, true, id);
         }

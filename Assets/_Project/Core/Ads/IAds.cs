@@ -13,7 +13,9 @@ namespace Kturker.UnityBase.Core.Ads
         // IsAvailable and the daily rewarded cap (AdsConfig.RewardedDailyCap) not reached yet
         bool RewardedAvailable { get; }
 
-        // Pixels the banner covers at the top of the screen, 0 while none is shown; the menu keeps its content below it
+        // Pixels kept for the banner at the top of the screen (SafeArea.ReservedTop): from the moment one is asked for
+        // while it may still come (ads on or consent not answered yet, not premium), before it loads, so nothing moves
+        // when it does; 0 otherwise
         int BannerHeight { get; }
 
         // After IsAvailable changes and when the daily rewarded cap is reached
@@ -28,5 +30,9 @@ namespace Kturker.UnityBase.Core.Ads
         // An adaptive banner at the top of the screen; asking while ads are off shows it once they are on
         void ShowBanner();
         void HideBanner();
+
+        // A window over the screen hides the banner while held and shows it again after, keeping its room so neither
+        // the window nor the screen behind it moves
+        void HoldBanner(bool held);
     }
 }

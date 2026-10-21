@@ -35,9 +35,11 @@ namespace Kturker.UnityBase.Features.Economy
     }
 
     // The inRun boosters' HUD buttons: a press uses one (Boosters.UseInRunAsync), the badges follow the stock. Hidden
-    // with the economy off, without inRun boosters and during an AutoPlay run.
+    // with the economy off and without inRun boosters; during an AutoPlay run it only shows them, at DemoStock each.
     public sealed class BoosterBar : IStartable, IDisposable
     {
+        public const int DemoStock = 3;
+
         private readonly IBoosterBarView view;
         private readonly IEconomy economy;
         private readonly Boosters boosters;
@@ -59,7 +61,7 @@ namespace Kturker.UnityBase.Features.Economy
         public void Start()
         {
             var list = new List<BoosterConfig>();
-            if (economy.Enabled && !autoPlay())
+            if (economy.Enabled)
             {
                 foreach (var booster in boosters.InRun)
                     if (list.Count < view.Slots) list.Add(booster);
@@ -69,6 +71,13 @@ namespace Kturker.UnityBase.Features.Economy
             foreach (var booster in list) slots.Add(new BoosterSlot(booster.NameKey, EconomyIcons.Booster(booster)));
             view.Show(slots);
             if (list.Count == 0) return;
+            if (autoPlay())
+            {
+                // Display only: the store shots taken during an AutoPlay run show the boosters with a stock (not the
+                // "+" of an empty one), but a press must never open the offer window that would block the AutoPlayer
+                for (var i = 0; i < list.Count; i++) view.SetCount(i, DemoStock);
+                return;
+            }
             view.Clicked += OnClicked;
             economy.Changed += Refresh;
             Refresh();

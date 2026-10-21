@@ -237,6 +237,37 @@ namespace Kturker.UnityBase.Features.Economy.Tests
         }
 
         [Test]
+        public void Picker_ad_watched_booster_is_chosen_without_stock_or_coins()
+        {
+            var rig = new Rig();
+            rig.Economy.Earn(100);
+
+            var choice = rig.Boosters.ChooseForRunAsync(CancellationToken.None);
+
+            rig.PickerView.ClickRow(1);
+            Assert.That(rig.OfferView.Open, Is.True, "none in stock: its offer opens");
+            Assert.That(rig.OfferView.AdShown, Is.True);
+            rig.OfferView.ClickWatch();
+            Assert.That(rig.OfferView.Open, Is.False);
+            Assert.That(rig.Ads.Shows, Is.EqualTo(1));
+            Assert.That(rig.PickerView.Rows[1].Selected, Is.True);
+            Assert.That(rig.PickerView.Rows[1].ByAd, Is.True);
+            Assert.That(rig.PickerView.Rows[1].Owned, Is.Zero, "never stocked");
+
+            // The same run: the row is paid for, no second ad and no untick
+            var opened = rig.OfferView.Opened;
+            rig.PickerView.ClickRow(1);
+            Assert.That(rig.OfferView.Opened, Is.EqualTo(opened), "one ad per booster a run");
+            Assert.That(rig.PickerView.Rows[1].Selected, Is.True);
+            rig.PickerView.ClickPlay();
+
+            Assert.That(Run(choice), Is.EqualTo(new[] { "magnet" }));
+            Assert.That(rig.Economy.Count("magnet"), Is.Zero);
+            Assert.That(rig.Economy.Coins, Is.EqualTo(100));
+            Assert.That(rig.Ads.Shows, Is.EqualTo(1));
+        }
+
+        [Test]
         public void Picker_is_skipped_under_autoplay()
         {
             var rig = new Rig { AutoPlay = true };
@@ -281,6 +312,43 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             bar.Click(0);
             Assert.That(used, Is.EqualTo(new[] { "bomb" }));
             Assert.That(bar.Counts[0], Is.EqualTo(1));
+        }
+
+        // Two inRun boosters (bomb, freeze), or four: more than the bar's three slots
+        private static readonly string TwoInRun = Json.Replace(
+            "{\"id\":\"shield\"", "{\"id\":\"freeze\",\"price\":60,\"offer\":\"inRun\",\"start\":0},{\"id\":\"shield\"");
+        private static readonly string FourInRun = Json.Replace(
+            "{\"id\":\"shield\"", "{\"id\":\"freeze\",\"price\":60,\"offer\":\"inRun\",\"start\":0}," +
+                                 "{\"id\":\"lantern\",\"price\":70,\"offer\":\"inRun\",\"start\":0}," +
+                                 "{\"id\":\"drill\",\"price\":90,\"offer\":\"inRun\",\"start\":0},{\"id\":\"shield\"");
+
+        [TestCase(2)]
+        [TestCase(4)]
+        public void Bar_under_autoplay_shows_in_run_boosters_with_demo_stock_and_ignores_clicks(int inRun)
+        {
+            var rig = new Rig(inRun == 2 ? TwoInRun : FourInRun) { AutoPlay = true };
+            Assert.That(rig.Boosters.InRun.Count, Is.EqualTo(inRun));
+            rig.Economy.Earn(500);
+            var bar = new FakeBoosterBarView();
+            var used = new List<string>();
+            rig.Boosters.Used += used.Add;
+            new BoosterBar(bar, rig.Economy, rig.Boosters, rig.Feedback, () => rig.AutoPlay).Start();
+
+            var expected = Math.Min(inRun, bar.Slots);
+            Assert.That(bar.Shown.Count, Is.EqualTo(expected), "the store shot shows the inRun boosters");
+            Assert.That(bar.Shown[0].NameKey, Is.EqualTo("economy.booster.bomb.name"));
+            Assert.That(BoosterBar.DemoStock, Is.EqualTo(3));
+            Assert.That(bar.Counts, Is.EqualTo(Enumerable.Range(0, expected).ToDictionary(i => i, _ => 3)),
+                "every badge shows the demo stock, never the \"+\" of an empty one");
+
+            bar.Click(0);
+            Assert.That(rig.OfferView.Opened, Is.Zero, "the AutoPlayer is never blocked by the offer");
+            Assert.That(used, Is.Empty);
+            Assert.That(rig.Economy.Coins, Is.EqualTo(500));
+            Assert.That(rig.Economy.Count("bomb"), Is.Zero);
+
+            rig.Economy.Add("bomb", 1);
+            Assert.That(bar.Counts[0], Is.EqualTo(3), "the wallet does not overwrite the demo stock");
         }
 
         [Test]

@@ -7,8 +7,9 @@ using Kturker.UnityBase.Features.Sample.Presentation;
 
 namespace Kturker.UnityBase.Features.Sample.Ads
 {
-    // The ads flag's example in the Game scene: an interstitial after Complete (the pacer decides) and a Bonus button
-    // whose rewarded ad adds one to the completion count. Leaving the scene cancels; a late result changes nothing.
+    // The ads flag's example in the Game scene: a Bonus button whose rewarded ad adds one to the completion count.
+    // No interstitial here: full-screen ads come only after the shell's end panel (AdCallSitesTests). Leaving the
+    // scene cancels; a late result changes nothing.
     public sealed class SampleAdsPresenter : Presenter<IBonusView>
     {
         private readonly ISampleView sample;
@@ -29,7 +30,6 @@ namespace Kturker.UnityBase.Features.Sample.Ads
 
         public override void Start()
         {
-            sample.CompleteClicked += OnComplete;
             View.BonusClicked += OnBonus;
             ads.Changed += ShowReadyHint;
             ShowReadyHint();
@@ -37,7 +37,6 @@ namespace Kturker.UnityBase.Features.Sample.Ads
 
         public override void Dispose()
         {
-            sample.CompleteClicked -= OnComplete;
             View.BonusClicked -= OnBonus;
             ads.Changed -= ShowReadyHint;
             cancellation.Cancel();
@@ -45,9 +44,6 @@ namespace Kturker.UnityBase.Features.Sample.Ads
         }
 
         private void ShowReadyHint() => View.ShowHint(ads.IsAvailable ? AdsKeys.BonusHint : AdsKeys.Unavailable);
-
-        // A natural break: the player finished something
-        private void OnComplete() => ads.ShowInterstitialAsync(cancellation.Token).Forget();
 
         private void OnBonus()
         {

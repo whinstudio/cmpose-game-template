@@ -34,12 +34,18 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             stars.Finished -= OnStarsFinished;
         }
 
-        public void Show(int level, int starCount, int rewardValue)
+        public void Show(int level, int starCount, int rewardValue, bool settled)
         {
             title.SetKey(ShellKeys.Level, level);
             celebrate = false;
             pendingReward = rewardValue;
             Open();
+            if (settled)
+            {
+                stars.Snap(starCount);
+                reward.SetValue(rewardValue);
+                return;
+            }
             reward.SetValue(0);
             stars.Play(starCount);
         }

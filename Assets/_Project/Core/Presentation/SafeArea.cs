@@ -1,17 +1,43 @@
+using System;
 using UnityEngine;
 
 namespace Kturker.UnityBase.Core.Presentation
 {
     // Keeps its RectTransform inside Screen.safeArea (notch, home indicator), above ReservedBottom and below
-    // ReservedTop, and follows rotation and reservation changes
+    // ReservedTop, and follows rotation and reservation changes (a reservation change applies at once, not on the next
+    // Update, so a screen revealed right after it already has the new room)
     [RequireComponent(typeof(RectTransform))]
     public sealed class SafeArea : MonoBehaviour
     {
+        private static float reservedBottomPixels;
+        private static float reservedTopPixels;
+
         // Pixels at the bottom of the screen that a native overlay covers (the ads banner); content stays above them
-        public static float ReservedBottom { get; set; }
+        public static float ReservedBottom
+        {
+            get => reservedBottomPixels;
+            set
+            {
+                if (value == reservedBottomPixels) return;
+                reservedBottomPixels = value;
+                ReservationChanged?.Invoke();
+            }
+        }
 
         // Pixels at the top of the screen that a native overlay covers (the ads banner); content stays below them
-        public static float ReservedTop { get; set; }
+        public static float ReservedTop
+        {
+            get => reservedTopPixels;
+            set
+            {
+                if (value == reservedTopPixels) return;
+                reservedTopPixels = value;
+                ReservationChanged?.Invoke();
+            }
+        }
+
+        // After ReservedBottom or ReservedTop changed; every enabled SafeArea has applied it already
+        public static event Action ReservationChanged;
 
         private RectTransform rect;
         private Rect applied;
@@ -24,6 +50,10 @@ namespace Kturker.UnityBase.Core.Presentation
             rect = (RectTransform)transform;
             Apply();
         }
+
+        private void OnEnable() => ReservationChanged += Apply;
+
+        private void OnDisable() => ReservationChanged -= Apply;
 
         private void Update()
         {

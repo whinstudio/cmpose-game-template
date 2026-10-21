@@ -33,8 +33,14 @@ namespace Kturker.UnityBase.Tests.EditMode
     {
         public int Shown;
         public bool Visible;
+        // Runs as the overlay hides: what the screen shows from its first visible frame
+        public Action OnHide;
         public void Show() { Shown++; Visible = true; }
-        public void Hide() => Visible = false;
+        public void Hide()
+        {
+            Visible = false;
+            OnHide?.Invoke();
+        }
     }
 
     public sealed class FakeGateway : ISceneGateway
@@ -58,6 +64,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         public int Failures;
         public Action<SceneId> OnLoad;
         public bool IsLoading => false;
+        public event Action<SceneId> Revealing;
         public event Action<SceneId> Loaded;
 
         public UniTask LoadAsync(SceneId id, CancellationToken cancellation = default)
@@ -69,6 +76,7 @@ namespace Kturker.UnityBase.Tests.EditMode
                 Failures--;
                 return UniTask.FromException(new InvalidOperationException($"Scene '{id}' is not in Build Settings"));
             }
+            Revealing?.Invoke(id);
             Loaded?.Invoke(id);
             return UniTask.CompletedTask;
         }

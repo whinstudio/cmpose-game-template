@@ -9,7 +9,8 @@ namespace Kturker.UnityBase.Core.Ads
     // when required, the ATT prompt on iOS when not asked yet, then Google Mobile Ads when consent allows ads. A UMP
     // error starts ads only in a development build. The editor touches neither SDK. Also the privacy options form,
     // after which ads start (once) or stop as consent now says. Compass's capture runs (flag file `compass-autoplay` or
-    // `compass-capture`, AutomationRun) skip consent and ads.
+    // `compass-capture`, AutomationRun) skip consent and ads. A run that ends without ads tells GmaAds (Deactivate), so
+    // the room it keeps for the banner while consent is pending goes.
     public sealed class AdsConsentFlow : IStartable, IDisposable, IAdsPrivacy
     {
         public const string TestIdsWarning = "Ads use Google test IDs: replace them in AdsConfig before you ship";
@@ -80,6 +81,7 @@ namespace Kturker.UnityBase.Core.Ads
         {
             if (!enabled)
             {
+                ads.Deactivate();
                 Mark();
                 return;
             }
@@ -87,6 +89,7 @@ namespace Kturker.UnityBase.Core.Ads
             {
                 consent = "automation";
                 log.Marker("CMPOSE_ADS consent=automation");
+                ads.Deactivate();
                 Mark();
                 return;
             }
@@ -108,6 +111,7 @@ namespace Kturker.UnityBase.Core.Ads
                     ? $"Ad consent failed ({error}): a development build shows test ads anyway"
                     : $"Ad consent failed ({error}): no ads this run");
                 if (developmentBuild) await StartAdsAsync();
+                else ads.Deactivate();
             }
             else await ApplyConsentAsync();
             if (disposed) return;

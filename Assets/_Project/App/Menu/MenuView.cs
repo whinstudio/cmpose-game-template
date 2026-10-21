@@ -11,9 +11,9 @@ using VContainer;
 namespace Kturker.UnityBase.App.Menu
 {
     // The menu: a top bar (the coins on the left, the settings gear in the right corner), the title or the game's logo
-    // in the middle with the side columns of round feature buttons at its sides, the big Play at the bottom. While the
-    // banner shows (SafeArea.ReservedTop > 0: SafeArea already keeps the content below it) the top bar moves down one
-    // button height more, so no button sits next to the ad.
+    // in the middle with the side columns of round feature buttons at its sides, the big Play at the bottom. While room
+    // is kept for the banner (SafeArea.ReservedTop > 0, from before the ad loads: SafeArea already keeps the content
+    // below it) the top bar moves down one button height more, so no button sits next to the ad.
     public sealed class MenuView : MonoBehaviour, IMenuView, IMenuSideButtons, IMenuCoins
     {
         // Each further game's button sits this many canvas units above the previous one's top edge
@@ -78,7 +78,13 @@ namespace Kturker.UnityBase.App.Menu
             ReserveBannerSpace(SafeArea.ReservedTop > 0f);
         }
 
-        private void Update()
+        private void OnEnable() => SafeArea.ReservationChanged += FollowBannerSpace;
+
+        private void OnDisable() => SafeArea.ReservationChanged -= FollowBannerSpace;
+
+        private void Update() => FollowBannerSpace();
+
+        private void FollowBannerSpace()
         {
             var shown = SafeArea.ReservedTop > 0f;
             if (shown != bannerSpace) ReserveBannerSpace(shown);
@@ -150,7 +156,8 @@ namespace Kturker.UnityBase.App.Menu
             coinIcon.ShowCurrency(mark);
         }
 
-        // The top bar at TopInset below the safe area's top, one settings button height lower while the banner shows
+        // The top bar at TopInset below the safe area's top, one settings button height lower while room is kept for the
+        // banner
         public void ReserveBannerSpace(bool bannerShown)
         {
             bannerSpace = bannerShown;

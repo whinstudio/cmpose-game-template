@@ -12,7 +12,7 @@ namespace Kturker.UnityBase.Features.Economy
         // True only when an ad was shown and its reward earned: not ready, closed early or failed is false
         UniTask<bool> ShowRewardedAsync(CancellationToken ct);
 
-        // While held (a menu window is open) the menu's banner hides; released, it shows again
+        // While held (a menu window is open) the menu's banner hides and its room stays; released, it shows again
         void HoldBanner(bool held);
     }
 }

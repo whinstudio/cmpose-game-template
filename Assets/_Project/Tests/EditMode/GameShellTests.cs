@@ -146,6 +146,52 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(Result(task), Is.EqualTo(EndChoice.Next));
         }
 
+        // Store shots are taken seconds into an automation run: the card opens at its end state, without confetti over it
+        [Test]
+        public void Automation_settles_the_level_complete_card()
+        {
+            var rig = new ShellRig(automated: () => true);
+            rig.Shell.Begin(ShellMode.Levels);
+
+            rig.Shell.ShowLevelComplete(1, 2, 60).Forget();
+
+            Assert.That(rig.LevelComplete.Settled, Is.True);
+            Assert.That(rig.LevelComplete.Stars, Is.EqualTo(2));
+            Assert.That(rig.LevelComplete.Reward, Is.EqualTo(60));
+            Assert.That(rig.LevelComplete.Celebrated, Is.False, "confetti would cover the shot");
+        }
+
+        [Test]
+        public void Real_runs_animate_the_level_complete_card()
+        {
+            var rig = new ShellRig(automated: () => false);
+            rig.Shell.Begin(ShellMode.Levels);
+
+            rig.Shell.ShowLevelComplete(1, 2, 60).Forget();
+
+            Assert.That(rig.LevelComplete.Settled, Is.False);
+            Assert.That(rig.LevelComplete.Celebrated, Is.True);
+        }
+
+        [Test]
+        public void Automation_settles_the_game_over_card()
+        {
+            var rig = new ShellRig(automated: () => true);
+            rig.Shell.Begin(ShellMode.Endless);
+
+            rig.Shell.ShowGameOver(42, 42, true).Forget();
+
+            Assert.That(rig.GameOver.Settled, Is.True);
+            Assert.That(rig.GameOver.Score, Is.EqualTo(42));
+            Assert.That(rig.GameOver.Celebrated, Is.False, "no confetti over the shot");
+
+            var real = new ShellRig();
+            real.Shell.Begin(ShellMode.Endless);
+            real.Shell.ShowGameOver(42, 42, true).Forget();
+            Assert.That(real.GameOver.Settled, Is.False, "a player sees the score count up");
+            Assert.That(real.GameOver.Celebrated, Is.True);
+        }
+
         [Test]
         public void Continue_hidden_without_rewarded()
         {

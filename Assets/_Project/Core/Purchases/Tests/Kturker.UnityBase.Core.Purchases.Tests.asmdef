@@ -12,6 +12,7 @@
         "Kturker.UnityBase.Core.About",
         "Kturker.UnityBase.Features.Economy",
         "Kturker.UnityBase.Tests.EditMode",
+        "Unity.TextMeshPro",
         "UniTask",
         "VContainer",
         "UnityEngine.TestRunner",

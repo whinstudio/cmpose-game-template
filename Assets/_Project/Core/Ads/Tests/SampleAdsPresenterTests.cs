@@ -38,11 +38,12 @@ namespace Kturker.UnityBase.Core.Ads.Tests
         }
 
         [Test]
-        public void Complete_asks_for_an_interstitial()
+        public void Complete_shows_no_full_screen_ad()
         {
             sample.ClickComplete();
+            sample.ClickComplete();
 
-            Assert.That(ads.Interstitials, Is.EqualTo(1));
+            Assert.That(ads.Interstitials, Is.Zero);
         }
 
         [Test]

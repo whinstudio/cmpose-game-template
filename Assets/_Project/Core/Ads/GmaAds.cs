@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kturker.UnityBase.Core.Domain;
+using Kturker.UnityBase.Core.Presentation;
 
 namespace Kturker.UnityBase.Core.Ads
 {
@@ -10,6 +11,11 @@ namespace Kturker.UnityBase.Core.Ads
     // next request), refuses a second full-screen ad while one is open and asks the pacer before an interstitial.
     // Rewarded ads stop for the day once RewardedCap is reached; only one watched to the end counts. Premium players
     // see no forced ad (interstitials are Skipped, the banner hides at once) but still get the opt-in rewarded ads.
+    // The banner's room (SafeArea.ReservedTop) is kept from the moment a banner is asked for while one may still come:
+    // ads on or AdsConsentFlow not done yet, not premium. Content then never moves when the banner loads, fails or
+    // refreshes, nor while an economy window holds the banner (HoldBanner: no banner, the room stays); it moves only
+    // when the player turns premium, the scene stops asking (another scene) or the run turns out to have no ads
+    // (Deactivate). An empty strip is the price; a banner that fails to load leaves it for the rest of that visit.
     public sealed class GmaAds : IAds, IDisposable
     {
         public const int LoadRetries = 3;
@@ -32,7 +38,12 @@ namespace Kturker.UnityBase.Core.Ads
         private bool rewardedLoading;
         private bool showing;
         private bool bannerWanted;
+        // An economy window over the menu: no banner, its room stays
+        private bool bannerHeld;
         private bool bannerShown;
+        // AdsConsentFlow has answered: Activate or Deactivate was called
+        private bool settled;
+        private int reserved;
 
         public GmaAds(IGmaGateway gateway, IPremiumStatus premium, InterstitialPacer pacer, RewardedCap cap, AdUnits units, ILog log,
             Func<int, CancellationToken, UniTask> wait)
@@ -51,7 +62,7 @@ namespace Kturker.UnityBase.Core.Ads
 
         public bool RewardedAvailable => IsAvailable && !cap.Reached;
 
-        public int BannerHeight => bannerShown ? Math.Max(0, gateway.BannerHeight) : 0;
+        public int BannerHeight => reserved;
 
         public event Action Changed;
 
@@ -64,6 +75,7 @@ namespace Kturker.UnityBase.Core.Ads
         // AdsConsentFlow calls this once Google Mobile Ads has started and consent allows ads
         public void Activate()
         {
+            settled = true;
             if (IsAvailable) return;
             IsAvailable = true;
             UpdateBanner();
@@ -71,13 +83,15 @@ namespace Kturker.UnityBase.Core.Ads
             Changed?.Invoke();
         }
 
-        // AdsConsentFlow calls this when consent no longer allows ads
+        // AdsConsentFlow calls this when consent no longer allows ads, or when its run ends without ads (the editor, a
+        // capture run, a consent error in a release build): the banner's room goes
         public void Deactivate()
         {
-            if (!IsAvailable) return;
+            settled = true;
+            var wasAvailable = IsAvailable;
             IsAvailable = false;
             UpdateBanner();
-            Changed?.Invoke();
+            if (wasAvailable) Changed?.Invoke();
         }
 
         public UniTask<AdResult> ShowInterstitialAsync(CancellationToken cancellation) =>
@@ -95,6 +109,12 @@ namespace Kturker.UnityBase.Core.Ads
         public void HideBanner()
         {
             bannerWanted = false;
+            UpdateBanner();
+        }
+
+        public void HoldBanner(bool held)
+        {
+            bannerHeld = held;
             UpdateBanner();
         }
 
@@ -220,11 +240,34 @@ namespace Kturker.UnityBase.Core.Ads
 
         private void UpdateBanner()
         {
-            var show = bannerWanted && IsAvailable && !IsPremium;
-            if (show == bannerShown) return;
-            bannerShown = show;
-            if (show) gateway.ShowBanner(units.Banner, BannerAt, loaded => Marker(Banner, loaded ? "Shown" : "Failed"));
-            else gateway.HideBanner();
+            var show = bannerWanted && !bannerHeld && IsAvailable && !IsPremium;
+            if (show != bannerShown)
+            {
+                bannerShown = show;
+                if (show) gateway.ShowBanner(units.Banner, BannerAt, OnBannerLoaded);
+                else gateway.HideBanner();
+            }
+            var keep = bannerWanted && !IsPremium && (IsAvailable || !settled);
+            Reserve(!keep ? 0 : reserved > 0 ? reserved : Math.Max(0, gateway.ExpectedBannerHeight));
+        }
+
+        // The kept room stays through a failed load; a banner of another height than expected takes its own
+        private void OnBannerLoaded(bool loaded)
+        {
+            Marker(Banner, loaded ? "Shown" : "Failed");
+            if (!loaded || !bannerShown) return;
+            var height = gateway.BannerHeight;
+            if (height <= 0 || height == reserved) return;
+            log.Info($"The banner is {height} px tall, {reserved} px were kept for it");
+            Reserve(height);
+        }
+
+        private void Reserve(int pixels)
+        {
+            if (pixels == reserved) return;
+            reserved = pixels;
+            SafeArea.ReservedTop = BannerAt == BannerPosition.Top ? pixels : 0f;
+            SafeArea.ReservedBottom = BannerAt == BannerPosition.Top ? 0f : pixels;
         }
 
         private void OnPremiumChanged()

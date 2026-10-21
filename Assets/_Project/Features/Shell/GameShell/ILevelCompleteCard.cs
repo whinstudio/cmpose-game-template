@@ -8,7 +8,8 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         // Each star as it lands
         event Action StarFilled;
 
-        void Show(int level, int stars, int reward);
+        // settled: the stars and the reward at their end state at once (an automation run's store shots)
+        void Show(int level, int stars, int reward, bool settled);
 
         void Celebrate();
     }

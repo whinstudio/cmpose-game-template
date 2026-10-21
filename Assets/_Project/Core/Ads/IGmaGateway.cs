@@ -32,6 +32,10 @@ namespace Kturker.UnityBase.Core.Ads
 
         // Pixels of the loaded banner, 0 while none is loaded
         int BannerHeight { get; }
+
+        // Pixels an anchored adaptive banner takes on this screen, known before any ad loads (the last loaded banner's
+        // height once one has); 0 when the device cannot tell
+        int ExpectedBannerHeight { get; }
         void HideBanner();
     }
 }

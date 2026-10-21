@@ -4,13 +4,12 @@ using GoogleMobileAds.Api;
 using GoogleMobileAds.Common;
 using GoogleMobileAds.Ump.Api;
 using Kturker.UnityBase.Core.Domain;
-using Kturker.UnityBase.Core.Presentation;
 
 namespace Kturker.UnityBase.Core.Ads
 {
     // The only class that sees Google Mobile Ads and UMP. Answers are moved to Unity's main thread before they are
     // returned (banner events through MobileAdsEventExecutor). Nothing throws: a failure is a warning plus a Failed,
-    // false or error-message result. The banner's height goes to SafeArea.ReservedTop or ReservedBottom, the edge it sits on.
+    // false or error-message result. GmaAds keeps the banner's room on screen (SafeArea) from ExpectedBannerHeight.
     public sealed class GmaGateway : IGmaGateway
     {
         private readonly ILog log;
@@ -18,7 +17,10 @@ namespace Kturker.UnityBase.Core.Ads
         private RewardedAd rewarded;
         private BannerView banner;
         private int bannerHeight;
-        private bool bannerAtTop;
+        // The last loaded banner's height: the next one on this screen is as tall
+        private int loadedHeight;
+        // The device's size could not be read: warned once per run
+        private bool sizeWarned;
 
         public GmaGateway(ILog log) => this.log = log;
 
@@ -37,6 +39,26 @@ namespace Kturker.UnityBase.Core.Ads
         }
 
         public int BannerHeight => banner == null ? 0 : bannerHeight;
+
+        public int ExpectedBannerHeight
+        {
+            get
+            {
+                if (loadedHeight > 0) return loadedHeight;
+                try
+                {
+                    var scale = MobileAds.Utils.GetDeviceScale();
+                    if (scale <= 0f) return 0;
+                    return AnchoredBanner.HeightPixels(MobileAds.Utils.GetDeviceSafeWidth(), UnityEngine.Screen.height / scale, scale);
+                }
+                catch (Exception e)
+                {
+                    if (!sizeWarned) log.Warning($"Banner height unknown before it loads: {e.Message}");
+                    sizeWarned = true;
+                    return 0;
+                }
+            }
+        }
 
         public bool CanRequestAds => ConsentInformation.CanRequestAds();
 
@@ -158,14 +180,13 @@ namespace Kturker.UnityBase.Core.Ads
             HideBanner();
             var size = AdSize.GetCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth(MobileAds.Utils.GetDeviceSafeWidth());
             var view = new BannerView(adUnitId, size, position == BannerPosition.Top ? AdPosition.Top : AdPosition.Bottom);
-            bannerAtTop = position == BannerPosition.Top;
             var reported = false;
             banner = view;
             view.OnBannerAdLoaded += () => MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
                 if (banner != view) return;
                 bannerHeight = (int)view.GetHeightInPixels();
-                Reserve(bannerHeight);
+                if (bannerHeight > 0) loadedHeight = bannerHeight;
                 if (reported) return;
                 reported = true;
                 loaded(true);
@@ -186,13 +207,6 @@ namespace Kturker.UnityBase.Core.Ads
             banner.Destroy();
             banner = null;
             bannerHeight = 0;
-            Reserve(0);
-        }
-
-        private void Reserve(float pixels)
-        {
-            SafeArea.ReservedTop = bannerAtTop ? pixels : 0f;
-            SafeArea.ReservedBottom = bannerAtTop ? 0f : pixels;
         }
 
         private static string Message(FormError error) => error == null ? null : error.Message ?? "unknown error";

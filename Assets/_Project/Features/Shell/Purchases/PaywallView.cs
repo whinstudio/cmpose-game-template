@@ -15,6 +15,9 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
     public sealed class PaywallView : MonoBehaviour, IPaywallView
     {
         public const int Rows = 4;
+        // Units the welcome bundle's line keeps from each side of the card's column: unlike the package rows it has no
+        // box of its own, and a game skin's card frame is thicker than the column's padding
+        public const float BonusInset = 60f;
 
         [SerializeField] private GameObject panel;
         [SerializeField] private Button[] rows;

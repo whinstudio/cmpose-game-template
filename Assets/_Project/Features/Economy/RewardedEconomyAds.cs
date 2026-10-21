@@ -44,11 +44,8 @@ namespace Kturker.UnityBase.Features.Economy
             return result == RewardResult.Rewarded;
         }
 
-        // The windows open only over the menu, so a released banner is the menu's again
-        public void HoldBanner(bool held)
-        {
-            if (held) ads.HideBanner();
-            else ads.ShowBanner();
-        }
+        // The windows open only over the menu: the banner goes while one is open and its room stays, so neither the
+        // window nor the menu behind it moves
+        public void HoldBanner(bool held) => ads.HoldBanner(held);
     }
 }

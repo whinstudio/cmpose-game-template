@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Features.Economy;
 using Kturker.UnityBase.Tests.EditMode;
 using NUnit.Framework;
@@ -30,6 +31,15 @@ namespace Kturker.UnityBase.Core.Ads.Tests
             preferences = new FakePreferences();
             // 2026-10-20 12:00 UTC
             clock = new FakeClock { NowMillis = 1792497600000L };
+            SafeArea.ReservedTop = 0f;
+            SafeArea.ReservedBottom = 0f;
+        }
+
+        [TearDown]
+        public void ClearReservation()
+        {
+            SafeArea.ReservedTop = 0f;
+            SafeArea.ReservedBottom = 0f;
         }
 
         private RewardedCap Cap() => new RewardedCap(preferences, clock, AdsConfig.RewardedDailyCap, TimeZoneInfo.Utc);
@@ -222,17 +232,197 @@ namespace Kturker.UnityBase.Core.Ads.Tests
         [Test]
         public void Banner_is_requested_at_the_top()
         {
-            gateway.BannerHeight = 168;
             var ads = Make();
             ads.ShowBanner();
-            Assert.That(ads.BannerHeight, Is.Zero);
-
             ads.Activate();
 
             Assert.That(gateway.BannerPositions, Is.EqualTo(new[] { BannerPosition.Top }));
+        }
+
+        // The device check: the paywall's Close became Continue when the content moved down under the finger as the
+        // banner arrived. The room is kept from the moment the banner is asked for.
+        [Test]
+        public void Banner_room_is_kept_before_the_banner_loads_and_does_not_change_when_it_loads()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            gateway.BannerHeight = 168;
+            var ads = Make();
+            ads.Activate();
+
+            ads.ShowBanner();
+            Assert.That(SafeArea.ReservedTop, Is.EqualTo(168f));
             Assert.That(ads.BannerHeight, Is.EqualTo(168));
-            ads.HideBanner();
+
+            gateway.FinishBanner(true);
+            Assert.That(SafeArea.ReservedTop, Is.EqualTo(168f));
+            Assert.That(SafeArea.ReservedBottom, Is.Zero);
+            Assert.That(ads.BannerHeight, Is.EqualTo(168));
+        }
+
+        // First launch: the menu (and the first paywall over it) opens before UMP has answered
+        [Test]
+        public void Banner_room_is_kept_while_consent_has_not_answered_yet()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            var ads = Make();
+
+            ads.ShowBanner();
+            Assert.That(gateway.Banners, Is.Empty);
+            Assert.That(SafeArea.ReservedTop, Is.EqualTo(168f));
+
+            ads.Activate();
+            gateway.FinishBanner(true);
+            Assert.That(gateway.Banners, Is.EqualTo(new[] { "banner-unit" }));
+            Assert.That(SafeArea.ReservedTop, Is.EqualTo(168f));
+        }
+
+        [Test]
+        public void A_banner_that_fails_to_load_keeps_its_room()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            var ads = Make();
+            ads.Activate();
+            ads.ShowBanner();
+
+            gateway.FinishBanner(false);
+
+            Assert.That(SafeArea.ReservedTop, Is.EqualTo(168f));
+        }
+
+        [Test]
+        public void A_loaded_banner_of_another_height_takes_its_own_room()
+        {
+            gateway.ExpectedBannerHeight = 160;
+            gateway.BannerHeight = 168;
+            var ads = Make();
+            ads.Activate();
+            ads.ShowBanner();
+
+            gateway.FinishBanner(true);
+
+            Assert.That(SafeArea.ReservedTop, Is.EqualTo(168f));
+            Assert.That(ads.BannerHeight, Is.EqualTo(168));
+        }
+
+        [Test]
+        public void Turning_premium_gives_the_banner_room_back_at_once()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            gateway.BannerHeight = 168;
+            var ads = Make();
+            ads.Activate();
+            ads.ShowBanner();
+            gateway.FinishBanner(true);
+
+            premium.IsPremium = true;
+            premium.Raise();
+
+            Assert.That(gateway.BannerHides, Is.EqualTo(1));
+            Assert.That(SafeArea.ReservedTop, Is.Zero);
             Assert.That(ads.BannerHeight, Is.Zero);
+        }
+
+        [Test]
+        public void Premium_players_get_no_banner_room()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            premium.IsPremium = true;
+            var ads = Make();
+
+            ads.ShowBanner();
+            Assert.That(SafeArea.ReservedTop, Is.Zero);
+            ads.Activate();
+            Assert.That(SafeArea.ReservedTop, Is.Zero);
+        }
+
+        [Test]
+        public void Ads_off_for_this_run_give_the_banner_room_back()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            var ads = Make();
+            ads.ShowBanner();
+            var changes = 0;
+            ads.Changed += () => changes++;
+
+            ads.Deactivate();
+            Assert.That(SafeArea.ReservedTop, Is.Zero);
+            Assert.That(changes, Is.Zero);
+
+            ads.HideBanner();
+            ads.ShowBanner();
+            Assert.That(SafeArea.ReservedTop, Is.Zero);
+        }
+
+        [Test]
+        public void Withdrawn_consent_gives_the_banner_room_back()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            var ads = Make();
+            ads.Activate();
+            ads.ShowBanner();
+
+            ads.Deactivate();
+
+            Assert.That(SafeArea.ReservedTop, Is.Zero);
+        }
+
+        // An economy window over the menu: the banner goes while it is open, its room stays, so neither the window's
+        // centred card nor the menu behind it moves when it opens or closes
+        [Test]
+        public void Holding_the_banner_hides_it_and_keeps_its_room()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            gateway.BannerHeight = 168;
+            var ads = Make();
+            ads.Activate();
+            ads.ShowBanner();
+            gateway.FinishBanner(true);
+
+            ads.HoldBanner(true);
+            Assert.That(gateway.BannerHides, Is.EqualTo(1));
+            Assert.That(SafeArea.ReservedTop, Is.EqualTo(168f));
+            Assert.That(ads.BannerHeight, Is.EqualTo(168));
+
+            ads.HoldBanner(false);
+            Assert.That(gateway.Banners, Is.EqualTo(new[] { "banner-unit", "banner-unit" }));
+            Assert.That(SafeArea.ReservedTop, Is.EqualTo(168f));
+        }
+
+        [Test]
+        public void A_held_banner_still_gives_its_room_back_when_the_player_turns_premium()
+        {
+            gateway.ExpectedBannerHeight = 168;
+            var ads = Make();
+            ads.Activate();
+            ads.ShowBanner();
+            ads.HoldBanner(true);
+
+            premium.IsPremium = true;
+            premium.Raise();
+            ads.HoldBanner(false);
+
+            Assert.That(SafeArea.ReservedTop, Is.Zero);
+            Assert.That(gateway.Banners.Count, Is.EqualTo(1));
+        }
+
+        // Another scene (the game) asks the banner away
+        [Test]
+        public void Hiding_the_banner_gives_its_room_back_and_showing_it_again_keeps_it_at_once()
+        {
+            gateway.ExpectedBannerHeight = 160;
+            gateway.BannerHeight = 168;
+            var ads = Make();
+            ads.Activate();
+            ads.ShowBanner();
+            gateway.FinishBanner(true);
+
+            ads.HideBanner();
+            Assert.That(SafeArea.ReservedTop, Is.Zero);
+            Assert.That(ads.BannerHeight, Is.Zero);
+
+            gateway.ExpectedBannerHeight = 168;
+            ads.ShowBanner();
+            Assert.That(SafeArea.ReservedTop, Is.EqualTo(168f));
         }
 
         [Test]

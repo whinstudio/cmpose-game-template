@@ -11,6 +11,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
 {
     // The shell in a game scene (its views are in the scene; ILevelProgress comes from the root scope);
     // registerViews=false lets tests supply fake views. The editor is strict: a level flow without a save store throws.
+    // A Compass automation run (AutomationRun.Active) opens the end cards settled.
     public sealed class GameShellInstaller : IInstaller
     {
         private readonly bool registerViews;
@@ -36,7 +37,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
                     resolver.Resolve<IGameOverCard>(), resolver.Resolve<ILevelCompleteCard>(), resolver.Resolve<ILevelFailedCard>(),
                     resolver.Resolve<ILevelProgress>(), resolver.Resolve<IShellAds>(), resolver.Resolve<IUiFeedback>(),
                     resolver.Resolve<ILog>(), Application.isEditor,
-                    resolver.TryResolve<ShellRunEvents>(out var runs) ? runs : null), Lifetime.Scoped)
+                    resolver.TryResolve<ShellRunEvents>(out var runs) ? runs : null, () => AutomationRun.Active), Lifetime.Scoped)
                 .As<IGameShell>().AsSelf();
         }
     }

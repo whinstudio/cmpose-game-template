@@ -1,6 +1,7 @@
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Features.Shell.Purchases;
 using NUnit.Framework;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -97,6 +98,55 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
             var row = Part("Row0").rect.height;
             var spacing = Plans.GetComponent<VerticalLayoutGroup>().spacing;
             Assert.That(all - one, Is.EqualTo((PaywallView.Rows - 1) * (row + spacing)).Within(0.5f));
+        }
+
+        // The paywall laid out as a 20:9 phone (1080 x 2400) shows it, the narrowest column: the size its canvas scaler
+        // gives that screen, on a world-space canvas (an overlay canvas takes the editor's screen size)
+        private void LayOutOnATallPhone()
+        {
+            var scaler = view.GetComponent<CanvasScaler>();
+            var reference = scaler.referenceResolution;
+            var scale = Mathf.Pow(2f, Mathf.Lerp(Mathf.Log(1080f / reference.x, 2f), Mathf.Log(2400f / reference.y, 2f),
+                scaler.matchWidthOrHeight));
+            Object.DestroyImmediate(scaler);
+            view.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+            ((RectTransform)view.transform).sizeDelta = new Vector2(1080f / scale, 2400f / scale);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(Plans);
+        }
+
+        // The device check: "Bonus: +400 gold, +3 Freeze, +3 Shield, +3 Lantern" filled the column's width and ran into
+        // the skin's card frame on both sides. It, and three boosters with 12-letter names and a 5-digit amount, fit
+        // inside the inset on two lines at most.
+        [TestCase("Bonus: +400 gold, +3 Freeze, +3 Shield, +3 Lantern")]
+        [TestCase("Bonus: +12345 gold, +3 Freezeblocks, +3 Shieldarmour, +3 Lanternlight")]
+        public void A_long_bonus_line_stays_inside_the_card_frame(string line)
+        {
+            view.ShowPackages(Packages(PaywallView.Rows), 0);
+            view.ShowBonus(line);
+            LayOutOnATallPhone();
+            var text = Part("Bonus").GetComponent<TMP_Text>();
+            text.ForceMeshUpdate();
+
+            var padding = Plans.GetComponent<VerticalLayoutGroup>().padding;
+            var bounds = text.textBounds;
+            var left = Plans.InverseTransformPoint(text.transform.TransformPoint(bounds.min)).x;
+            var right = Plans.InverseTransformPoint(text.transform.TransformPoint(bounds.max)).x;
+            Assert.That(text.isTextOverflowing, Is.False);
+            Assert.That(text.textInfo.lineCount, Is.InRange(1, 2));
+            Assert.That(left, Is.GreaterThanOrEqualTo(Plans.rect.xMin + padding.left + PaywallView.BonusInset - 0.5f));
+            Assert.That(right, Is.LessThanOrEqualTo(Plans.rect.xMax - padding.right - PaywallView.BonusInset + 0.5f));
+        }
+
+        [Test]
+        public void A_short_bonus_line_keeps_one_line_at_full_size()
+        {
+            view.ShowBonus("Bonus: +400 coins");
+            LayOutOnATallPhone();
+            var text = Part("Bonus").GetComponent<TMP_Text>();
+            text.ForceMeshUpdate();
+
+            Assert.That(text.textInfo.lineCount, Is.EqualTo(1));
+            Assert.That(text.fontSize, Is.EqualTo(text.fontSizeMax));
         }
 
         [Test]

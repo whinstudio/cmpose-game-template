@@ -30,9 +30,9 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
   or your logo in the middle, round feature buttons in a column at each side and a big Play at the bottom. Settings:
   music and sound effect volume, vibration and Rate the app, plus Theme and Language when those parts are included,
   and About as the last row (version, privacy and terms links, open-source licences). Settings are saved with
-  PlayerPrefs. While the ads banner shows at the top of the menu, the top bar moves down one button height more, so
-  no button sits next to the ad. Add a feature's button to a side column (up to three per side) with
-  `IMenuSideButtons` (the menu's `MenuView`):
+  PlayerPrefs. While room is kept for the ads banner at the top of the menu (from before the ad loads, so nothing
+  moves when it arrives), the top bar moves down one button height more, so no button sits next to the ad. Add a
+  feature's button to a side column (up to three per side) with `IMenuSideButtons` (the menu's `MenuView`):
 
   ```csharp
   var gift = sides.AddSideButton(MenuSide.Left, giftIcon, "mygame.gift", OpenGift);  // a white glyph sprite, a caption key
@@ -173,13 +173,19 @@ Before you send the game to the stores:
 <!-- cmpose:ads -->
 ## Ads
 
-With the ads flag the game shows Google AdMob ads: a banner, interstitials and rewarded ads. Inject `IAds`:
+With the ads flag the game shows Google AdMob ads: a banner, interstitials and rewarded ads. The shell shows the
+interstitial after its game-over or level card (the pacer may skip it); game code never calls `ShowInterstitialAsync`
+or `ShowBreakAsync` (`AdCallSitesTests` fails the build's tests otherwise). For the rest, inject `IAds`:
 
 ```csharp
-await ads.ShowInterstitialAsync(token);            // at a natural break; the pacer may skip it
 var result = await ads.ShowRewardedAsync(token);   // Rewarded or Granted: give the reward
 ads.ShowBanner();                                  // and ads.HideBanner()
 ```
+
+`ShowBanner` keeps the banner's room at the top of the screen at once, before the ad loads, so the screen does not
+move under the player's finger when it arrives; the room goes with `HideBanner`, premium or a run without ads.
+`HoldBanner(true)` hides the banner under a window over the menu and keeps its room; `HoldBanner(false)` shows it
+again.
 
 At start the game asks for consent with Google's UMP form where the law requires it, then (iOS) shows the App
 Tracking Transparency prompt; Settings → Privacy choices reopens the form where it applies. Premium players

@@ -78,12 +78,14 @@ namespace Kturker.UnityBase.Tests.EditMode
     {
         public int Score;
         public int Best;
+        public bool Settled;
 
-        public void Show(int score, int best)
+        public void Show(int score, int best, bool settled)
         {
             Open();
             Score = score;
             Best = best;
+            Settled = settled;
         }
 
         public void CelebrateNewBest() => Celebrated = true;
@@ -94,14 +96,16 @@ namespace Kturker.UnityBase.Tests.EditMode
         public int Level;
         public int Stars;
         public int Reward;
+        public bool Settled;
         public event Action StarFilled;
 
-        public void Show(int level, int stars, int reward)
+        public void Show(int level, int stars, int reward, bool settled)
         {
             Open();
             Level = level;
             Stars = stars;
             Reward = reward;
+            Settled = settled;
         }
 
         public void Celebrate() => Celebrated = true;
@@ -161,7 +165,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
     }
 
-    // A shell over fakes; strict as in the editor unless told otherwise
+    // A shell over fakes; strict as in the editor and not an automation run unless told otherwise
     public sealed class ShellRig
     {
         public readonly FakeShellHudView Hud = new FakeShellHudView();
@@ -175,11 +179,13 @@ namespace Kturker.UnityBase.Tests.EditMode
         public readonly IShellAds Ads;
         public readonly GameShell Shell;
 
-        public ShellRig(ILevelProgress progress = null, IShellAds ads = null, bool strict = true, ShellRunEvents runs = null)
+        public ShellRig(ILevelProgress progress = null, IShellAds ads = null, bool strict = true, ShellRunEvents runs = null,
+            Func<bool> automated = null)
         {
             Progress = progress ?? new FakeLevelProgress();
             Ads = ads ?? new NoShellAds();
-            Shell = new GameShell(Hud, Hint, GameOver, LevelComplete, LevelFailed, Progress, Ads, Feedback, Log, strict, runs);
+            Shell = new GameShell(Hud, Hint, GameOver, LevelComplete, LevelFailed, Progress, Ads, Feedback, Log, strict, runs,
+                automated);
         }
     }
 }

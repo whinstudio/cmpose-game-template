@@ -28,6 +28,41 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(log.Lines, Does.Contain("MARKER CMPOSE_SCENE Game"));
         });
 
+        // What the scene's first visible frame needs (the banner's room) is set while the overlay still covers it
+        [UnityTest]
+        public IEnumerator Revealing_runs_behind_the_overlay_and_loaded_after_it_hides() => UniTask.ToCoroutine(async () =>
+        {
+            var overlay = new FakeOverlay();
+            var loader = new SceneLoader(new FakeGateway(), overlay, new FakeLog());
+            var order = new List<string>();
+            overlay.OnHide = () => order.Add("hide");
+            loader.Revealing += id => order.Add($"revealing {id} covered={overlay.Visible} loading={loader.IsLoading}");
+            loader.Loaded += id => order.Add($"loaded {id} covered={overlay.Visible} loading={loader.IsLoading}");
+
+            await loader.LoadAsync(SceneId.Menu);
+
+            Assert.That(order, Is.EqualTo(new[]
+            {
+                "revealing Menu covered=True loading=True",
+                "hide",
+                "loaded Menu covered=False loading=False"
+            }));
+        });
+
+        [UnityTest]
+        public IEnumerator A_failed_load_reveals_nothing() => UniTask.ToCoroutine(async () =>
+        {
+            var loader = new SceneLoader(new FakeGateway { Failure = new InvalidOperationException("no scene") }, new FakeOverlay(),
+                new FakeLog());
+            var revealed = 0;
+            loader.Revealing += _ => revealed++;
+
+            try { await loader.LoadAsync(SceneId.Game); }
+            catch (InvalidOperationException) { }
+
+            Assert.That(revealed, Is.Zero);
+        });
+
         [UnityTest]
         public IEnumerator A_request_while_loading_is_ignored() => UniTask.ToCoroutine(async () =>
         {
