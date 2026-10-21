@@ -7,7 +7,8 @@ using VContainer.Unity;
 namespace Kturker.UnityBase.Core.NetworkInspector
 {
     // Root entry point: in development builds (and the editor) puts the overlay above every scene; release builds
-    // never create it. Logs CMPOSE_NETINSPECTOR shown=<true|false> either way (the gate checks the release APK).
+    // and Compass's capture runs never create it. Logs CMPOSE_NETINSPECTOR shown=<true|false> either way (the gate
+    // checks the release APK).
     public sealed class InspectorOverlayHost : IStartable, IDisposable
     {
         public const string ResourcePath = "NetworkInspector/InspectorOverlay";

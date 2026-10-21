@@ -140,7 +140,8 @@ public sealed class LeaderboardPresenter
   returns.
 - The sample's Game screen shows a GitHub user card (`users/octocat`) with Retry; replace it with your own API.
 - With the network inspector flag, development builds show a small **NET** button: the last 50 requests with their
-  status, time, headers (Authorization hidden) and the start of the body. Release builds never show it.
+  status, time, headers (Authorization hidden) and the start of the body. Release builds and Compass capture runs
+  never show it.
 <!-- /cmpose:network -->
 
 <!-- cmpose:purchases -->
@@ -183,7 +184,7 @@ ads.ShowBanner();                                  // and ads.HideBanner()
 At start the game asks for consent with Google's UMP form where the law requires it, then (iOS) shows the App
 Tracking Transparency prompt; Settings → Privacy choices reopens the form where it applies. Premium players
 (purchases flag) see no forced ads (no interstitial, no banner); rewarded ads stay opt-in and Continue is free. Compass capture runs (flag file
-`compass-autoplay`) skip consent entirely.
+`compass-autoplay` or `compass-capture`) skip consent entirely.
 
 The template uses Google's **test** IDs, which show test ads in every build. Before you send the game to the stores:
 1. In AdMob, add the Android and iOS apps with a banner, an interstitial and a rewarded ad unit each; set up the

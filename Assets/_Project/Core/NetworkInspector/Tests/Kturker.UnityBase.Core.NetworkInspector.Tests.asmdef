@@ -5,6 +5,7 @@
         "Kturker.UnityBase.Core.Network",
         "Kturker.UnityBase.Core.NetworkInspector",
         "Kturker.UnityBase.Tests.EditMode",
+        "VContainer",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

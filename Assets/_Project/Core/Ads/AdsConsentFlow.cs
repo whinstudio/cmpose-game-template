@@ -8,8 +8,8 @@ namespace Kturker.UnityBase.Core.Ads
     // Start-up of the ads flag, in Google's order and without holding up the boot: UMP consent info, the UMP form
     // when required, the ATT prompt on iOS when not asked yet, then Google Mobile Ads when consent allows ads. A UMP
     // error starts ads only in a development build. The editor touches neither SDK. Also the privacy options form,
-    // after which ads start (once) or stop as consent now says. Compass's capture runs (flag file `compass-autoplay`)
-    // skip consent and ads.
+    // after which ads start (once) or stop as consent now says. Compass's capture runs (flag file `compass-autoplay` or
+    // `compass-capture`, AutomationRun) skip consent and ads.
     public sealed class AdsConsentFlow : IStartable, IDisposable, IAdsPrivacy
     {
         public const string TestIdsWarning = "Ads use Google test IDs: replace them in AdsConfig before you ship";
