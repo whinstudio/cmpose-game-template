@@ -436,6 +436,13 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
     }
 
+    // Sets the game skin for a test (null: none). Test assemblies a flag can remove reach GameSkin.ForTests through this
+    // instead of their own InternalsVisibleTo in Presentation, which would name them in a game built without them.
+    public static class TestSkin
+    {
+        public static void Use(GameSkin skin) => GameSkin.ForTests(skin);
+    }
+
     public sealed class FakeSection : ISettingsSection
     {
         private readonly SettingsOption[] options;

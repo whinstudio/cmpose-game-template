@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Features.Shell.Purchases;
+using Kturker.UnityBase.Tests.EditMode;
 using NUnit.Framework;
 using TMPro;
 using UnityEngine;
@@ -16,8 +18,17 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
         [SetUp]
         public void SetUp() => view = Object.Instantiate(Resources.Load<PaywallView>("ShellPurchases/Paywall"));
 
+        private readonly List<Object> made = new List<Object>();
+
         [TearDown]
-        public void TearDown() => Object.DestroyImmediate(view.gameObject);
+        public void TearDown()
+        {
+            TestSkin.Use(null);
+            Object.DestroyImmediate(view.gameObject);
+            foreach (var o in made)
+                if (o != null) Object.DestroyImmediate(o);
+            made.Clear();
+        }
 
         private Transform Row(int i) => view.transform.Find($"Panel/SafeArea/Plans/Row{i}");
 
@@ -147,6 +158,74 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
 
             Assert.That(text.textInfo.lineCount, Is.EqualTo(1));
             Assert.That(text.fontSize, Is.EqualTo(text.fontSizeMax));
+        }
+
+        // A pixel skin at sliceScale 3 whose panels are border source pixels thick on every side (a source pixel is 3 card units)
+        private void Skin(float border)
+        {
+            const string json = @"{""ui"":{""pixel"":true,""sliceScale"":3,""buttons"":{
+ ""primary"":{""normal"":""p"",""pressed"":""p"",""text"":""#FFFFFF""},""secondary"":{""normal"":""p"",""pressed"":""p"",""text"":""#222222""},
+ ""play"":{""normal"":""p"",""pressed"":""p"",""text"":""#331100""}},""card"":""p"",""sheet"":""p"",""dialog"":""p""}}";
+            var texture = new Texture2D(96, 96);
+            var sprite = Sprite.Create(texture, new Rect(0f, 0f, 96f, 96f), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect,
+                new Vector4(border, border, border, border));
+            made.Add(texture);
+            made.Add(sprite);
+            TestSkin.Use(GameSkin.Parse(json, _ => sprite, _ => null));
+        }
+
+        private void Bind()
+        {
+            var palette = ScriptableObject.CreateInstance<Palette>();
+            made.Add(palette);
+            var theme = new FakeThemeSource { Current = palette, Style = ThemeStyle.Load() };
+            foreach (var element in view.GetComponentsInChildren<KitElement>(true)) element.Bind(theme);
+        }
+
+        // Where the bonus line's text area starts and ends, from the card's left and right edges
+        private (float Left, float Right) BonusArea()
+        {
+            var text = Part("Bonus").GetComponent<TMP_Text>();
+            var corners = new Vector3[4];
+            text.rectTransform.GetWorldCorners(corners);
+            var min = Plans.InverseTransformPoint(corners[0]).x;
+            var max = Plans.InverseTransformPoint(corners[2]).x;
+            return (min + text.margin.x - Plans.rect.xMin, Plans.rect.xMax - (max - text.margin.z));
+        }
+
+        // A frame thicker than the column's padding moves the whole column in (KitCard.Pad); the bonus line, which kept
+        // BonusInset beyond the padding for that frame, does not add it again: it sits where the frame's inset is
+        [Test]
+        public void A_thick_skin_frame_moves_the_column_in_and_the_bonus_line_only_once()
+        {
+            Skin(30f);
+            view.ShowPackages(Packages(PaywallView.Rows), 0);
+            view.ShowBonus("Bonus: +400 coins");
+            Bind();
+            LayOutOnATallPhone();
+
+            var padding = Plans.GetComponent<VerticalLayoutGroup>().padding;
+            Assert.That((padding.left, padding.right), Is.EqualTo((102, 102)), "90-unit frame + 12");
+            var (left, right) = BonusArea();
+            Assert.That(left, Is.EqualTo(102f).Within(0.5f), "left");
+            Assert.That(right, Is.EqualTo(102f).Within(0.5f), "right");
+        }
+
+        // A frame inside the column's padding plus BonusInset leaves the line where it was
+        [Test]
+        public void A_thin_skin_frame_leaves_the_bonus_line_where_it_was()
+        {
+            Skin(16f);
+            view.ShowPackages(Packages(PaywallView.Rows), 0);
+            view.ShowBonus("Bonus: +400 coins");
+            Bind();
+            LayOutOnATallPhone();
+
+            var padding = Plans.GetComponent<VerticalLayoutGroup>().padding;
+            Assert.That((padding.left, padding.right), Is.EqualTo((60, 60)), "48-unit frame + 12");
+            var (left, right) = BonusArea();
+            Assert.That(left, Is.EqualTo(30f + PaywallView.BonusInset).Within(0.5f), "left");
+            Assert.That(right, Is.EqualTo(30f + PaywallView.BonusInset).Within(0.5f), "right");
         }
 
         [Test]

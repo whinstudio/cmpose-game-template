@@ -142,11 +142,12 @@ namespace Kturker.UnityBase.Core.Presentation
             var content = (RectTransform)Node("Content", card.transform).transform;
             content.anchorMin = Vector2.zero;
             content.anchorMax = Vector2.one;
-            var bottom = placement == SheetPlacement.Bottom ? SheetOverhang + SheetPadding : SheetPadding;
-            content.offsetMin = new Vector2(SheetPadding, bottom);
-            content.offsetMax = new Vector2(-SheetPadding, -SheetPadding);
             var sheet = root.AddComponent<KitSheet>();
             sheet.Init(placement, dimGroup, panel, group, content);
+            // SheetPadding from the card's sides, or more inside a skin's thick frame (KitCard.Pad)
+            const int padding = (int)SheetPadding;
+            var bottom = placement == SheetPlacement.Bottom ? (int)(SheetOverhang + SheetPadding) : padding;
+            card.Pad(new RectOffset(padding, padding, padding, bottom), content);
             root.SetActive(false);
             return sheet;
         }

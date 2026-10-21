@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Kturker.UnityBase.Core.Localization;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Core.Purchases;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,8 +16,9 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
     public sealed class PaywallView : MonoBehaviour, IPaywallView
     {
         public const int Rows = 4;
-        // Units the welcome bundle's line keeps from each side of the card's column: unlike the package rows it has no
-        // box of its own, and a game skin's card frame is thicker than the column's padding
+        // Units the welcome bundle's line keeps beyond the plans card's padding on each side: unlike the package rows it
+        // has no box of its own over a skin's card frame. Inside a frame thick enough to move the column in (KitCard.Pad)
+        // it keeps only what is left, so the two never add up (BonusMargin)
         public const float BonusInset = 60f;
 
         [SerializeField] private GameObject panel;
@@ -29,6 +31,8 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
         // The savings pill around each badge text
         [SerializeField] private GameObject[] rowBadgeBoxes;
         [SerializeField] private LocalizedText bonus;
+        // The card the packages' column stands on
+        [SerializeField] private KitCard plans;
         [SerializeField] private LocalizedText status;
         [SerializeField] private Button buyButton;
         [SerializeField] private Button restoreButton;
@@ -117,8 +121,19 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
         public void ShowBonus(string text)
         {
             bonus.gameObject.SetActive(!string.IsNullOrEmpty(text));
-            if (!string.IsNullOrEmpty(text)) bonus.SetLiteral(text);
+            if (string.IsNullOrEmpty(text)) return;
+            bonus.SetLiteral(text);
+            if (plans == null) return;
+            var label = bonus.GetComponent<TMP_Text>();
+            var padding = plans.Padding;
+            var inset = plans.ContentPadding;
+            label.margin = new Vector4(BonusMargin(padding.left, inset.left), label.margin.y, BonusMargin(padding.right, inset.right),
+                label.margin.w);
         }
+
+        // The line's margin on a side: it sits BonusInset beyond the card's padding, or at the frame's inset where that is
+        // further in
+        public static float BonusMargin(int padding, int inset) => Mathf.Max(0f, padding + BonusInset - inset);
 
         public void ShowMessage(string key)
         {
