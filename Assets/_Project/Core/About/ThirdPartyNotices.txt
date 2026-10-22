@@ -109,6 +109,14 @@ Copyright 2021 The Outfit Project Authors (https://github.com/Outfitio/Outfit-Fo
 Licensed under the SIL Open Font License, Version 1.1 (below).
 
 ------------------------------------------------------------
+Pixelify Sans (font)
+https://fonts.google.com/specimen/Pixelify+Sans
+
+Copyright 2021 The Pixelify Sans Project Authors (https://github.com/eifetx/Pixelify-Sans)
+
+Licensed under the SIL Open Font License, Version 1.1 (below).
+
+------------------------------------------------------------
 Rubik (font)
 https://fonts.google.com/specimen/Rubik
 

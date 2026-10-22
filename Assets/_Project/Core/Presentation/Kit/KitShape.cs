@@ -56,6 +56,29 @@ namespace Kturker.UnityBase.Core.Presentation
                 if (layer != null) layer.gameObject.SetActive(false);
         }
 
+        // A skin sprite (GameSkin) on a single image in its own colours, sliceScale units to a source pixel: tiled (a
+        // pixel pack) or sliced when it has a border, else whole at its own aspect
+        public static void DressImage(Image image, Sprite sprite, float sliceScale, bool pixel)
+        {
+            var pill = image.GetComponent<KitPill>();
+            if (pill != null) pill.enabled = false;
+            var bordered = sprite.border != Vector4.zero;
+            image.sprite = sprite;
+            image.type = !bordered ? Image.Type.Simple : pixel ? Image.Type.Tiled : Image.Type.Sliced;
+            image.preserveAspect = !bordered;
+            image.fillCenter = true;
+            image.pixelsPerUnitMultiplier = 1f / sliceScale;
+            Fix(image, Color.white);
+        }
+
+        // Back to the kit's shape of radius units in its role (DressImage undone)
+        public static void UndressImage(Image image, float radius)
+        {
+            image.preserveAspect = false;
+            Round(image, radius);
+            Fix(image, null);
+        }
+
         // A fixed colour on a themed graphic (null: its role's again)
         public static void Fix(Graphic graphic, Color? colour)
         {

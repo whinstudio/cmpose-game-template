@@ -9,6 +9,8 @@ namespace Kturker.UnityBase.Core.Presentation
     // booster or a currency without an icon, or a pack that did not download). A booster's disc is in the theme's
     // role; a currency's glyph or disc is in its own colour with a darker rim (KitGlyph), the letter in black or white,
     // whichever reads on it. ShowPlain leaves only the disc in its role (the HUD counter's dot without an economy).
+    // A game skin's coin (GameSkin.Icon) takes the place of the plain disc and of a currency without an icon, in its
+    // own colours.
     public sealed class FallbackIcon : MonoBehaviour
     {
         [SerializeField] private Image glyph;
@@ -38,7 +40,7 @@ namespace Kturker.UnityBase.Core.Presentation
             letter.SetLiteral(LetterOf(text != null && text.text != nameKey ? text.text : null));
         }
 
-        // A currency: its glyph in its colour, else a disc in its colour with its letter
+        // A currency: its glyph in its colour, else the skin's coin, else a disc in its colour with its letter
         public void ShowCurrency(CurrencyMark mark)
         {
             if (mark == null)
@@ -46,6 +48,7 @@ namespace Kturker.UnityBase.Core.Presentation
                 ShowPlain();
                 return;
             }
+            if (mark.Icon == null && ShowSkinCoin()) return;
             if (!Apply(mark.Icon))
             {
                 KitGlyph.Paint(glyph, mark.Colour);
@@ -60,9 +63,10 @@ namespace Kturker.UnityBase.Core.Presentation
             if (text != null) text.color = ink;
         }
 
-        // Only the disc, in its role
+        // Only the disc, in its role (the skin's coin when it has one)
         public void ShowPlain()
         {
+            if (ShowSkinCoin()) return;
             Unpaint();
             UsesFallback = true;
             glyph.enabled = false;
@@ -79,6 +83,17 @@ namespace Kturker.UnityBase.Core.Presentation
                     if (char.IsLetterOrDigit(c)) return char.ToUpper(c, CultureInfo.InvariantCulture).ToString();
             }
             return "?";
+        }
+
+        // The skin's coin (GameSkin.Icon) in its own colours, no rim; false without one
+        private bool ShowSkinCoin()
+        {
+            var coin = GameSkin.Current?.Icon("coin");
+            if (coin == null) return false;
+            Unpaint();
+            Apply(coin);
+            KitShape.Fix(glyph, Color.white);
+            return true;
         }
 
         // True when the fallback shows

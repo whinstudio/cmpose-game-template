@@ -39,12 +39,12 @@ namespace Kturker.UnityBase.Core.Presentation
         public BackgroundStyle Background => background;
         public IReadOnlyList<Color> WorldColors => worldColors;
 
-        // Titles take the game skin's font when it has one (GameSkin)
+        // The game skin's font for the role when it has one (GameSkin.Font), else the family's
         public TMP_FontAsset FontFor(TextRole role)
         {
-            if (role != TextRole.Display && role != TextRole.Title) return bodyFont;
-            var skinned = GameSkin.Current?.DisplayFont;
-            return skinned != null ? skinned : displayFont;
+            var skinned = GameSkin.Current?.Font(role);
+            if (skinned != null) return skinned;
+            return role == TextRole.Display || role == TextRole.Title ? displayFont : bodyFont;
         }
 
         public static ThemeStyle Load()

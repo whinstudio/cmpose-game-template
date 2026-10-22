@@ -5,10 +5,14 @@ namespace Kturker.UnityBase.Core.Presentation
 {
     // An on/off switch over a Toggle (KitFactory.Switch builds it): a pill track, Primary when on and Control when
     // off, and a round Surface knob with a soft shadow (both under KnobSlot) that slides across on unscaled time. Follows isOn however it was set
-    // (SetIsOnWithoutNotify included).
+    // (SetIsOnWithoutNotify included). A game skin's switch (GameSkin.Switch) draws the track and the knob it has sprites
+    // for in their own colours: the track OffShade darker when off, the knob whole at its aspect without its shadow.
     [RequireComponent(typeof(Toggle))]
     public sealed class KitSwitch : KitElement
     {
+        // How much darker a skin's track is drawn when off (ThemedGraphic.Tone's shade)
+        public const float OffShade = 0.45f;
+
         [SerializeField] private Image track;
         [SerializeField] private RectTransform knobSlot;
         [SerializeField] private Image knob;
@@ -19,9 +23,11 @@ namespace Kturker.UnityBase.Core.Presentation
         private KitTween travel;
         private bool shown;
         private bool placed;
+        private bool trackDressed;
 
         public Image Track => track;
         public Image Knob => knob;
+        public Image KnobShadow => knobShadow;
         public Toggle Toggle => toggle != null ? toggle : toggle = GetComponent<Toggle>();
         // 0 off .. 1 on, where the knob is now
         public float Position => travel.Value;
@@ -71,6 +77,7 @@ namespace Kturker.UnityBase.Core.Presentation
             var role = shown ? ThemeRole.Primary : ThemeRole.Control;
             var themed = Themed(track);
             if (themed.Role != role) themed.SetRole(role);
+            if (trackDressed) KitShape.Fix(track, ThemedGraphic.Tone(Color.white, shown ? 0f : OffShade, 1f));
         }
 
         protected override void Apply(Palette palette, ThemeStyle style)
@@ -78,12 +85,24 @@ namespace Kturker.UnityBase.Core.Presentation
             if (track == null || knob == null) return;
             shown = Toggle.isOn;
             if (!travel.Running) travel.Snap(shown ? 1f : 0f);
-            KitShape.Round(track, KitSprites.Pill);
-            KitShape.Round(knob, KitSprites.Pill);
+            var skin = GameSkin.Current;
+            var parts = skin?.Switch;
+            trackDressed = parts?.Track != null;
+            if (trackDressed) KitShape.DressImage(track, parts.Track, skin.SliceScale, skin.Pixel);
+            else KitShape.UndressImage(track, KitSprites.Pill);
             var knobRole = Themed(knob);
             if (knobRole.Role != ThemeRole.Surface) knobRole.SetRole(ThemeRole.Surface);
+            var dressedKnob = parts?.Knob != null;
+            if (dressedKnob)
+            {
+                KitShape.DressImage(knob, parts.Knob, skin.SliceScale, skin.Pixel);
+                knob.type = Image.Type.Simple;
+                knob.preserveAspect = true;
+            }
+            else KitShape.UndressImage(knob, KitSprites.Pill);
             if (knobShadow != null)
             {
+                knobShadow.gameObject.SetActive(!dressedKnob);
                 var strength = style != null ? Mathf.Max(style.ShadowStrength, 0.25f) : 0.25f;
                 KitShape.SoftShadow(knobShadow, 30f, strength);
             }

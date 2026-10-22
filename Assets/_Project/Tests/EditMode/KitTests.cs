@@ -269,6 +269,7 @@ namespace Kturker.UnityBase.Tests.EditMode
                 KitFactory.Switch(canvas.transform, "Switch"),
                 KitFactory.Slider(canvas.transform, "Slider"),
                 KitFactory.Segmented(canvas.transform, "Segmented", 3),
+                KitFactory.Progress(canvas.transform, "Progress"),
                 KitFactory.Badge(canvas.transform, "Badge", KitBadgeTone.Primary),
                 KitFactory.CountUp(canvas.transform, "Score", TextRole.Display, 96f),
                 KitFactory.Button(canvas.transform, "IconButton", KitButtonVariant.Secondary, KitSprites.Info),

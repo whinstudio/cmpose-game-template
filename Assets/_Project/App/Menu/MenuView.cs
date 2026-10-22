@@ -73,7 +73,7 @@ namespace Kturker.UnityBase.App.Menu
 
         private void Awake()
         {
-            ShowBranding(GameBranding.TitleLogo, GameBranding.MenuBackground);
+            ShowBranding(GameBranding.TitleLogo, BackgroundFor(GameBranding.MenuBackground, GameSkin.Current), GameSkin.Current?.Scrim);
             settingsButton.onClick.AddListener(OnSettings);
             ReserveBannerSpace(SafeArea.ReservedTop > 0f);
         }
@@ -121,9 +121,15 @@ namespace Kturker.UnityBase.App.Menu
             titleStroke.position = position;
         }
 
+        // The menu's picture: Compass's rendered still, else the skin's menu background; null leaves the theme's decor
+        public static Sprite BackgroundFor(Sprite branding, GameSkin skin) => branding != null ? branding : skin?.MenuBackground;
+
+        public void ShowBranding(Sprite logo, Sprite background) => ShowBranding(logo, background, null);
+
         // The game's logo in place of the title text and its stroke; the game's picture, covering the screen under a
-        // light Scrim, in place of the decor shapes. Null keeps that part as the theme draws it.
-        public void ShowBranding(Sprite logo, Sprite background)
+        // light Scrim (the skin's scrim colour when it has one), in place of the decor shapes. Null keeps that part as
+        // the theme draws it.
+        public void ShowBranding(Sprite logo, Sprite background, Color? scrim)
         {
             var hasLogo = logo != null;
             titleLogo.sprite = logo;
@@ -142,6 +148,7 @@ namespace Kturker.UnityBase.App.Menu
             }
             brandBackdrop.gameObject.SetActive(hasBackground);
             brandScrim.gameObject.SetActive(hasBackground);
+            KitShape.Fix(brandScrim, scrim);
             decor.SetActive(!hasBackground);
         }
 

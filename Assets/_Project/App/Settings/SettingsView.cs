@@ -10,6 +10,10 @@ namespace Kturker.UnityBase.App.Settings
     public sealed class SettingsView : MonoBehaviour, ISettingsView
     {
         public const int RowSlots = 4;
+        // Every row's two columns (SceneBuilder): the label over 0..LabelShare of the row's width, the control over
+        // ControlStart..1 (a slider and a value button fill it, the switch sits at its right end)
+        public const float LabelShare = 0.42f;
+        public const float ControlStart = 0.46f;
 
         [SerializeField] private GameObject panel;
         [SerializeField] private Slider musicSlider;

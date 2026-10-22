@@ -625,6 +625,7 @@ MonoBehaviour:
   label: {fileID: 9066067559919312150}
   iconBack: {fileID: 0}
   icon: {fileID: 0}
+  contentOffset: {x: 0, y: 0}
 --- !u!1 &7803260662896029667
 GameObject:
   m_ObjectHideFlags: 0

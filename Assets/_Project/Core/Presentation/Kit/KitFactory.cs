@@ -16,6 +16,7 @@ namespace Kturker.UnityBase.Core.Presentation
         public static readonly Vector2 SliderSize = new Vector2(800f, 72f);
         public const float SliderHandle = 64f;
         public const float SliderRail = 20f;
+        public static readonly Vector2 ProgressSize = new Vector2(600f, 36f);
         // How far a bottom sheet's panel reaches below the screen's edge, so its lower corners never show
         public const float SheetOverhang = 80f;
         public const float SheetPadding = 48f;
@@ -205,6 +206,20 @@ namespace Kturker.UnityBase.Core.Presentation
             slider.transition = Selectable.Transition.None;
             var kit = root.AddComponent<KitSlider>();
             kit.Init(rail, fill, knob, dot, shadow);
+            return kit;
+        }
+
+        // Empty (value 0); KitProgress.SetValue fills it
+        public static KitProgress Progress(Transform parent, string name)
+        {
+            var root = Node(name, parent);
+            Size(root, ProgressSize);
+            var track = Layer("Track", root, ThemeRole.Track, false);
+            var fill = Layer("Fill", root, ThemeRole.Primary, false);
+            KitShape.Round(track, KitSprites.Pill);
+            KitShape.Round(fill, KitSprites.Pill);
+            var kit = root.AddComponent<KitProgress>();
+            kit.Init(track, fill);
             return kit;
         }
 

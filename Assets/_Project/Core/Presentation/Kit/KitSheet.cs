@@ -113,7 +113,9 @@ namespace Kturker.UnityBase.Core.Presentation
             }
             else
             {
-                var scale = Mathf.LerpUnclamped(PopFrom, 1f, p);
+                // A panel that fits a short screen (KitFitScale) pops to its fitted scale, not to 1
+                var fit = panel.TryGetComponent<KitFitScale>(out var fitScale) ? fitScale.Scale : 1f;
+                var scale = Mathf.LerpUnclamped(PopFrom, 1f, p) * fit;
                 panel.localScale = new Vector3(scale, scale, 1f);
                 if (panelGroup != null) panelGroup.alpha = Mathf.Clamp01(p * 2f);
             }

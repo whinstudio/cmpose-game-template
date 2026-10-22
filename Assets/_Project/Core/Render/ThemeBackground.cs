@@ -9,12 +9,17 @@ namespace Kturker.UnityBase.Core.Render
     // Gradient: Background tinted towards Primary at the top and Accent at the bottom; Pattern: that gradient under
     // faint Primary diamonds (KitBackground.Colors, so the world and the screens match). A child of GameRig's camera;
     // refits when the camera's aspect, field of view or size changes. UiBinder binds it (a KitElement).
+    // With the skin's game background (GameSkin.GameBackground) a child Picture sprite, a little farther away and
+    // sorted under the quad, covers the view in its place, and the quad turns into one rectangle in the skin's scrim
+    // (clear without one).
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public sealed class ThemeBackground : KitElement
     {
         // Share of the camera's far plane where the quad sits, and its overscan
         public const float Depth = 0.9f;
         private const float Overscan = 1.05f;
+        // The picture's depth as a share of the quad's, so it sits behind it
+        private const float PictureDepth = 1.02f;
         // Under every sprite and particle (2D sorts by order, 3D by distance: it is the farthest thing)
         public const int SortingOrder = -1000;
         // The pattern's cell and diamond, as shares of the view's height (KitBackdrop's on the 1920-unit canvas)
@@ -26,6 +31,7 @@ namespace Kturker.UnityBase.Core.Render
         [SerializeField] private Camera view;
 
         private Mesh mesh;
+        private SpriteRenderer picture;
         private BackgroundStyle look;
         private Color top = Color.white;
         private Color bottom = Color.white;
@@ -36,6 +42,8 @@ namespace Kturker.UnityBase.Core.Render
         public BackgroundStyle Look => look;
         public Color Top => top;
         public Color Bottom => bottom;
+        // The skin's game background; null or inactive without one
+        public SpriteRenderer Picture => picture;
 
         protected override void Apply(Palette palette, ThemeStyle style)
         {
@@ -67,7 +75,10 @@ namespace Kturker.UnityBase.Core.Render
             fitted = Fit(view);
             var meshRenderer = GetComponent<MeshRenderer>();
             if (meshRenderer.sharedMaterial == null) meshRenderer.sharedMaterial = RenderMaterials.Load(RenderMaterials.ParticlesUnlit);
-            meshRenderer.sortingOrder = SortingOrder;
+            var skin = GameSkin.Current;
+            var background = skin?.GameBackground;
+            // Over the picture when there is one
+            meshRenderer.sortingOrder = background != null ? SortingOrder + 1 : SortingOrder;
             meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             meshRenderer.receiveShadows = false;
             if (mesh == null)
@@ -84,9 +95,18 @@ namespace Kturker.UnityBase.Core.Render
             var width = height * Mathf.Max(0.01f, view.aspect);
             var builder = new QuadBuilder(depth);
             var linear = QualitySettings.activeColorSpace == ColorSpace.Linear;
+            var (left, right, down, up) = (-width / 2f, width / 2f, -height / 2f, height / 2f);
+            if (picture != null) picture.gameObject.SetActive(background != null);
+            if (background != null)
+            {
+                FitPicture(background, depth * PictureDepth);
+                var scrim = Vertex(skin.Scrim ?? Color.clear, linear);
+                builder.Add(new Vector2(left, down), new Vector2(right, down), new Vector2(right, up), new Vector2(left, up), scrim, scrim, scrim, scrim);
+                builder.Write(mesh, Opaque);
+                return;
+            }
             var lower = Vertex(bottom, linear);
             var upper = Vertex(top, linear);
-            var (left, right, down, up) = (-width / 2f, width / 2f, -height / 2f, height / 2f);
             builder.Add(new Vector2(left, down), new Vector2(right, down), new Vector2(right, up), new Vector2(left, up), lower, lower, upper, upper);
             if (look == BackgroundStyle.Pattern && pattern.a > 0f)
             {
@@ -103,6 +123,29 @@ namespace Kturker.UnityBase.Core.Render
                 }
             }
             builder.Write(mesh, Opaque);
+        }
+
+        // The picture at its depth, uniformly scaled to cover the view's width and height there (with the overscan)
+        private void FitPicture(Sprite background, float depth)
+        {
+            if (picture == null)
+            {
+                // Made at run time like the mesh, so never saved into the rig; it goes with its parent
+                var child = new GameObject("Picture") { hideFlags = HideFlags.DontSave };
+                child.transform.SetParent(transform, false);
+                picture = child.AddComponent<SpriteRenderer>();
+            }
+            picture.gameObject.SetActive(true);
+            picture.sprite = background;
+            picture.sortingOrder = SortingOrder;
+            picture.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            picture.receiveShadows = false;
+            var height = (view.orthographic ? view.orthographicSize * 2f : 2f * depth * Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad)) * Overscan;
+            var width = height * Mathf.Max(0.01f, view.aspect);
+            var size = background.bounds.size;
+            var scale = Mathf.Max(width / Mathf.Max(size.x, 1e-4f), height / Mathf.Max(size.y, 1e-4f));
+            picture.transform.SetLocalPositionAndRotation(new Vector3(-background.bounds.center.x * scale, -background.bounds.center.y * scale, depth), Quaternion.identity);
+            picture.transform.localScale = new Vector3(scale, scale, 1f);
         }
 
         // Mesh colours reach the shader as they are: in a linear project they must be linear already

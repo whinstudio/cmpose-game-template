@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Kturker.UnityBase.Core.Presentation;
 using NUnit.Framework;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
@@ -65,29 +64,8 @@ namespace Kturker.UnityBase.Tests.EditMode
             return new FakeThemeSource { Current = palette, Style = ThemeStyle.Load() };
         }
 
-        // A copy of a prefab laid out as a 20:9 phone (1080 x 2400) on a world-space canvas, every child shown (the rows
-        // the presenter shows count), bound to a theme the way UiBinder binds it at runtime
-        private GameObject Stage(string path)
-        {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-            Assert.That(prefab, Is.Not.Null, path);
-            var copy = Object.Instantiate(prefab);
-            made.Add(copy);
-            var scaler = copy.GetComponent<CanvasScaler>();
-            var reference = scaler.referenceResolution;
-            var scale = Mathf.Pow(2f, Mathf.Lerp(Mathf.Log(1080f / reference.x, 2f), Mathf.Log(2400f / reference.y, 2f),
-                scaler.matchWidthOrHeight));
-            Object.DestroyImmediate(scaler);
-            copy.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
-            ((RectTransform)copy.transform).sizeDelta = new Vector2(1080f / scale, 2400f / scale);
-            foreach (var t in copy.GetComponentsInChildren<Transform>(true)) t.gameObject.SetActive(true);
-            var theme = Theme();
-            foreach (var element in copy.GetComponentsInChildren<KitElement>(true)) element.Bind(theme);
-            for (var pass = 0; pass < 2; pass++)
-                foreach (var group in copy.GetComponentsInChildren<LayoutGroup>(true))
-                    LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)group.transform);
-            return copy;
-        }
+        // A copy of a prefab laid out as a 20:9 phone (1080 x 2400), every child shown, bound to a theme (LayoutStage)
+        private GameObject Stage(string path) => LayoutStage.Prefab(path, new Vector2(1080f, 2400f), Theme(), made);
 
         // A rect in the card's own units
         private static Rect In(RectTransform card, RectTransform rect)

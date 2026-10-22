@@ -8,7 +8,8 @@ namespace Kturker.UnityBase.Core.Presentation
     // A themed button (KitFactory.Button builds it): rounded to the style's radius, standing on the style's surface,
     // coloured by its variant. The Button, PressFeedback and the Label child sit on the same object. An icon button
     // (KitFactory.Button with a sprite) shows the glyph in a faint disc at its left, the label beside it. A game skin
-    // (GameSkin) draws the body with its sprite instead, the pressed sprite while the finger is down.
+    // (GameSkin) draws the body with its sprite instead, the pressed sprite while the finger is down; while the normal
+    // sprite shows, the label and the glyph sit on its raised face (ContentOffset), not on the middle of the whole sprite.
     [RequireComponent(typeof(Button))]
     public sealed class KitButton : KitElement, IPointerDownHandler, IPointerUpHandler
     {
@@ -20,6 +21,8 @@ namespace Kturker.UnityBase.Core.Presentation
         [SerializeField] private TMP_Text label;
         [SerializeField] private Image iconBack;
         [SerializeField] private Image icon;
+        // How far the label and the glyph are moved off their places now (units); kept with them when a scene is saved
+        [SerializeField] private Vector2 contentOffset;
         // The skin entry the body is dressed with (null: the kit's own shape)
         private SkinButton skin;
 
@@ -34,6 +37,9 @@ namespace Kturker.UnityBase.Core.Presentation
         public Button Button => GetComponent<Button>();
         // The body's corner radius in units
         public float Radius => KitShape.RadiusOf(body);
+        // Where the label and the glyph stand off the body's middle: up by half the skin's depth (SkinButton.Depth) while
+        // the normal sprite shows; zero while pressed and without a skin
+        public Vector2 ContentOffset => contentOffset;
 
         internal void Init(KitButtonVariant value, Image shadowImage, Image edgeImage, Image bodyImage, Image shineImage, TMP_Text labelText)
         {
@@ -97,6 +103,7 @@ namespace Kturker.UnityBase.Core.Presentation
         {
             if (skin == null || body == null || !Button.IsInteractable()) return;
             body.sprite = skin.Pressed;
+            Offset(Vector2.zero);
         }
 
         public void OnPointerUp(PointerEventData eventData) => Release();
@@ -105,7 +112,30 @@ namespace Kturker.UnityBase.Core.Presentation
 
         private void Release()
         {
-            if (skin != null && body != null) body.sprite = skin.Normal;
+            if (skin == null || body == null) return;
+            body.sprite = skin.Normal;
+            Offset(FaceOffset());
+        }
+
+        // Half the depth of the skin's normal sprite in units: depth source pixels drawn at the skin's SliceScale
+        private Vector2 FaceOffset()
+        {
+            var current = GameSkin.Current;
+            if (skin == null || skin.Normal == null || current == null) return Vector2.zero;
+            var canvas = GetComponentInParent<Canvas>(true);
+            var reference = canvas != null ? canvas.referencePixelsPerUnit : 100f;
+            return new Vector2(0f, skin.Depth * current.SliceScale * reference / skin.Normal.pixelsPerUnit / 2f);
+        }
+
+        // Moves the label and the glyph (the disc with its glyph, if there is one) to value off their places
+        private void Offset(Vector2 value)
+        {
+            var delta = value - contentOffset;
+            if (delta == Vector2.zero) return;
+            contentOffset = value;
+            if (label != null) label.rectTransform.anchoredPosition += delta;
+            var glyph = iconBack != null ? iconBack : icon;
+            if (glyph != null) glyph.rectTransform.anchoredPosition += delta;
         }
 
         protected override void Apply(Palette palette, ThemeStyle style)
@@ -118,6 +148,7 @@ namespace Kturker.UnityBase.Core.Presentation
                 Dress(current);
                 return;
             }
+            Offset(Vector2.zero);
             var radius = RadiusFor(variant, style != null ? style.CornerRadius : 0f);
             ThemeRole? outline = variant == KitButtonVariant.Secondary ? ThemeRole.Control : (ThemeRole?)null;
             KitShape.Layers(shadow, edge, body, shine, radius, style, BodyRole(variant), outline);
@@ -146,6 +177,7 @@ namespace Kturker.UnityBase.Core.Presentation
             if (label != null) KitShape.Fix(label, skin.Text);
             if (icon != null) KitShape.Fix(icon, skin.Text);
             if (iconBack != null) KitShape.Fix(iconBack, ThemedGraphic.Tone(skin.Text, 0f, IconBackOpacity));
+            Offset(FaceOffset());
         }
     }
 }

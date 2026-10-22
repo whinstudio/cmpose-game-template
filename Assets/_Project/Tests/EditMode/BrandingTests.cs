@@ -169,6 +169,50 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(Child(view.transform, "Title").activeSelf, Is.True, "title text without a logo");
         }
 
+        // The menu's picture: Compass's rendered still, else the skin's menu background, else the theme's decor
+        [Test]
+        public void Branding_picture_wins_over_the_skin_menu_background()
+        {
+            var sprites = SkinSprites.MakeV2(made);
+            var skin = GameSkin.Parse(SkinSprites.V2, path => sprites.TryGetValue(path, out var sprite) ? sprite : null, _ => null);
+            var branding = MakeSprite("branding", 64, 32);
+            var skinned = sprites["Art/sample/backgrounds/menu"];
+            Assert.That(skin.MenuBackground, Is.SameAs(skinned), "the skin has a menu background");
+
+            Assert.That(MenuView.BackgroundFor(branding, skin), Is.SameAs(branding), "branding first");
+            Assert.That(MenuView.BackgroundFor(null, skin), Is.SameAs(skinned), "then the skin");
+            Assert.That(MenuView.BackgroundFor(branding, null), Is.SameAs(branding), "branding without a skin");
+            Assert.That(MenuView.BackgroundFor(null, null), Is.Null, "neither: the theme's decor");
+            Assert.That(MenuView.BackgroundFor(null, GameSkin.Parse(SkinSprites.Json, _ => null, _ => null)), Is.Null, "a v1 skin");
+        }
+
+        [Test]
+        public void Skin_scrim_replaces_the_brand_scrim()
+        {
+            var view = OpenMenu(out var canvas);
+            var picture = MakeSprite("background", 64, 32);
+            Color skinScrim = new Color32(0x14, 0x28, 0x50, 0x47);
+
+            view.ShowBranding(null, picture, skinScrim);
+
+            var scrim = Child(canvas, "BrandScrim");
+            Assert.That(scrim.activeSelf, Is.True, "scrim shown");
+            Assert.That(scrim.GetComponent<Image>().color, Is.EqualTo(skinScrim), "the skin's scrim");
+
+            // No skin scrim: the Scrim role at 35 % again
+            view.ShowBranding(null, picture, null);
+
+            var themed = scrim.GetComponent<ThemedGraphic>();
+            Assert.That(themed.Role, Is.EqualTo(ThemeRole.Scrim));
+            Assert.That(themed.Opacity, Is.EqualTo(0.35f).Within(1e-4f));
+            Assert.That(scrim.GetComponent<Image>().color, Is.EqualTo(new Color(0f, 0f, 0f, 0.6f * 0.35f)), "the role's colour");
+
+            // The two-argument form keeps the role
+            view.ShowBranding(null, picture, skinScrim);
+            view.ShowBranding(null, picture);
+            Assert.That(scrim.GetComponent<Image>().color, Is.EqualTo(new Color(0f, 0f, 0f, 0.6f * 0.35f)), "two arguments");
+        }
+
         [Test]
         public void Boot_uses_brand_background()
         {

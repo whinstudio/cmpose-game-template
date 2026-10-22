@@ -23,6 +23,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         [TearDown]
         public void Clean()
         {
+            GameSkin.ForTests(null);
             foreach (var o in made)
                 if (o != null) Object.DestroyImmediate(o);
             made.Clear();
@@ -170,6 +171,92 @@ namespace Kturker.UnityBase.Tests.EditMode
                 (RenderSettings.ambientMode, RenderSettings.ambientSkyColor, RenderSettings.ambientEquatorColor,
                     RenderSettings.ambientGroundColor, RenderSettings.ambientProbe) = ambient;
             }
+        }
+
+        // The skin's game picture fills the world's backdrop under its scrim, at every screen shape and for a panorama
+        [Test]
+        public void Game_background_covers_the_view_under_the_scrim()
+        {
+            Color skinScrim = new Color32(0x14, 0x28, 0x50, 0x47);
+            var expected = QualitySettings.activeColorSpace == ColorSpace.Linear ? skinScrim.linear : skinScrim;
+            var source = new FixedThemeSource(Resources.Load<Palette>("Theme/Light"), ThemeStyle.Load());
+            foreach (var (width, height) in new[] { (64, 32), (96, 32) })
+            {
+                GameSkin.ForTests(SkinWithGame(MakeSprite("game", width, height)));
+                var camera = Make("Camera").AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.orthographicSize = 5f;
+                var backdrop = Make("Backdrop").AddComponent<ThemeBackground>();
+                backdrop.transform.SetParent(camera.transform, false);
+                foreach (var aspect in new[] { 0.45f, 0.5625f, 0.75f, 1.78f })
+                {
+                    var what = $"{width}x{height} at {aspect}";
+                    camera.aspect = aspect;
+                    backdrop.Bind(source);
+                    backdrop.Rebuild();
+
+                    var picture = backdrop.Picture;
+                    Assert.That(picture, Is.Not.Null, what);
+                    Assert.That(picture.gameObject.activeInHierarchy, Is.True, what);
+                    var bounds = picture.bounds;
+                    var (halfWidth, halfHeight) = (camera.orthographicSize * aspect, camera.orthographicSize);
+                    Assert.That(bounds.min.x, Is.LessThanOrEqualTo(-halfWidth), what + " left");
+                    Assert.That(bounds.max.x, Is.GreaterThanOrEqualTo(halfWidth), what + " right");
+                    Assert.That(bounds.min.y, Is.LessThanOrEqualTo(-halfHeight), what + " bottom");
+                    Assert.That(bounds.max.y, Is.GreaterThanOrEqualTo(halfHeight), what + " top");
+
+                    var colors = backdrop.Mesh.colors;
+                    Assert.That(colors.Length, Is.EqualTo(4), what + " one rectangle");
+                    foreach (var color in colors) AssertColor(color, expected);
+                    var quadDepth = backdrop.Mesh.vertices.Max(v => v.z);
+                    Assert.That(picture.transform.position.z, Is.GreaterThan(quadDepth), what + " picture behind the scrim");
+                    Assert.That(picture.sortingOrder, Is.LessThan(backdrop.GetComponent<MeshRenderer>().sortingOrder), what + " sorted under it");
+                }
+            }
+        }
+
+        [Test]
+        public void Without_a_game_background_the_backdrop_is_unchanged()
+        {
+            var palette = Resources.Load<Palette>("Theme/Light");
+            var style = ThemeStyle.Load();
+            var (_, top, bottom, _) = KitBackground.Colors(palette, style);
+            var linear = QualitySettings.activeColorSpace == ColorSpace.Linear;
+            foreach (var (what, skin) in new[] { ("no skin", (GameSkin)null), ("v1 skin", GameSkin.Parse(SkinSprites.Json, _ => null, _ => null)) })
+            {
+                GameSkin.ForTests(skin);
+                var camera = Make("Camera").AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 0.5625f;
+                var backdrop = Make("Backdrop").AddComponent<ThemeBackground>();
+                backdrop.transform.SetParent(camera.transform, false);
+                backdrop.Bind(new FixedThemeSource(palette, style));
+
+                Assert.That(backdrop.Picture == null || !backdrop.Picture.gameObject.activeInHierarchy, Is.True, what);
+                var colors = backdrop.Mesh.colors;
+                AssertColor(colors[0], linear ? bottom.linear : bottom);
+                AssertColor(colors[1], linear ? bottom.linear : bottom);
+                AssertColor(colors[2], linear ? top.linear : top);
+                AssertColor(colors[3], linear ? top.linear : top);
+            }
+        }
+
+        // The v2 test skin with this game background
+        private GameSkin SkinWithGame(Sprite game)
+        {
+            var sprites = SkinSprites.MakeV2(made);
+            sprites["Art/sample/backgrounds/game"] = game;
+            return GameSkin.Parse(SkinSprites.V2, path => sprites.TryGetValue(path, out var sprite) ? sprite : null, _ => null);
+        }
+
+        private Sprite MakeSprite(string name, int width, int height)
+        {
+            var texture = new Texture2D(width, height) { name = name };
+            var sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f));
+            sprite.name = name;
+            made.Add(texture);
+            made.Add(sprite);
+            return sprite;
         }
 
         [Test]

@@ -4,7 +4,8 @@ using UnityEngine.UI;
 
 namespace Kturker.UnityBase.Core.Presentation
 {
-    // A small pill with a short text (KitFactory.Badge builds it); Pop swells it once when its value changes
+    // A small pill with a short text (KitFactory.Badge builds it); Pop swells it once when its value changes. A game
+    // skin's pill (GameSkin.Pill) draws the body with its sprite and the text in its text colour.
     public sealed class KitBadge : KitElement
     {
         private const float PopAmount = 0.25f;
@@ -52,7 +53,10 @@ namespace Kturker.UnityBase.Core.Presentation
         protected override void Apply(Palette palette, ThemeStyle style)
         {
             if (body == null) return;
-            KitShape.Round(body, KitSprites.Pill);
+            var skin = GameSkin.Current;
+            var pill = skin?.Pill;
+            if (pill?.Sprite != null) KitShape.DressImage(body, pill.Sprite, skin.SliceScale, skin.Pixel);
+            else KitShape.UndressImage(body, KitSprites.Pill);
             var bodyRole = tone == KitBadgeTone.Accent ? ThemeRole.Accent : ThemeRole.Primary;
             var labelRole = tone == KitBadgeTone.Accent ? ThemeRole.OnAccent : ThemeRole.OnPrimary;
             var themedBody = Themed(body);
@@ -60,6 +64,7 @@ namespace Kturker.UnityBase.Core.Presentation
             if (label == null) return;
             var themedLabel = Themed(label);
             if (themedLabel.Role != labelRole) themedLabel.SetRole(labelRole);
+            KitShape.Fix(label, pill?.Text);
         }
     }
 }

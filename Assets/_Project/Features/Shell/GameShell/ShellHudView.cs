@@ -5,14 +5,16 @@ using UnityEngine;
 namespace Kturker.UnityBase.Features.Shell.GameShell
 {
     // The shell's HUD in the safe area (SceneBuilder builds it under the pause button): the counter pill top left (a
-    // plain Accent dot as its icon, or the economy's currency), "Level n" top centre, the score in the display font
-    // under them, "Best: n" under the score, the toast in the middle. Its content stays hidden until Show; touches go through to the game.
+    // plain Accent dot as its icon, the game skin's coin when it has one, or the economy's currency), "Level n" top
+    // centre, the score in the display font under them, "Best: n" under the score, the toast in the middle. Its content
+    // stays hidden until Show; touches go through to the game.
     public sealed class ShellHudView : MonoBehaviour, IShellHudView
     {
         // A HUD count is quick: points arrive one after another
         private const float CountSeconds = 0.3f;
 
         [SerializeField] private GameObject content;
+        [SerializeField] private KitFlowRow items;
         [SerializeField] private CountUpText score;
         [SerializeField] private LocalizedText best;
         [SerializeField] private GameObject levelPill;
@@ -22,6 +24,8 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
         [SerializeField] private FallbackIcon counterIcon;
         [SerializeField] private ShellToast toast;
         private bool counterShown;
+        // The economy gave the counter its currency (else Show puts the plain icon there: the skin's coin or the dot)
+        private bool counterIconSet;
         private bool shown;
 
         private void Awake()
@@ -29,6 +33,10 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             content.SetActive(false);
             toast.gameObject.SetActive(false);
         }
+
+        // The row at the top left the counter pill starts: a game adds its own HUD items here (hearts, keys), and the row
+        // keeps them KitLayout.Gap apart, shrinking and then wrapping them before they reach "Level n"
+        public KitFlowRow Items => items;
 
         public void Show(int? levelNumber)
         {
@@ -38,6 +46,7 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             best.gameObject.SetActive(false);
             counterPill.SetActive(false);
             counterShown = false;
+            if (!counterIconSet) counterIcon.ShowPlain();
             levelPill.SetActive(levelNumber.HasValue);
             if (levelNumber.HasValue) level.SetKey(ShellKeys.Level, levelNumber.Value);
         }
@@ -64,7 +73,11 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
             counter.SetValue(value);
         }
 
-        public void ShowCounterIcon(CurrencyMark mark) => counterIcon.ShowCurrency(mark);
+        public void ShowCounterIcon(CurrencyMark mark)
+        {
+            counterIconSet = true;
+            counterIcon.ShowCurrency(mark);
+        }
 
         public void Toast(string key) => toast.Play(key);
     }

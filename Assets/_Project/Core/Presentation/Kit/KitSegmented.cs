@@ -6,7 +6,9 @@ using UnityEngine.UI;
 namespace Kturker.UnityBase.Core.Presentation
 {
     // A segmented picker (KitFactory.Segmented builds it): equal options on a pill Track, a Primary pill indicator
-    // that slides under the chosen one. The chosen label is OnPrimary, the others Text.
+    // that slides under the chosen one. The chosen label is OnPrimary, the others Text. A version 2 game skin draws the
+    // indicator with its Primary button sprite and the chosen label in that button's text colour; the track stays
+    // palette-drawn (version 1 skins leave the picker as it was).
     public sealed class KitSegmented : KitElement
     {
         [SerializeField] private Image track;
@@ -16,9 +18,12 @@ namespace Kturker.UnityBase.Core.Presentation
         [SerializeField] private int selected;
         private KitTween slide;
         private bool listening;
+        // The chosen label's colour on a skin's indicator; null keeps its role's
+        private Color? chosenText;
 
         public int Selected => selected;
         public int Count => options.Length;
+        public Image Track => track;
         public Image Indicator => indicator;
         public Button Option(int index) => options[index];
         public TMP_Text Label(int index) => labels[index];
@@ -97,6 +102,7 @@ namespace Kturker.UnityBase.Core.Presentation
                 var role = i == selected ? ThemeRole.OnPrimary : ThemeRole.Text;
                 var themed = Themed(labels[i]);
                 if (themed.Role != role) themed.SetRole(role);
+                KitShape.Fix(labels[i], i == selected ? chosenText : null);
             }
         }
 
@@ -104,7 +110,11 @@ namespace Kturker.UnityBase.Core.Presentation
         {
             if (track == null || indicator == null) return;
             KitShape.Round(track, KitSprites.Pill);
-            KitShape.Round(indicator, KitSprites.Pill);
+            var skin = GameSkin.Current;
+            var primary = skin != null && skin.Version >= 2 ? skin.Button(KitButtonVariant.Primary) : null;
+            if (primary != null) KitShape.DressImage(indicator, primary.Normal, skin.SliceScale, skin.Pixel);
+            else KitShape.UndressImage(indicator, KitSprites.Pill);
+            chosenText = primary?.Text;
             Paint();
             Place();
         }

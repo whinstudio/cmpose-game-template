@@ -6,14 +6,18 @@ namespace Kturker.UnityBase.Core.Presentation
 {
     // A number that counts to its target on unscaled time (a score, a reward) and pops when it gets there. The text is
     // format with the value as {0} (TMP SetText: "{0:0}" is a whole number, "+{0:0}" a gain), no string per frame;
-    // TMP formats a float, so values are exact up to 16 777 216.
+    // TMP formats a float, so values are exact up to 16 777 216. With digits (UseDigits) and a game skin's digit sprites
+    // (GameSkin.Digits), a whole number ("{0:0}") of 0 or more is drawn in them instead and the text is hidden.
     [RequireComponent(typeof(TMP_Text))]
     public sealed class CountUpText : KitElement
     {
         private const float PopAmount = 0.12f;
         private const float PopSeconds = 0.3f;
 
-        [SerializeField] private string format = "{0:0}";
+        private const string WholeNumber = "{0:0}";
+
+        [SerializeField] private string format = WholeNumber;
+        [SerializeField] private KitDigits digits;
         private TMP_Text text;
         private KitTween count;
         private float popElapsed = -1f;
@@ -23,12 +27,21 @@ namespace Kturker.UnityBase.Core.Presentation
         public int Target { get; private set; }
         public bool Counting => count.Running;
         public string Format => format;
+        public KitDigits Digits => digits;
 
         public event Action Reached;
 
         public void SetFormat(string value)
         {
-            format = string.IsNullOrEmpty(value) ? "{0:0}" : value;
+            format = string.IsNullOrEmpty(value) ? WholeNumber : value;
+            shown = int.MinValue;
+            Show(Value);
+        }
+
+        // Where the count shows in the skin's digit sprites (a stretched child)
+        public void UseDigits(KitDigits target)
+        {
+            digits = target;
             shown = int.MinValue;
             Show(Value);
         }
@@ -96,10 +109,20 @@ namespace Kturker.UnityBase.Core.Presentation
             shown = value;
             if (text == null) text = GetComponent<TMP_Text>();
             text.SetText(format, value);
+            if (digits == null) return;
+            var sprites = GameSkin.Current?.Digits;
+            var drawn = sprites != null && value >= 0 && format == WholeNumber;
+            if (drawn) digits.Show(value, sprites);
+            else digits.Hide();
+            text.enabled = !drawn;
         }
 
+        // The skin is read again (its digits may have come or gone)
         protected override void Apply(Palette palette, ThemeStyle style)
         {
+            if (digits == null) return;
+            shown = int.MinValue;
+            Show(Value);
         }
     }
 }

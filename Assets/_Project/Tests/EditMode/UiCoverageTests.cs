@@ -442,13 +442,13 @@ namespace Kturker.UnityBase.Tests.EditMode
         public void Settings_controls_use_the_control_role()
         {
             var column = Load(SettingsPrefab).transform.Find(SettingsColumn);
-            foreach (var path in new[] { "Music/Rail", "Sfx/Rail" })
+            foreach (var path in new[] { "Music/Slider/Rail", "Sfx/Slider/Rail" })
                 Assert.That(column.Find(path).GetComponent<ThemedGraphic>().Role, Is.EqualTo(ThemeRole.Control), path);
             Assert.That(column.Find("Vibration/Switch").GetComponent<KitSwitch>(), Is.Not.Null, "vibration switch");
         }
 
         // The vibration row reads like the other settings rows: its label left-aligned where their titles start, its
-        // switch in the share where their value buttons sit
+        // switch ending where their value buttons end (LayoutRuleTests checks every row's columns on every screen)
         [Test]
         public void The_vibration_row_lines_up_with_the_other_settings_rows()
         {
@@ -465,7 +465,7 @@ namespace Kturker.UnityBase.Tests.EditMode
                     Assert.That(labelRect.xMin, Is.EqualTo(titleRect.xMin).Within(1f), $"{phone}: label start");
                     var box = stage.RectOf((RectTransform)column.Find("Vibration/Switch"));
                     var value = stage.RectOf((RectTransform)column.Find("Section0/Value"));
-                    Assert.That(box.center.x, Is.EqualTo(value.center.x).Within(1f), $"{phone}: switch in the value share");
+                    Assert.That(box.xMax, Is.EqualTo(value.xMax).Within(1f), $"{phone}: switch at the control column's end");
                 }
             }
         }

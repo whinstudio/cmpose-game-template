@@ -6,7 +6,8 @@ using UnityEngine.UI;
 namespace Kturker.UnityBase.Features.Shell.GameShell
 {
     // The level card's stars: each slot an empty star (Track) under a filled one (Accent) that springs in, one after the
-    // other, on unscaled time (the card may open while paused)
+    // other, on unscaled time (the card may open while paused). A game skin's star (GameSkin.Star) draws the slots in its
+    // empty sprite and the fills in its full one, both in their own colours.
     public sealed class StarRow : KitElement
     {
         private const float FirstDelay = 0.3f;
@@ -87,16 +88,19 @@ namespace Kturker.UnityBase.Features.Shell.GameShell
 
         protected override void Apply(Palette palette, ThemeStyle style)
         {
-            foreach (var slot in slots) Star(slot);
-            foreach (var fill in fills) Star(fill);
+            var skin = GameSkin.Current?.Star;
+            foreach (var slot in slots) Star(slot, skin?.Empty);
+            foreach (var fill in fills) Star(fill, skin?.Full);
         }
 
-        private static void Star(Image image)
+        // The skin's sprite in its own colours, or (none) the kit's star in the image's role
+        private static void Star(Image image, Sprite sprite)
         {
             if (image == null) return;
-            image.sprite = KitSprites.Star;
+            image.sprite = sprite != null ? sprite : KitSprites.Star;
             image.type = Image.Type.Simple;
             image.preserveAspect = true;
+            KitShape.Fix(image, sprite != null ? Color.white : (Color?)null);
         }
     }
 }
