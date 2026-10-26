@@ -267,6 +267,16 @@ namespace Kturker.UnityBase.Tests.EditMode
         public event Action AboutClicked;
         public void SetAboutVisible(bool visible) => AboutVisible = visible;
         public void ClickAbout() => AboutClicked?.Invoke();
+        public bool CreditsVisible;
+        public string CreditsShown;
+        public int CreditsHidden;
+        public event Action CreditsClicked;
+        public event Action CreditsCloseClicked;
+        public void SetCreditsVisible(bool visible) => CreditsVisible = visible;
+        public void ShowCredits(string text) => CreditsShown = text;
+        public void HideCredits() => CreditsHidden++;
+        public void ClickCredits() => CreditsClicked?.Invoke();
+        public void ClickCreditsClose() => CreditsCloseClicked?.Invoke();
         public IReadOnlyList<SettingsRow> Rows = new List<SettingsRow>();
         public int SectionRenders;
         public event Action<int> SectionClicked;

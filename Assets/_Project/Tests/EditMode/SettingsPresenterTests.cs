@@ -1,11 +1,13 @@
 using System.Collections.Generic;
 using Kturker.UnityBase.App.Settings;
+using Kturker.UnityBase.Core.About;
 using Kturker.UnityBase.Core.Audio;
 using Kturker.UnityBase.Core.Domain;
 using Kturker.UnityBase.Core.Haptics;
 using Kturker.UnityBase.Core.Presentation;
 using Kturker.UnityBase.Core.Review;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Kturker.UnityBase.Tests.EditMode
 {
@@ -31,7 +33,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             requester = new FakeReviewRequester();
             var review = new ReviewPrompter(prefs, requester, new StoreIdentity(StorePlatform.Android, "com.example.game", ""), new FakeLog());
             theme = new FakeSection("settings.theme", SettingsOption.Key("theme.system"), SettingsOption.Key("theme.light"), SettingsOption.Text("Dark!"));
-            presenter = new SettingsPresenter(view, audio, haptics, prefs, feedback, review, new List<ISettingsSection> { theme });
+            presenter = new SettingsPresenter(view, audio, haptics, prefs, feedback, review, new List<ISettingsSection> { theme }, GameCredits.None);
             presenter.Start();
         }
 
@@ -109,7 +111,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var iosView = new FakeSettingsView();
             var ios = new ReviewPrompter(prefs, requester, new StoreIdentity(StorePlatform.Ios, "com.example.game", ""), new FakeLog());
 
-            new SettingsPresenter(iosView, audio, haptics, prefs, feedback, ios, new List<ISettingsSection>()).Start();
+            new SettingsPresenter(iosView, audio, haptics, prefs, feedback, ios, new List<ISettingsSection>(), GameCredits.None).Start();
 
             Assert.That(iosView.RateVisible, Is.False);
         }
@@ -163,7 +165,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var hidden = new FakeSection("settings.hidden");
             var rowsView = new FakeSettingsView();
             var review = new ReviewPrompter(prefs, requester, new StoreIdentity(StorePlatform.Android, "com.example.game", ""), new FakeLog());
-            new SettingsPresenter(rowsView, audio, haptics, prefs, feedback, review, new List<ISettingsSection> { hidden, theme }).Start();
+            new SettingsPresenter(rowsView, audio, haptics, prefs, feedback, review, new List<ISettingsSection> { hidden, theme }, GameCredits.None).Start();
 
             Assert.That(rowsView.Rows.Count, Is.EqualTo(1));
             Assert.That(rowsView.Rows[0].TitleKey, Is.EqualTo("settings.theme"));
@@ -204,6 +206,84 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(view.AboutVisible, Is.False);
             Assert.That(presenter.IsOpen, Is.True);
             Assert.That(feedback.Clicks, Is.EqualTo(0));
+        }
+
+        private SettingsPresenter WithCredits(FakeSettingsView settingsView, GameCredits credits)
+        {
+            var review = new ReviewPrompter(prefs, requester, new StoreIdentity(StorePlatform.Android, "com.example.game", ""), new FakeLog());
+            return new SettingsPresenter(settingsView, audio, haptics, prefs, feedback, review, new List<ISettingsSection>(), credits);
+        }
+
+        // The template ships without Resources/Credits.txt (Compass writes a game's); without it, or with a blank one,
+        // Settings has no Credits row and its event does nothing
+        [Test]
+        public void Credits_row_is_hidden_without_credits_txt()
+        {
+            Assert.That(view.CreditsVisible, Is.False, "no credits");
+            if (Resources.Load<TextAsset>(GameCredits.ResourcePath) == null)
+                Assert.That(GameCredits.FromResources().HasText, Is.False, "the template's Resources");
+            Assert.That(GameCredits.Read(null).HasText, Is.False, "no file");
+            foreach (var blank in new[] { "", " ", "\n\n", " \t\r\n " })
+            {
+                var blankView = new FakeSettingsView();
+                var file = new TextAsset(blank);
+                try
+                {
+                    var blankPresenter = WithCredits(blankView, GameCredits.Read(file));
+                    blankPresenter.Start();
+                    blankPresenter.Open();
+                    blankView.ClickCredits();
+
+                    Assert.That(blankView.CreditsVisible, Is.False, $"blank \"{blank}\"");
+                    Assert.That(blankView.CreditsShown, Is.Null, $"blank \"{blank}\" opened");
+                }
+                finally
+                {
+                    Object.DestroyImmediate(file);
+                }
+            }
+            Assert.That(feedback.Clicks, Is.EqualTo(0));
+        }
+
+        // A game with Resources/Credits.txt shows the row; it opens the credits over the open panel (as written, less
+        // the blank lines around it) and Close goes back to Settings
+        [Test]
+        public void Credits_row_shows_with_credits_txt()
+        {
+            var creditsView = new FakeSettingsView();
+            var file = new TextAsset("\n\"Round UI\" by Ada, https://example.org/round-ui, CC BY 4.0\n\n\"Kenney UI\" by Kenney, CC0 1.0 Universal.\n");
+            try
+            {
+                var withCredits = WithCredits(creditsView, GameCredits.Read(file));
+                withCredits.Start();
+                Assert.That(creditsView.CreditsVisible, Is.True, "Credits row");
+
+                creditsView.ClickCredits();
+                Assert.That(creditsView.CreditsShown, Is.Null, "a closed panel ignores the row");
+
+                withCredits.Open();
+                creditsView.ClickCredits();
+                Assert.That(creditsView.CreditsShown, Is.EqualTo(
+                    "\"Round UI\" by Ada, https://example.org/round-ui, CC BY 4.0\n\n\"Kenney UI\" by Kenney, CC0 1.0 Universal."));
+                Assert.That(withCredits.IsOpen, Is.True, "settings stay open under the credits");
+                Assert.That(creditsView.Hidden, Is.EqualTo(0));
+
+                creditsView.ClickCreditsClose();
+                creditsView.ClickCreditsClose();
+                Assert.That(creditsView.CreditsHidden, Is.EqualTo(1), "Close goes back to Settings once");
+                Assert.That(withCredits.IsOpen, Is.True);
+                Assert.That(feedback.Clicks, Is.EqualTo(2));
+
+                // Closing Settings with the credits open closes both
+                creditsView.ClickCredits();
+                creditsView.ClickClose();
+                Assert.That(creditsView.CreditsHidden, Is.EqualTo(2));
+                Assert.That(creditsView.Hidden, Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(file);
+            }
         }
     }
 }

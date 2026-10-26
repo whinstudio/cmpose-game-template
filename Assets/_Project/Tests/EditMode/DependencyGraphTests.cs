@@ -128,6 +128,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(root.Resolve<DeepLinkRouter>(), Is.SameAs(root.Resolve<DeepLinkRouter>()));
             Assert.That(root.Resolve<DeepLinkQueue>(), Is.SameAs(root.Resolve<DeepLinkQueue>()));
             Assert.That(root.Resolve<AboutInfo>().VersionLabel, Does.StartWith("v"));
+            Assert.That(root.Resolve<GameCredits>(), Is.SameAs(root.Resolve<GameCredits>()));
             Assert.That(root.Resolve<IUrlOpener>(), Is.Not.Null);
             Assert.That(root.Resolve<ReviewPrompter>(), Is.SameAs(root.Resolve<ReviewPrompter>()));
             Assert.That(root.Resolve<ReviewPrompter>().CanOpenStorePage, Is.True);

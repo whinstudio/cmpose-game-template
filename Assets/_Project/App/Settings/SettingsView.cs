@@ -21,6 +21,8 @@ namespace Kturker.UnityBase.App.Settings
         [SerializeField] private Toggle vibrationToggle;
         [SerializeField] private SettingsRowView[] rows;
         [SerializeField] private Button rateButton;
+        [SerializeField] private Button creditsButton;
+        [SerializeField] private CreditsPanel credits;
         [SerializeField] private Button aboutButton;
         [SerializeField] private Button closeButton;
         private Action[] rowHandlers;
@@ -30,6 +32,8 @@ namespace Kturker.UnityBase.App.Settings
         public event Action<bool> VibrationChanged;
         public event Action RateClicked;
         public event Action AboutClicked;
+        public event Action CreditsClicked;
+        public event Action CreditsCloseClicked;
         public event Action CloseClicked;
         public event Action<int> SectionClicked;
 
@@ -37,6 +41,8 @@ namespace Kturker.UnityBase.App.Settings
         public Slider SfxSlider => sfxSlider;
         public Button CloseButton => closeButton;
         public Button AboutButton => aboutButton;
+        public Button CreditsButton => creditsButton;
+        public CreditsPanel Credits => credits;
 
         private void Awake()
         {
@@ -46,6 +52,8 @@ namespace Kturker.UnityBase.App.Settings
             vibrationToggle.onValueChanged.AddListener(OnVibration);
             rateButton.onClick.AddListener(OnRate);
             aboutButton.onClick.AddListener(OnAbout);
+            creditsButton.onClick.AddListener(OnCredits);
+            credits.CloseClicked += OnCreditsClose;
             closeButton.onClick.AddListener(OnClose);
             rowHandlers = new Action[rows.Length];
             for (var i = 0; i < rows.Length; i++)
@@ -63,6 +71,8 @@ namespace Kturker.UnityBase.App.Settings
             vibrationToggle.onValueChanged.RemoveListener(OnVibration);
             rateButton.onClick.RemoveListener(OnRate);
             aboutButton.onClick.RemoveListener(OnAbout);
+            creditsButton.onClick.RemoveListener(OnCredits);
+            credits.CloseClicked -= OnCreditsClose;
             closeButton.onClick.RemoveListener(OnClose);
             for (var i = 0; i < rows.Length; i++) rows[i].Clicked -= rowHandlers[i];
         }
@@ -78,6 +88,12 @@ namespace Kturker.UnityBase.App.Settings
         public void SetRateVisible(bool visible) => rateButton.gameObject.SetActive(visible);
 
         public void SetAboutVisible(bool visible) => aboutButton.gameObject.SetActive(visible);
+
+        public void SetCreditsVisible(bool visible) => creditsButton.gameObject.SetActive(visible);
+
+        public void ShowCredits(string text) => credits.Show(text);
+
+        public void HideCredits() => credits.Hide();
 
         // Rows beyond the slots are not shown (RowSlots: SceneBuilder builds that many)
         public void ShowSections(IReadOnlyList<SettingsRow> sections)
@@ -100,6 +116,10 @@ namespace Kturker.UnityBase.App.Settings
         private void OnRate() => RateClicked?.Invoke();
 
         private void OnAbout() => AboutClicked?.Invoke();
+
+        private void OnCredits() => CreditsClicked?.Invoke();
+
+        private void OnCreditsClose() => CreditsCloseClicked?.Invoke();
 
         private void OnClose() => CloseClicked?.Invoke();
     }

@@ -24,6 +24,8 @@ namespace Kturker.UnityBase.Tests.EditMode
     {
         private const string SettingsPrefab = "Assets/_Project/App/Settings/SettingsPanel.prefab";
         private const string SettingsCard = "Panel/SafeArea/Card";
+        // The Credits panel over the settings card (CreditsPanel): its title, scrolling text box and Close
+        private const string CreditsArea = "Credits/Panel/SafeArea";
         private const string MenuScene = "Assets/_Project/Scenes/Menu.unity";
         // cmpose:sample
         private const string GameScene = "Assets/_Project/Scenes/Game.unity";
@@ -255,7 +257,9 @@ namespace Kturker.UnityBase.Tests.EditMode
         // The touch groups of each screen: (name, root) whose active Selectables are measured together
         private void ForEachTouchGroup(string name, Vector2 screen, IThemeSource theme, Action<string, Transform> check)
         {
-            check($"{name} Settings", Require(LayoutStage.Prefab(SettingsPrefab, screen, theme, made).transform, SettingsCard));
+            var settings = LayoutStage.Prefab(SettingsPrefab, screen, theme, made).transform;
+            check($"{name} Settings", Require(settings, SettingsCard));
+            check($"{name} Credits", Require(settings, CreditsArea));
             InScene(MenuScene, screen, theme, canvas => check($"{name} Menu", Require(canvas, "SafeArea/Menu")));
             // cmpose:sample
             InScene(GameScene, screen, theme, canvas =>
@@ -363,6 +367,60 @@ namespace Kturker.UnityBase.Tests.EditMode
                 });
             }
             Assert.That(problems, Is.Empty, string.Join("\n", problems));
+        }
+
+        // Compass writes a game's credits (Resources/Credits.txt, CC BY attributions): a long Turkish one wraps inside the
+        // Credits panel's box (an unbroken URL too) in the body font, shown as written, scrolls when it is taller than the
+        // box, and the box stays on the screen, KitLayout.Gap clear of the title and Close
+        [Test]
+        public void Long_turkish_credits_scroll_and_do_not_overflow()
+        {
+            var problems = new List<string>();
+            var credits = LongTurkishCredits();
+            ForEachScreen((name, screen, theme) =>
+            {
+                var root = LayoutStage.Prefab(SettingsPrefab, screen, theme, made);
+                var panel = root.GetComponentInChildren<CreditsPanel>(true);
+                Assert.That(panel, Is.Not.Null, "CreditsPanel in the settings prefab");
+                var area = Require(root.transform, CreditsArea);
+                var body = panel.Body;
+                body.text = credits;
+                LayoutStage.Layout(root);
+                var scroll = panel.Scroll;
+                var box = LayoutStage.World((RectTransform)scroll.transform);
+                var viewport = LayoutStage.World(scroll.viewport);
+                var text = LayoutStage.World(body.rectTransform);
+                if (!scroll.vertical || scroll.horizontal) problems.Add($"{name}: the credits box does not scroll vertically only");
+                if (scroll.content.rect.height <= scroll.viewport.rect.height + 1f)
+                    problems.Add($"{name}: long credits ({scroll.content.rect.height}) fit the box ({scroll.viewport.rect.height}): nothing scrolls");
+                if (body.isTextOverflowing) problems.Add($"{name}: credits overflow their text box");
+                var room = body.rectTransform.rect.width - body.margin.x - body.margin.z;
+                if (body.textBounds.size.x > room + 1f) problems.Add($"{name}: credits {body.textBounds.size.x} wide in {room}");
+                if (body.rectTransform.rect.height < body.preferredHeight - 1f)
+                    problems.Add($"{name}: credits box {body.rectTransform.rect.height} high for {body.preferredHeight} of text");
+                if (text.xMin < viewport.xMin - Slack || text.xMax > viewport.xMax + Slack) problems.Add($"{name}: credits {text} wider than the box {viewport}");
+                if (body.richText) problems.Add($"{name}: credits read rich text tags");
+                var role = body.GetComponent<ThemedText>();
+                if (role == null || role.Role != TextRole.Body) problems.Add($"{name}: credits not in the body font");
+                if (!Inside(LayoutStage.World((RectTransform)area), box)) problems.Add($"{name}: credits box {box} outside the safe area");
+                foreach (var neighbour in new[] { "Title", "Close" })
+                {
+                    var gap = LayoutStage.Distance(box, LayoutStage.World((RectTransform)Require(area, neighbour)));
+                    if (gap < KitLayout.Gap - Slack) problems.Add($"{name}: credits box {gap} from {neighbour}");
+                }
+            });
+            Assert.That(problems, Is.Empty, string.Join("\n", problems));
+        }
+
+        // Forty paragraphs in Compass's form, Turkish letters, a word that is not a tag and a URL longer than any line
+        private static string LongTurkishCredits()
+        {
+            var paragraphs = new List<string>();
+            for (var i = 1; i <= 40; i++)
+                paragraphs.Add($"\"Gökyüzü Şarkısı {i}\" by Çağla Öztürk & İlkay Ünlü, https://opengameart.org/content/gokyuzu-sarkisi-{i}, " +
+                    "CC BY 4.0. Değişiklik: ses düzeyi ayarlandı, başı ve sonu kırpıldı <b>.");
+            paragraphs.Add("https://example.org/" + string.Concat(Enumerable.Repeat("çokuzunbirbağlantıĞÜŞİÖÇ", 12)));
+            return string.Join("\n\n", paragraphs);
         }
 
         // cmpose:sample

@@ -84,6 +84,8 @@ namespace Kturker.UnityBase.Core.DI
             builder.Register<DeepLinkQueue>(Lifetime.Singleton);
             builder.RegisterEntryPoint<UnityDeepLinkSource>();
             builder.Register<AboutInfo>(resolver => AboutInfo.From(resolver.Resolve<AppInfo>(), resolver.Resolve<AppConfig>()), Lifetime.Singleton);
+            // The game's credits (Resources/Credits.txt, Compass writes it): Settings shows its Credits row with them
+            builder.Register<GameCredits>(_ => GameCredits.FromResources(), Lifetime.Singleton);
             builder.Register<IUrlOpener, UnityUrlOpener>(Lifetime.Singleton);
             builder.Register<StoreIdentity>(resolver =>
                 new StoreIdentity(CurrentStore(), Application.identifier, resolver.Resolve<AppConfig>().AppStoreId), Lifetime.Singleton);

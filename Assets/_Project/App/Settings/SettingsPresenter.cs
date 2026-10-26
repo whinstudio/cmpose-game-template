@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Kturker.UnityBase.App.About;
+using Kturker.UnityBase.Core.About;
 using Kturker.UnityBase.Core.Audio;
 using Kturker.UnityBase.Core.Haptics;
 using Kturker.UnityBase.Core.Preferences;
@@ -11,6 +12,7 @@ namespace Kturker.UnityBase.App.Settings
     // Sliders and the toggle write through at once; Close saves the preferences once. Opening an open panel or
     // closing a closed one does nothing. "Rate the app" opens the store page (hidden on iOS without an App Store ID).
     // Feature flags add section rows (ISettingsSection; one without options is hidden); pressing a row selects its next option.
+    // Credits shows when the game has credits (Resources/Credits.txt): it opens them over this panel, Close comes back.
     // The last row, About, shows once the scene offers its About panel (the menu): it closes this panel, then opens About.
     public sealed class SettingsPresenter : Presenter<ISettingsView>, ISettingsPanel
     {
@@ -20,12 +22,14 @@ namespace Kturker.UnityBase.App.Settings
         private readonly IUiFeedback feedback;
         private readonly ReviewPrompter review;
         private readonly IReadOnlyList<ISettingsSection> sections;
+        private readonly GameCredits credits;
         // The sections that have options, in order: the rows the view shows
         private readonly List<ISettingsSection> shown = new List<ISettingsSection>();
         private IAboutPanel about;
+        private bool creditsOpen;
 
         public SettingsPresenter(ISettingsView view, AudioPreferences audio, HapticsService haptics, IPreferences preferences,
-            IUiFeedback feedback, ReviewPrompter review, IReadOnlyList<ISettingsSection> sections) : base(view)
+            IUiFeedback feedback, ReviewPrompter review, IReadOnlyList<ISettingsSection> sections, GameCredits credits) : base(view)
         {
             this.audio = audio;
             this.haptics = haptics;
@@ -33,6 +37,7 @@ namespace Kturker.UnityBase.App.Settings
             this.feedback = feedback;
             this.review = review;
             this.sections = sections;
+            this.credits = credits;
         }
 
         public bool IsOpen { get; private set; }
@@ -41,11 +46,14 @@ namespace Kturker.UnityBase.App.Settings
         {
             View.SetRateVisible(review.CanOpenStorePage);
             View.SetAboutVisible(about != null);
+            View.SetCreditsVisible(credits.HasText);
             View.MusicChanged += OnMusic;
             View.SfxChanged += OnSfx;
             View.VibrationChanged += OnVibration;
             View.RateClicked += OnRate;
             View.AboutClicked += OnAbout;
+            View.CreditsClicked += OnCredits;
+            View.CreditsCloseClicked += OnCreditsClose;
             View.CloseClicked += OnClose;
             foreach (var section in sections) section.Changed += RenderSections;
             View.SectionClicked += OnSection;
@@ -59,6 +67,8 @@ namespace Kturker.UnityBase.App.Settings
             View.VibrationChanged -= OnVibration;
             View.RateClicked -= OnRate;
             View.AboutClicked -= OnAbout;
+            View.CreditsClicked -= OnCredits;
+            View.CreditsCloseClicked -= OnCreditsClose;
             View.CloseClicked -= OnClose;
             foreach (var section in sections) section.Changed -= RenderSections;
             View.SectionClicked -= OnSection;
@@ -105,8 +115,31 @@ namespace Kturker.UnityBase.App.Settings
             about.Open();
         }
 
+        // The credits draw over this panel, which stays open under them
+        private void OnCredits()
+        {
+            if (!IsOpen || creditsOpen || !credits.HasText) return;
+            feedback.Click();
+            creditsOpen = true;
+            View.ShowCredits(credits.Text);
+        }
+
+        private void OnCreditsClose()
+        {
+            if (!creditsOpen) return;
+            feedback.Click();
+            HideCredits();
+        }
+
+        private void HideCredits()
+        {
+            creditsOpen = false;
+            View.HideCredits();
+        }
+
         private void Close()
         {
+            if (creditsOpen) HideCredits();
             IsOpen = false;
             preferences.Save();
             View.Hide();

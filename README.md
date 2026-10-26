@@ -29,7 +29,9 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
 - **Menu:** a top bar (the currency on the left, shown by the economy, see "Economy"; the settings gear in the right corner), the title
   or your logo in the middle, round feature buttons in a column at each side and a big Play at the bottom. Settings:
   music and sound effect volume, vibration and Rate the app, plus Theme and Language when those parts are included,
-  and About as the last row (version, privacy and terms links, open-source licences). Settings are saved with
+  Credits when the game has `Assets/_Project/Resources/Credits.txt` (plain text, shown as written in a scrolling
+  screen; leave it out or blank and the row is hidden) and About as the last row (version, privacy and terms links,
+  open-source licences). Settings are saved with
   PlayerPrefs. While room is kept for the ads banner at the top of the menu (from before the ad loads, so nothing
   moves when it arrives), the top bar moves down one button height more, so no button sits next to the ad. Add a
   feature's button to a side column (up to three per side) with `IMenuSideButtons` (the menu's `MenuView`):
