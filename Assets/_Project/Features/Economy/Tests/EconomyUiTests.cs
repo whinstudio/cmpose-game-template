@@ -15,7 +15,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
     // login windows, the menu's badges and the HUD's coins
     public sealed class EconomyUiTests
     {
-        // One inRun booster without stock, two preRun ones (one in stock), no welcome bundle paid yet
+        // One inRun booster without stock, two preRun ones (one in stock)
         private const string Json =
             "{\"version\":1,\"currency\":{\"name\":\"coins\",\"color\":\"#F9B817\",\"icon\":\"Art/game-icons/missing-coin\"}," +
             "\"boosters\":[{\"id\":\"bomb\",\"icon\":\"Art/game-icons/missing-bomb\",\"price\":80,\"offer\":\"inRun\",\"start\":0}," +
@@ -27,7 +27,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             "{\"coins\":150,\"weight\":5},{\"booster\":\"bomb\",\"count\":1,\"weight\":15},{\"booster\":\"shield\",\"count\":1,\"weight\":10}]}," +
             "\"login\":[{\"coins\":15},{\"coins\":15},{\"coins\":30},{\"coins\":30},{\"coins\":45},{\"coins\":45},{\"coins\":200,\"booster\":\"bomb\",\"count\":1}]," +
             "\"extras\":[{\"id\":\"daily\",\"kind\":\"supply\"},{\"id\":\"spin\",\"kind\":\"wheel\"},{\"id\":\"streak\",\"kind\":\"login\"}]," +
-            "\"welcome\":{\"coins\":400,\"boosters\":{\"bomb\":3}}}";
+            "\"shop\":{\"kind\":\"simple\",\"rows\":[{\"id\":\"remove_ads\",\"usd\":4.99},{\"id\":\"coins_1\",\"usd\":0.99,\"coins\":160}]}}";
 
         private static readonly UnityEngine.Color Gold = new UnityEngine.Color(0xF9 / 255f, 0xB8 / 255f, 0x17 / 255f);
 
@@ -49,6 +49,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             public readonly PauseService Pause = new PauseService();
             public readonly FakeBoosterOfferView OfferView = new FakeBoosterOfferView();
             public readonly FakeBoosterPickerView PickerView = new FakeBoosterPickerView();
+            public readonly FakeEconomyShop Shop = new FakeEconomyShop();
             public bool AutoPlay;
             public readonly Economy Economy;
             public readonly Supply Supply;
@@ -66,7 +67,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
                 Wheel = new Wheel(Economy, Ads, Clock, () => AutoPlay, Zone);
                 Login = new LoginBonus(Economy, Clock, () => AutoPlay, Zone);
                 Currency = new EconomyCurrency(Economy.Config, Localizer);
-                Offer = new BoosterOfferDialog(OfferView, Economy, Ads, Currency, Feedback, () => AutoPlay);
+                Offer = new BoosterOfferDialog(OfferView, Economy, Ads, Currency, Feedback, Shop, () => AutoPlay);
                 Picker = new BoosterPicker(PickerView, Economy, Offer, Currency, Feedback);
                 Boosters = new Boosters(Economy, Offer, Picker, Runs, Pause, () => AutoPlay);
             }
@@ -513,7 +514,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             var rig = new Rig();
             var sides = new FakeMenuSideButtons();
             var windows = new FakeEconomyWindows();
-            var menu = new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, windows, rig.Currency, rig.Feedback);
+            var menu = new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, windows, rig.Currency, rig.Feedback, rig.Shop);
 
             menu.Start();
 
@@ -563,7 +564,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
                 .Replace("{\"name\":\"coins\",\"color\":\"#F9B817\",\"icon\":\"Art/game-icons/missing-coin\"}", "{\"name\":\"sparks\",\"color\":\"#8E44AD\"}"));
             var sides = new FakeMenuSideButtons();
             var windows = new FakeEconomyWindows();
-            var menu = new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, windows, rig.Currency, rig.Feedback);
+            var menu = new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, windows, rig.Currency, rig.Feedback, rig.Shop);
 
             menu.Start();
 
@@ -577,7 +578,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             // The wheel and the login bonus: left Daily, right Spin, no Supply
             var two = new Rig(EconomyTests.Without(Json, "supply"));
             var twoSides = new FakeMenuSideButtons();
-            new EconomyMenu(twoSides, twoSides, two.Economy, two.Supply, two.Wheel, two.Login, windows, two.Currency, two.Feedback).Start();
+            new EconomyMenu(twoSides, twoSides, two.Economy, two.Supply, two.Wheel, two.Login, windows, two.Currency, two.Feedback, two.Shop).Start();
             Assert.That(twoSides.Buttons.Select(b => (b.LabelKey, b.Side)), Is.EqualTo(new[]
                 { (EconomyKeys.Wheel, MenuSide.Right), (EconomyKeys.Login, MenuSide.Left) }));
 
@@ -595,7 +596,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
         {
             var rig = new Rig(EconomyTests.Without(Json, "supply", "wheel", "login", "extras").Replace("\"name\":\"coins\"", "\"name\":\"stars\""));
             var sides = new FakeMenuSideButtons();
-            var menu = new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, new FakeEconomyWindows(), rig.Currency, rig.Feedback);
+            var menu = new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, new FakeEconomyWindows(), rig.Currency, rig.Feedback, rig.Shop);
 
             menu.Start();
             menu.Tick();
@@ -623,7 +624,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
         {
             var rig = new Rig(null);
             var sides = new FakeMenuSideButtons();
-            new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, new FakeEconomyWindows(), rig.Currency, rig.Feedback).Start();
+            new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, new FakeEconomyWindows(), rig.Currency, rig.Feedback, rig.Shop).Start();
 
             Assert.That(sides.Coins, Is.Null);
             Assert.That(sides.CoinWrites, Is.EqualTo(1));
@@ -661,27 +662,6 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             offShell.Begin(ShellMode.Endless);
             Assert.That(offView.Counter, Is.Null);
             Assert.That(offView.CounterIcon, Is.Null, "the plain dot");
-        }
-
-        [Test]
-        public void Welcome_line_lists_the_bundle_until_it_is_given()
-        {
-            var rig = new Rig();
-            var line = new WelcomeBonusLine(rig.Economy, rig.Localizer);
-
-            Assert.That(line.LineKey, Is.EqualTo(EconomyKeys.WelcomeLine));
-            Assert.That(line.Args.ToList(), Is.EqualTo(new[]
-            {
-                new KeyValuePair<string, string>("coins", "400"),
-                new KeyValuePair<string, string>("economy.booster.bomb.name", "3")
-            }));
-            rig.Economy.Wallet.State.WelcomeGiven = true;
-            Assert.That(line.LineKey, Is.Null);
-            Assert.That(new WelcomeBonusLine(new Rig(null).Economy, rig.Localizer).LineKey, Is.Null);
-
-            // The game's tables name it: the paywall writes economy.currency.name in the player's language
-            var named = new WelcomeBonusLine(new Rig().Economy, new TableStub(new Dictionary<string, string> { [EconomyKeys.CurrencyName] = "palamut" }));
-            Assert.That(named.Args.First().Key, Is.EqualTo(EconomyKeys.CurrencyName));
         }
 
         [Test]
@@ -779,7 +759,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             var rig = new Rig(EconomyTests.Without(Json, "login").Replace("\"extras\":[", "\"extras\":[{\"id\":\"scratch\",\"kind\":\"custom\"},"));
             var sides = new FakeMenuSideButtons();
             var windows = new FakeEconomyWindows();
-            var menu = new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, windows, rig.Currency, rig.Feedback);
+            var menu = new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, windows, rig.Currency, rig.Feedback, rig.Shop);
             var opened = 0;
 
             var button = menu.AddExtraButton("scratch", KitSprites.Gift, () => opened++);
@@ -828,6 +808,27 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             // Without an economy nothing opens
             var off = new Rig(null);
             Assert.That(new ExtraWindow(new FakeExtraWindowView(), off.Economy, off.Ads, off.Feedback, () => false, null).Open(content), Is.False);
+        }
+
+        [Test]
+        public void Menu_coins_open_the_shop_while_it_can_show()
+        {
+            var rig = new Rig();
+            var sides = new FakeMenuSideButtons();
+            var menu = new EconomyMenu(sides, sides, rig.Economy, rig.Supply, rig.Wheel, rig.Login, new FakeEconomyWindows(), rig.Currency,
+                rig.Feedback, rig.Shop);
+            menu.Start();
+
+            sides.ClickCoins();
+            Assert.That(rig.Shop.Shown, Is.EqualTo(new[] { false }), "from the counter, not the not-enough moment");
+            Assert.That(rig.Feedback.Clicks, Is.EqualTo(1));
+
+            rig.Shop.CanShow = false;
+            sides.ClickCoins();
+            menu.Dispose();
+            rig.Shop.CanShow = true;
+            sides.ClickCoins();
+            Assert.That(rig.Shop.Shown.Count, Is.EqualTo(1));
         }
     }
 }

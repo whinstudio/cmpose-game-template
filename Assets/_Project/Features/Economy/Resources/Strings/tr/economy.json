@@ -33,8 +33,8 @@
   "economy.login.claimed": "Alındı",
   "economy.login.next": "Sonraki ödül: {0}",
   "economy.offer.watch": "Reklam izle",
+  "economy.shop": "Mağaza",
   "economy.picker.title": "Güçlendirmeler",
   "economy.picker.hint": "Bu koşuya götürmek için bir güçlendirmeye dokun",
-  "economy.picker.play": "Oyna",
-  "economy.welcome.line": "Hediye: {0}"
+  "economy.picker.play": "Oyna"
 }

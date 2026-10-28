@@ -239,7 +239,7 @@ namespace Kturker.UnityBase.Core.Ads.Tests
             Assert.That(gateway.BannerPositions, Is.EqualTo(new[] { BannerPosition.Top }));
         }
 
-        // The device check: the paywall's Close became Continue when the content moved down under the finger as the
+        // The device check: a screen's Close became the button under it when the content moved down under the finger as the
         // banner arrived. The room is kept from the moment the banner is asked for.
         [Test]
         public void Banner_room_is_kept_before_the_banner_loads_and_does_not_change_when_it_loads()
@@ -259,7 +259,7 @@ namespace Kturker.UnityBase.Core.Ads.Tests
             Assert.That(ads.BannerHeight, Is.EqualTo(168));
         }
 
-        // First launch: the menu (and the first paywall over it) opens before UMP has answered
+        // First launch: the menu opens before UMP has answered
         [Test]
         public void Banner_room_is_kept_while_consent_has_not_answered_yet()
         {

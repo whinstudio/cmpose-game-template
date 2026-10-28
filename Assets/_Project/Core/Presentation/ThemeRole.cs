@@ -14,7 +14,7 @@ namespace Kturker.UnityBase.Core.Presentation
         // Untinted pictures (avatars, remote images): white in every palette
         Picture,
         // An emphasised box that stands out from Surface and Background in both palettes, and from Track (the GitHub
-        // card on the Game screen, the paywall's chosen package row among Track rows)
+        // card on the Game screen)
         SurfaceVariant,
         // The rail of a slider and the box of a checkbox: Primary (fill, mark) reads on it and it reads on Surface
         Control,

@@ -38,10 +38,10 @@ namespace Kturker.UnityBase.Features.Showcase.Installer
             // cmpose:purchases
             if (slot != null)
             {
-                builder.Register<IPremiumButtonView>(resolver => PremiumButtonView.Spawn(slot(), resolver.Resolve<UiBinder>()),
+                builder.Register<IShopButtonView>(resolver => ShopButtonView.Spawn(slot(), resolver.Resolve<UiBinder>()),
                     Lifetime.Scoped);
             }
-            builder.RegisterEntryPoint<ShowcasePremiumPresenter>();
+            builder.RegisterEntryPoint<ShowcaseShopPresenter>();
             // /cmpose:purchases
             // cmpose:saveSystem
             builder.Register<RunStats>(Lifetime.Scoped);

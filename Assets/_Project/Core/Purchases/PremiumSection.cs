@@ -4,8 +4,8 @@ using Kturker.UnityBase.Core.Presentation;
 
 namespace Kturker.UnityBase.Core.Purchases
 {
-    // The Premium row in Settings: one option that shows the state (Get, Active, Unavailable); a press opens the
-    // paywall when there is something to sell
+    // The Remove Ads row in Settings: one option that shows the state (Get, Active, Unavailable); a press opens the
+    // shop when there is something to sell
     public sealed class PremiumSection : ISettingsSection
     {
         private static readonly SettingsOption[] Get = { SettingsOption.Key(PurchasesKeys.StateGet) };
@@ -13,12 +13,12 @@ namespace Kturker.UnityBase.Core.Purchases
         private static readonly SettingsOption[] Unavailable = { SettingsOption.Key(PurchasesKeys.StateUnavailable) };
 
         private readonly IPurchases purchases;
-        private readonly IPaywall paywall;
+        private readonly IShop shop;
 
-        public PremiumSection(IPurchases purchases, IPaywall paywall)
+        public PremiumSection(IPurchases purchases, IShop shop)
         {
             this.purchases = purchases;
-            this.paywall = paywall;
+            this.shop = shop;
             purchases.Changed += OnChanged;
         }
 
@@ -31,7 +31,7 @@ namespace Kturker.UnityBase.Core.Purchases
         public void Select(int index)
         {
             if (index != 0 || !purchases.IsAvailable || purchases.IsPremium) return;
-            paywall.Show(PaywallSource.Settings);
+            shop.Show(ShopSource.Settings);
         }
 
         private void OnChanged() => Changed?.Invoke();

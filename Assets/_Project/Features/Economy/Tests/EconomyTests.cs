@@ -12,8 +12,8 @@ namespace Kturker.UnityBase.Features.Economy.Tests
 {
     public sealed class EconomyTests
     {
-        // The v1 file Compass writes (two boosters so the wheel and the welcome bundle pay both kinds; the three ready
-        // extras)
+        // The v1 file Compass writes (two boosters so the wheel pays both kinds; the three ready extras; a simple shop,
+        // EconomyConfigTests reads it)
         internal const string Json =
             "{\"version\":1,\"currency\":{\"name\":\"acorns\",\"color\":\"#B5651D\",\"icon\":\"Art/game-icons/currency\"}," +
             "\"boosters\":[{\"id\":\"bomb\",\"icon\":\"Art/game-icons/bomb\",\"price\":80,\"offer\":\"inRun\",\"start\":2}," +
@@ -24,7 +24,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             "{\"coins\":150,\"weight\":5},{\"booster\":\"bomb\",\"count\":1,\"weight\":15},{\"booster\":\"shield\",\"count\":1,\"weight\":10}]}," +
             "\"login\":[{\"coins\":15},{\"coins\":15},{\"coins\":30},{\"coins\":30},{\"coins\":45},{\"coins\":45},{\"coins\":200,\"booster\":\"bomb\",\"count\":1}]," +
             "\"extras\":[{\"id\":\"daily\",\"kind\":\"supply\"},{\"id\":\"spin\",\"kind\":\"wheel\"},{\"id\":\"streak\",\"kind\":\"login\"}]," +
-            "\"welcome\":{\"coins\":400,\"boosters\":{\"bomb\":3}}}";
+            "\"shop\":{\"kind\":\"simple\",\"rows\":[{\"id\":\"remove_ads\",\"usd\":4.99},{\"id\":\"coins_1\",\"usd\":0.99,\"coins\":160}]}}";
 
         // A custom extra first, then the supply and the wheel (no login bonus)
         internal static readonly string CustomJson =
@@ -36,12 +36,6 @@ namespace Kturker.UnityBase.Features.Economy.Tests
 
         private static readonly TimeZoneInfo Zone =
             TimeZoneInfo.CreateCustomTimeZone("Test+03", TimeSpan.FromHours(3), "Test+03", "Test+03");
-
-        private sealed class FakePremiumPurchaseEvents : IPremiumPurchaseEvents
-        {
-            public event Action PremiumPurchased;
-            public void Purchase() => PremiumPurchased?.Invoke();
-        }
 
         private sealed class Rig
         {
@@ -81,7 +75,6 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             Assert.That(config.Supply.AdCoins, Is.EqualTo(new[] { 20, 40, 50, 75 }));
             Assert.That(config.Wheel.Slices.Count, Is.EqualTo(6));
             Assert.That(config.Login[6].Booster, Is.EqualTo("bomb"));
-            Assert.That(config.Welcome.Boosters["bomb"], Is.EqualTo(3));
         }
 
         [Test]
@@ -101,7 +94,8 @@ namespace Kturker.UnityBase.Features.Economy.Tests
                 Json.Replace("{\"coins\":15},{\"coins\":15},", "{\"coins\":15},"),
                 Json.Replace("\"freeHours\":3", "\"freeHours\":0"),
                 Json.Replace("\"freeCoins\":15", "\"freeCoins\":1.5"),
-                Json.Replace("\"boosters\":{\"bomb\":3}", "\"boosters\":{\"magnet\":3}"),
+                // A shop that is there must be whole too (EconomyConfigTests has the rest)
+                Json.Replace("\"kind\":\"simple\"", "\"kind\":\"medium\""),
                 // The currency: a name of 1-24 characters, a "#RRGGBB" colour, an optional icon path; never absent
                 Json.Replace("\"name\":\"acorns\",", ""),
                 Json.Replace("\"name\":\"acorns\"", "\"name\":\"   \""),
@@ -190,8 +184,8 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             Assert.That(EconomyConfig.Parse(Without(Json, "extras")), Is.Null, "ready sections without any extras");
         }
 
-        // Compass leaves out the extras that do not suit the game: the economy stays on with the currency, the boosters
-        // and the welcome bundle, and each missing extra is off (its section and its entry in extras both go)
+        // Compass leaves out the extras that do not suit the game: the economy stays on with the currency and the
+        // boosters, and each missing extra is off (its section and its entry in extras both go)
         internal static string Without(string json, params string[] sections)
         {
             foreach (var section in sections)
@@ -231,7 +225,6 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             var config = EconomyConfig.Parse(json);
             Assert.That(config, Is.Not.Null, json);
             Assert.That((config.Supply, config.Wheel, config.Login), Is.EqualTo(((SupplyConfig)null, (WheelConfig)null, (IReadOnlyList<EconomyReward>)null)));
-            Assert.That(config.Welcome.Coins, Is.EqualTo(400));
 
             var rig = new Rig(json);
             Assert.That(rig.Economy.Enabled, Is.True);
@@ -518,31 +511,6 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             var coins = rig.Economy.Coins;
             Assert.That(rig.Login.Claim().Coins, Is.EqualTo(15));
             Assert.That(rig.Economy.Coins, Is.EqualTo(coins + 15));
-        }
-
-        [Test]
-        public void Welcome_bundle_once_on_purchase_not_on_restore()
-        {
-            var rig = new Rig();
-            var events = new FakePremiumPurchaseEvents();
-            var bundle = new WelcomeBundle(rig.Economy, events);
-            bundle.Initialize();
-            Assert.That(bundle.Given, Is.False, "premium restored or found at launch raises no purchase");
-
-            events.Purchase();
-            events.Purchase();
-            Assert.That(rig.Economy.Coins, Is.EqualTo(400));
-            Assert.That(rig.Economy.Count("bomb"), Is.EqualTo(5));
-
-            // A restart, then another purchase event
-            var economy = new Economy(EconomyConfig.Parse(Json), rig.Store);
-            var again = new WelcomeBundle(economy, events);
-            again.Initialize();
-            bundle.Dispose();
-            events.Purchase();
-            Assert.That(again.Given, Is.True);
-            Assert.That(economy.Coins, Is.EqualTo(400), "the save remembers the bundle");
-            again.Dispose();
         }
 
         [Test]

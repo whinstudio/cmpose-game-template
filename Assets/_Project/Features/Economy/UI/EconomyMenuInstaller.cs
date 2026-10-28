@@ -11,6 +11,7 @@ namespace Kturker.UnityBase.Features.Economy
         public void Install(IContainerBuilder builder) =>
             builder.RegisterEntryPoint<EconomyMenu>(resolver => new EconomyMenu(resolver.Resolve<IMenuSideButtons>(), resolver.Resolve<IMenuCoins>(),
                 resolver.Resolve<Economy>(), resolver.Resolve<Supply>(), resolver.Resolve<Wheel>(), resolver.Resolve<LoginBonus>(),
-                resolver.Resolve<IEconomyWindows>(), resolver.Resolve<EconomyCurrency>(), resolver.Resolve<IUiFeedback>()), Lifetime.Singleton);
+                resolver.Resolve<IEconomyWindows>(), resolver.Resolve<EconomyCurrency>(), resolver.Resolve<IUiFeedback>(), resolver.Resolve<IEconomyShop>()),
+                Lifetime.Singleton);
     }
 }

@@ -147,17 +147,22 @@ public sealed class LeaderboardPresenter
 <!-- /cmpose:network -->
 
 <!-- cmpose:purchases -->
-## Premium and purchases
+## Shop and purchases
 
-With the purchases flag the game sells premium through RevenueCat. Ask `IPurchases` (inject it) whether premium is on:
+With the purchases flag the game has a shop (RevenueCat): **Remove Ads**, a one-time purchase that turns the banner and
+the full-screen ads off and makes "Continue" free, and, with an economy, coin packs the player may buy again and again
+(the shop's rows come from the `shop` section of `GameEconomy.json`: a full shop with a starter pack, a no-ads bundle,
+three packs and six coin packs, or a simple one with Remove Ads and four coin packs). The menu's Shop button, a tap on
+the coin counter, the booster offer's "not enough" moment and Settings → Remove Ads open it; Restore purchases is at its
+bottom. Ask `IPurchases` (inject it) whether Remove Ads is on:
 
 ```csharp
-if (purchases.IsPremium) { /* the premium feature */ }
+if (purchases.IsPremium) { /* no forced ads */ }
 purchases.Changed += Refresh;   // after a purchase, a restore or RevenueCat's own update
 ```
 
-The paywall opens once on the first menu (closable; never for premium players) and from Settings → Premium. Open it
-from your own button with `IPaywall.Show(PaywallSource.Settings)`. The paywall in
+Open the shop from your own button with `IShop.Show(ShopSource.Menu)` while `IShop.CanShow` (purchases available and a
+row left to sell). Bought coins and boosters reach the wallet once per store transaction (`ShopGrants`). The shop in
 `Assets/_Project/Features/Shell/Purchases` shows the flow; redraw it for your game.
 
 The template uses RevenueCat's **Test Store** key: development builds (`tools/unity.sh android . out.apk --development`,
@@ -165,8 +170,9 @@ or Development Build in Build Settings) list test packages and complete test pur
 builds and the editor keep purchases off.
 
 Before you send the game to the stores:
-1. In RevenueCat, create the project's App Store and Google Play apps, the products, an entitlement and a current
-   offering with its packages.
+1. In RevenueCat, create the project's App Store and Google Play apps, the products (ids as in `ShopProducts`:
+   `remove_ads`, `starter_pack`, `no_ads_bundle` one-time; `bundle_1..3`, `coins_1..6` consumable), the `premium`
+   entitlement (`remove_ads` and `no_ads_bundle` unlock it) and a current offering whose package ids are the product ids.
 2. Put the public SDK keys in `Assets/_Project/Core/Purchases/PurchasesConfig.cs` (`ApiKeyApple`: `appl_…`,
    `ApiKeyGoogle`: `goog_…`) and the entitlement id in `PremiumEntitlement`.
 3. Build a release and check the log: `CMPOSE_PURCHASES available=true`.
@@ -236,7 +242,7 @@ cmpose.dev/game makes two kinds of project from this template. **Blank** gives y
 the render: with the 2D render a tap-to-jump endless runner (`Features/Showcase/Runner2D`), with the 3D render a
 three-lane endless track (`Features/Showcase/Track3D`: swipe to change lanes, tap to jump over gaps, dodge the blocks,
 collect gems). Both come with a game-over panel and best score, and, with the matching flags, a rewarded "Continue"
-(ads; free for premium players), a Premium button that opens the paywall (purchases; premium also paints the runner or
+(ads; free with Remove Ads), a Shop button that opens the shop (purchases; Remove Ads also paints the runner or
 the ball gold), a leaderboard and achievements (leaderboards) and run totals (save system). Each game's rules are plain
 C# in its `Domain` folder (`RunnerSimulation` with `RunnerConfig`, `TrackSimulation` with `TrackConfig`), drawn by
 `RunnerWorldView` or `TrackWorldView`; replace them with your game and keep the shared parts in
@@ -281,6 +287,11 @@ The template gives the infrastructure; the economy itself is designed for each g
   login bonus; a missed day starts again at day 1) and **Spin** (`wheel`, right: the lucky wheel, free every few runs
   or won levels, a few more spins a day for an ad; "i" lists every slice's odds). A `custom` extra is the game's own
   code (a scratch card, a chest, a collection book), written on the helpers below.
+- **Shop** (`"shop":{"kind":"simple","rows":[{"id":"remove_ads","usd":4.99},{"id":"coins_1","usd":0.99,"coins":120}]}`,
+  absent: Remove Ads only): what the game sells, in order. `full` games get the Starter Pack, Remove Ads, the No Ads
+  Bundle, three bundles and six coin packs; `simple` ones Remove Ads and four coin packs. Each row is a store product
+  (`remove_ads`, `starter_pack`, `no_ads_bundle`, `bundle_1..3`, `coins_1..6`) with the coins and boosters it pays;
+  `usd` is only for opening the store products, the game shows the store's own price.
 
 The badges show a red dot when something can be taken, a video mark when only an ad can, and the countdown while
 waiting.
@@ -298,8 +309,9 @@ A booster in stock is used at once; otherwise its window offers it for the curre
 icon, enabled while the amount reaches it) or for a rewarded ad (once per booster per run, used at once, never
 stocked); with neither it says the currency is not enough. A rewarded ad that is not ready, closed early or fails gives
 nothing. Ads give currency only through an extra (the supply's ad rows, the wheel's ad spins, a custom extra's ad), and
-every rewarded ad counts towards the daily cap. With the purchases flag a premium purchase pays a welcome bundle once
-(the paywall lists it under its packages; a restore does not pay it again). During a Compass capture run
+every rewarded ad counts towards the daily cap. With the purchases flag the shop's coin packs and bundles
+(`GameEconomy.json` `shop` rows) pay their coins and boosters once per store transaction, also when the app closed
+mid-purchase; a restore brings back Remove Ads but never pays a bundle again. During a Compass capture run
 (`CompassAutoPlay`) no economy window opens, no ad is asked for and no booster is used.
 
 ### Writing a custom extra

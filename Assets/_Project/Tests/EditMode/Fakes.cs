@@ -537,6 +537,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         public int? Coins;
         public CurrencyMark CoinMark;
         public int CoinWrites;
+        public event Action CoinsClicked;
 
         public IMenuSideButton AddSideButton(MenuSide side, UnityEngine.Sprite icon, string labelKey, Action onClick)
         {
@@ -553,6 +554,15 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
 
         public FakeMenuSideButton Find(string labelKey) => Buttons.Find(b => b.LabelKey == labelKey);
+
+        public void ClickCoins() => CoinsClicked?.Invoke();
+    }
+
+    public sealed class FakeEconomyShop : IEconomyShop
+    {
+        public readonly List<bool> Shown = new List<bool>();
+        public bool CanShow { get; set; } = true;
+        public void Show(bool notEnough) => Shown.Add(notEnough);
     }
 
     public sealed class FakeEconomyWindows : IEconomyWindows
@@ -581,6 +591,8 @@ namespace Kturker.UnityBase.Tests.EditMode
         public event Action BuyClicked;
         public event Action WatchClicked;
         public event Action CloseClicked;
+        public event Action ShopClicked;
+        public bool ShopShown;
 
         public void SetOpen(bool open)
         {
@@ -600,6 +612,9 @@ namespace Kturker.UnityBase.Tests.EditMode
             Coins = coins;
             Currency = currency;
         }
+
+        public void SetShop(bool shown) => ShopShown = shown;
+        public void ClickShop() => ShopClicked?.Invoke();
 
         public void SetActions(bool canBuy, bool adShown)
         {

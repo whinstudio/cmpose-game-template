@@ -54,12 +54,11 @@ namespace Kturker.UnityBase.Features.Economy
         public const string LoginNext = "economy.login.next";
 
         public const string OfferWatch = "economy.offer.watch";
+        // The offer's button to the shop while the coins do not reach the price
+        public const string Shop = "economy.shop";
 
         public const string PickerTitle = "economy.picker.title";
         public const string PickerHint = "economy.picker.hint";
         public const string PickerPlay = "economy.picker.play";
-
-        // The paywall's welcome bundle line
-        public const string WelcomeLine = "economy.welcome.line";
     }
 }

@@ -132,24 +132,50 @@ namespace Kturker.UnityBase.Features.Economy
         public IReadOnlyList<WheelSlice> Slices { get; }
     }
 
-    public sealed class WelcomeConfig
+    // One shop row: a product id (ShopProducts; the store product and the RevenueCat package) and what it pays. A row
+    // that pays nothing is Remove Ads. Tag: an optional discount label in percent (Starter Pack: 90).
+    public sealed class ShopRowConfig
     {
-        public WelcomeConfig(int coins, IReadOnlyDictionary<string, int> boosters)
+        public ShopRowConfig(string id, int coins, IReadOnlyDictionary<string, int> boosters, int? tag)
         {
+            Id = id;
             Coins = coins;
             Boosters = boosters;
+            Tag = tag;
         }
 
+        public string Id { get; }
         public int Coins { get; }
+        // By booster id; empty for none
         public IReadOnlyDictionary<string, int> Boosters { get; }
+        public int? Tag { get; }
+    }
+
+    // The game's shop: "full" (bundles and a six-pack coin grid) or "simple" (Remove Ads and four coin packs), the rows
+    // in the order the screen shows them. The file's usd prices are for the store setup (#106) and are not read: the
+    // game shows the store's own price.
+    public sealed class ShopConfig
+    {
+        public const string Full = "full";
+        public const string Simple = "simple";
+
+        public ShopConfig(string kind, IReadOnlyList<ShopRowConfig> rows)
+        {
+            Kind = kind;
+            Rows = rows;
+        }
+
+        public string Kind { get; }
+        public IReadOnlyList<ShopRowConfig> Rows { get; }
     }
 
     // The game's economy, written by Compass to Resources/GameEconomy.json (version 1). A missing file is no economy;
     // so is a broken one: anything out of range, an unknown booster or a missing required part turns the whole economy
-    // off rather than half of it. The currency, the boosters and the welcome bundle are always there. extras lists the
-    // game's 0-3 extras (absent: none); supply, wheel and login are the ready ones' sections, each present exactly when
-    // extras has its kind (null: that extra is off), and one that is present must be valid. A custom extra is the
-    // game's own code over the template's helpers.
+    // off rather than half of it. The currency and the boosters are always there; shop is optional (absent: a simple
+    // shop with no rows) and an old file's welcome section is ignored. extras lists the game's 0-3 extras (absent:
+    // none); supply, wheel and login are the ready ones' sections, each present exactly when extras has its kind (null:
+    // that extra is off), and one that is present must be valid. A custom extra is the game's own code over the
+    // template's helpers.
     public sealed class EconomyConfig
     {
         public const string ResourcePath = "GameEconomy";
@@ -160,6 +186,7 @@ namespace Kturker.UnityBase.Features.Economy
         private const double MaxFreeHours = 24 * 7;
         public const int MaxExtras = 3;
         public const int MaxCurrencyName = 24;
+        public const int MaxShopRows = 16;
         private static readonly Regex BoosterId = new Regex("^[a-z][a-z0-9_]{0,31}$");
 
         private static EconomyConfig current;
@@ -168,7 +195,7 @@ namespace Kturker.UnityBase.Features.Economy
         private readonly Dictionary<string, BoosterConfig> byId = new Dictionary<string, BoosterConfig>(StringComparer.Ordinal);
 
         private EconomyConfig(CurrencyConfig currency, IReadOnlyList<BoosterConfig> boosters, IReadOnlyList<ExtraConfig> extras,
-            SupplyConfig supply, WheelConfig wheel, IReadOnlyList<EconomyReward> login, WelcomeConfig welcome)
+            SupplyConfig supply, WheelConfig wheel, IReadOnlyList<EconomyReward> login, ShopConfig shop)
         {
             Currency = currency;
             Extras = extras;
@@ -176,7 +203,7 @@ namespace Kturker.UnityBase.Features.Economy
             Supply = supply;
             Wheel = wheel;
             Login = login;
-            Welcome = welcome;
+            Shop = shop;
             foreach (var booster in boosters) byId[booster.Id] = booster;
         }
 
@@ -190,7 +217,8 @@ namespace Kturker.UnityBase.Features.Economy
         public WheelConfig Wheel { get; }
         // Day 1 to day 7; null: no login bonus
         public IReadOnlyList<EconomyReward> Login { get; }
-        public WelcomeConfig Welcome { get; }
+        // Never null: a file without a shop section has a simple one with no rows
+        public ShopConfig Shop { get; }
 
         // Null when the file is absent or broken; read once
         public static EconomyConfig Current
@@ -237,8 +265,8 @@ namespace Kturker.UnityBase.Features.Economy
             if (boosters == null) return null;
             var ids = new HashSet<string>(StringComparer.Ordinal);
             foreach (var booster in boosters) ids.Add(booster.Id);
-            var welcome = ReadWelcome(Section(root, "welcome"), ids);
-            if (welcome == null) return null;
+            var shop = root.ContainsKey("shop") ? ReadShop(Section(root, "shop"), ids) : new ShopConfig(ShopConfig.Simple, new ShopRowConfig[0]);
+            if (shop == null) return null;
             SupplyConfig supply = null;
             WheelConfig wheel = null;
             List<EconomyReward> login = null;
@@ -248,7 +276,7 @@ namespace Kturker.UnityBase.Features.Economy
             var extras = ReadExtras(root);
             if (extras == null || !Matches(extras, ExtraKind.Supply, supply != null) || !Matches(extras, ExtraKind.Wheel, wheel != null) ||
                 !Matches(extras, ExtraKind.Login, login != null)) return null;
-            return new EconomyConfig(currency, boosters, extras, supply, wheel, login, welcome);
+            return new EconomyConfig(currency, boosters, extras, supply, wheel, login, shop);
         }
 
         // A name (1-24 characters, not blank), a colour "#RRGGBB" and an optional icon path
@@ -352,20 +380,41 @@ namespace Kturker.UnityBase.Features.Economy
             return days;
         }
 
-        private static WelcomeConfig ReadWelcome(Dictionary<string, object> welcome, HashSet<string> ids)
+        // A known kind and up to MaxShopRows rows with unique ids (like booster ids), each with optional coins (default
+        // 0), boosters (known ids, counts 1 and up) and tag (1-99)
+        private static ShopConfig ReadShop(Dictionary<string, object> shop, HashSet<string> ids)
         {
-            if (welcome == null || !Int(welcome, "coins", 0, MaxAmount, out var coins)) return null;
-            var boosters = new Dictionary<string, int>(StringComparer.Ordinal);
-            if (welcome.TryGetValue("boosters", out var value))
+            if (shop == null) return null;
+            var kind = Text(shop, "kind");
+            if (kind != ShopConfig.Full && kind != ShopConfig.Simple) return null;
+            if (!shop.TryGetValue("rows", out var value) || !(value is List<object> items) || items.Count > MaxShopRows) return null;
+            var rows = new List<ShopRowConfig>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var item in items)
             {
-                if (!(value is Dictionary<string, object> entries)) return null;
-                foreach (var entry in entries)
+                if (!(item is Dictionary<string, object> entry)) return null;
+                if (!(Text(entry, "id") is string id) || !BoosterId.IsMatch(id) || !seen.Add(id)) return null;
+                var coins = 0;
+                if (entry.ContainsKey("coins") && !Int(entry, "coins", 0, MaxAmount, out coins)) return null;
+                int? tag = null;
+                if (entry.ContainsKey("tag"))
                 {
-                    if (!ids.Contains(entry.Key) || !Whole(entry.Value, 0, MaxAmount, out var count)) return null;
-                    boosters[entry.Key] = count;
+                    if (!Int(entry, "tag", 1, 99, out var percent)) return null;
+                    tag = percent;
                 }
+                var boosters = new Dictionary<string, int>(StringComparer.Ordinal);
+                if (entry.TryGetValue("boosters", out var boostersValue))
+                {
+                    if (!(boostersValue is Dictionary<string, object> counts)) return null;
+                    foreach (var count in counts)
+                    {
+                        if (!ids.Contains(count.Key) || !Whole(count.Value, 1, MaxAmount, out var number)) return null;
+                        boosters[count.Key] = number;
+                    }
+                }
+                rows.Add(new ShopRowConfig(id, coins, boosters, tag));
             }
-            return new WelcomeConfig(coins, boosters);
+            return new ShopConfig(kind, rows);
         }
 
         // coins (default 0) and an optional booster with its count (default 1)

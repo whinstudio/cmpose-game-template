@@ -4,20 +4,20 @@ using Cysharp.Threading.Tasks;
 
 namespace Kturker.UnityBase.Core.Purchases
 {
-    // RevenueCat's SDK behind plain types (RevenueCatGateway is the only class that sees the SDK). Customer info is the
-    // set of active entitlement ids. Calls made before Configure has finished wait for it.
+    // RevenueCat's SDK behind plain types (RevenueCatGateway is the only class that sees the SDK). Customer info is a
+    // CustomerSnapshot. Calls made before Configure has finished wait for it.
     public interface IRevenueCatGateway
     {
-        void Configure(string apiKey, Action<IReadOnlyCollection<string>> customerInfoUpdated);
+        void Configure(string apiKey, Action<CustomerSnapshot> updated);
 
         // Ok(null): RevenueCat has no current offering
-        UniTask<StoreReply<IReadOnlyList<StorePackage>>> OfferingsAsync();
+        UniTask<StoreReply<IReadOnlyList<ShopProduct>>> OfferingsAsync();
 
-        // packageId must come from the last OfferingsAsync
-        UniTask<StoreReply<IReadOnlyCollection<string>>> PurchaseAsync(string packageId);
+        // productId must come from the last OfferingsAsync
+        UniTask<StoreReply<PurchaseReply>> PurchaseAsync(string productId);
 
-        UniTask<StoreReply<IReadOnlyCollection<string>>> RestoreAsync();
+        UniTask<StoreReply<CustomerSnapshot>> RestoreAsync();
 
-        UniTask<StoreReply<IReadOnlyCollection<string>>> CustomerInfoAsync();
+        UniTask<StoreReply<CustomerSnapshot>> CustomerInfoAsync();
     }
 }

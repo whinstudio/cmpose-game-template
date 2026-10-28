@@ -10,7 +10,8 @@ using VContainer.Unity;
 namespace Kturker.UnityBase.Core.Purchases
 {
     // IPurchases over RevenueCat. Start configures the SDK (only when available) and asks for the customer info; the
-    // last known premium state is kept in the preferences, so a returning premium user is premium offline too.
+    // last known premium state is kept in the preferences, so a returning premium user is premium offline too (a Test
+    // Store premium from before the shop counts as Remove Ads). The last customer info's transactions are kept.
     public sealed class RevenueCatPurchases : IPurchases, IPremiumStatus, IStartable
     {
         public const string PremiumKey = "purchases.premium";
@@ -19,7 +20,7 @@ namespace Kturker.UnityBase.Core.Purchases
         private readonly IPreferences preferences;
         private readonly ILog log;
         private readonly string apiKey;
-        // The packages of the last offer: the SDK can buy only those
+        // The products of the last offering: the SDK can buy only those
         private HashSet<string> offeredIds = new HashSet<string>();
 
         public RevenueCatPurchases(IRevenueCatGateway gateway, IPreferences preferences, ILog log, string apiKey, bool available)
@@ -34,9 +35,11 @@ namespace Kturker.UnityBase.Core.Purchases
 
         public bool IsAvailable { get; }
         public bool IsPremium { get; private set; }
+        public IReadOnlyList<StoreTransaction> Transactions { get; private set; } = new StoreTransaction[0];
 
         public event Action Changed;
-        public event Action PremiumPurchased;
+        public event Action<StoreTransaction> ProductPurchased;
+        public event Action<IReadOnlyList<StoreTransaction>> TransactionsUpdated;
 
         public void Start()
         {
@@ -51,7 +54,9 @@ namespace Kturker.UnityBase.Core.Purchases
             RefreshAsync().Forget();
         }
 
-        public async UniTask<PaywallOffer> OfferAsync(CancellationToken cancellation)
+        public bool Owns(string productId) => Transactions.Any(t => t.ProductId == productId);
+
+        public async UniTask<IReadOnlyList<ShopProduct>> ProductsAsync(CancellationToken cancellation)
         {
             if (!IsAvailable) return null;
             var reply = await gateway.OfferingsAsync().AttachExternalCancellation(cancellation);
@@ -67,19 +72,20 @@ namespace Kturker.UnityBase.Core.Purchases
                 return null;
             }
             offeredIds = new HashSet<string>(reply.Value.Select(p => p.Id));
-            return PaywallMath.BuildOffer(reply.Value);
+            return reply.Value;
         }
 
-        public async UniTask<PurchaseResult> PurchaseAsync(string packageId, CancellationToken cancellation)
+        public async UniTask<PurchaseResult> PurchaseAsync(string productId, CancellationToken cancellation)
         {
             if (!IsAvailable) return PurchaseResult.Error(PurchasesKeys.ErrorUnavailable);
-            // The paywall may have been opened before RevenueCat answered, or the offering changed: ask once more
-            if (!offeredIds.Contains(packageId)) await OfferAsync(cancellation);
-            if (!offeredIds.Contains(packageId)) return PurchaseResult.Error(PurchasesKeys.ErrorPackageUnavailable);
-            var reply = await gateway.PurchaseAsync(packageId).AttachExternalCancellation(cancellation);
+            // The shop may have been opened before RevenueCat answered, or the offering changed: ask once more
+            if (!offeredIds.Contains(productId)) await ProductsAsync(cancellation);
+            if (!offeredIds.Contains(productId)) return PurchaseResult.Error(PurchasesKeys.ErrorPackageUnavailable);
+            var reply = await gateway.PurchaseAsync(productId).AttachExternalCancellation(cancellation);
             if (!reply.IsOk) return Failed("Purchase", reply.Error);
-            Update(reply.Value);
-            PremiumPurchased?.Invoke();
+            Update(reply.Value.Customer);
+            if (reply.Value.Transaction != null) ProductPurchased?.Invoke(reply.Value.Transaction);
+            else log.Warning($"Purchase of {productId} came without a transaction: the next customer info carries it");
             return PurchaseResult.Success;
         }
 
@@ -106,9 +112,16 @@ namespace Kturker.UnityBase.Core.Purchases
             return error == StoreErrorKind.Cancelled ? PurchaseResult.Cancelled : PurchaseResult.Error(PurchasesKeys.Error(error));
         }
 
-        private void Update(IReadOnlyCollection<string> activeEntitlements)
+        private void Update(CustomerSnapshot customer)
         {
-            var premium = activeEntitlements != null && activeEntitlements.Contains(PurchasesConfig.PremiumEntitlement);
+            customer = customer ?? CustomerSnapshot.Empty;
+            Transactions = customer.Transactions;
+            UpdatePremium(customer.ActiveEntitlements.Contains(PurchasesConfig.PremiumEntitlement));
+            TransactionsUpdated?.Invoke(Transactions);
+        }
+
+        private void UpdatePremium(bool premium)
+        {
             if (premium == IsPremium) return;
             IsPremium = premium;
             preferences.SetBool(PremiumKey, premium);

@@ -33,7 +33,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             "Assets/_Project/Core/NetworkInspector/Resources/NetworkInspector/InspectorOverlay.prefab",
             // /cmpose:networkInspector
             // cmpose:purchases
-            "Assets/_Project/Features/Shell/Purchases/Resources/ShellPurchases/Paywall.prefab",
+            "Assets/_Project/Features/Shell/Purchases/Resources/ShellPurchases/Shop.prefab",
             // /cmpose:purchases
             // cmpose:ads
             // cmpose:sample
@@ -51,7 +51,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             "Assets/_Project/Features/Showcase/Common/Ads/Resources/ShowcaseAds/Continue.prefab",
             // /cmpose:ads
             // cmpose:purchases
-            "Assets/_Project/Features/Showcase/Common/Purchases/Resources/ShowcasePurchases/Premium.prefab",
+            "Assets/_Project/Features/Showcase/Common/Purchases/Resources/ShowcasePurchases/Shop.prefab",
             // /cmpose:purchases
             // cmpose:leaderboards
             "Assets/_Project/Features/Showcase/Common/Leaderboards/Resources/ShowcaseLeaderboards/Scores.prefab",
@@ -132,7 +132,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         private const string InspectorPrefab = "Assets/_Project/Core/NetworkInspector/Resources/NetworkInspector/InspectorOverlay.prefab";
         // /cmpose:networkInspector
         // cmpose:purchases
-        private const string PaywallPrefab = "Assets/_Project/Features/Shell/Purchases/Resources/ShellPurchases/Paywall.prefab";
+        private const string ShopPrefab = "Assets/_Project/Features/Shell/Purchases/Resources/ShellPurchases/Shop.prefab";
         // /cmpose:purchases
 
         // The 1080x1920 reference and a 20:9 phone (1080x2400): the canvas scaler shows the taller one about 57 fewer
@@ -254,7 +254,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             screens.Add(("Inspector", stage.Add(Load(InspectorPrefab)), SideMargin));
             // /cmpose:networkInspector
             // cmpose:purchases
-            screens.Add(("Paywall", stage.Add(Load(PaywallPrefab)), SideMargin));
+            screens.Add(("Shop", stage.Add(Load(ShopPrefab)), SideMargin));
             // /cmpose:purchases
             // cmpose:sample
             screens.Add(("Game/Sample", StageSample(stage), SideMargin));
@@ -282,7 +282,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             // cmpose:showcase
             stage.Add(Load("Assets/_Project/Features/Showcase/Common/Resources/ShowcaseCommon/MenuBest.prefab"), extras);
             // cmpose:purchases
-            stage.Add(Load("Assets/_Project/Features/Showcase/Common/Purchases/Resources/ShowcasePurchases/Premium.prefab"), extras);
+            stage.Add(Load("Assets/_Project/Features/Showcase/Common/Purchases/Resources/ShowcasePurchases/Shop.prefab"), extras);
             // /cmpose:purchases
             // cmpose:saveSystem
             stage.Add(Load("Assets/_Project/Features/Showcase/Common/Save/Resources/ShowcaseSave/Stats.prefab"), extras);
@@ -363,7 +363,7 @@ namespace Kturker.UnityBase.Tests.EditMode
 
         // cmpose:networkInspector
         // The debug NET button sits in the top right corner and covers no other screen's button or text box (the
-        // paywall's buttons and title, the Game scene's bottom controls and pause button, the menu's and About's titles)
+        // shop's buttons and title, the Game scene's bottom controls and pause button, the menu's and About's titles)
         [Test]
         public void The_net_button_sits_top_right_clear_of_every_other_button_and_text()
         {
@@ -400,39 +400,22 @@ namespace Kturker.UnityBase.Tests.EditMode
         // /cmpose:networkInspector
 
         // cmpose:purchases
-        // Package rows start on Track, which stands out from the paywall's Surface panel in both palettes;
-        // PaywallView.Select gives the chosen one SurfaceVariant (ThemeTests' contrast checks)
+        // The shop's rows and coin packs stand on Track, which stands out from the screen's background in both palettes
+        // (ThemeTests' contrast checks); there is a slot for every row a shop may have, in the scrolling column
         [Test]
-        public void Paywall_rows_start_on_the_track_role()
+        public void Shop_rows_and_packs_start_on_the_track_role()
         {
-            var paywall = Load(PaywallPrefab);
-            for (var i = 0; ; i++)
+            var shop = Load(ShopPrefab);
+            var content = shop.transform.Find("Panel/SafeArea/Scroll/Viewport/Content");
+            Assert.That(content, Is.Not.Null, "the scrolling column");
+            var paths = Enumerable.Range(0, Kturker.UnityBase.Features.Shell.Purchases.ShopView.Rows).Select(i => $"Row{i}")
+                .Concat(Enumerable.Range(0, Kturker.UnityBase.Features.Shell.Purchases.ShopView.Packs).Select(i => $"Packs/Pack{i}"));
+            foreach (var path in paths)
             {
-                var row = paywall.transform.Find($"Panel/SafeArea/Plans/Row{i}");
-                if (row == null)
-                {
-                    Assert.That(i, Is.GreaterThan(0), "no paywall rows");
-                    break;
-                }
-                Assert.That(row.GetComponent<ThemedGraphic>().Role, Is.EqualTo(ThemeRole.Track), row.name);
+                var box = content.Find(path);
+                Assert.That(box, Is.Not.Null, path);
+                Assert.That(box.GetComponent<ThemedGraphic>().Role, Is.EqualTo(ThemeRole.Track), path);
             }
-        }
-
-        // The welcome bundle's line (IPaywallBonus) is wired, hidden until bound and sits under the packages, above the
-        // status line; the presenter writes it whenever packages show
-        [Test]
-        public void Paywall_bonus_line_sits_under_the_packages()
-        {
-            var paywall = Load(PaywallPrefab);
-            var view = paywall.GetComponent<Kturker.UnityBase.Features.Shell.Purchases.PaywallView>();
-            var bonus = new SerializedObject(view).FindProperty("bonus").objectReferenceValue as LocalizedText;
-            Assert.That(bonus, Is.Not.Null, "PaywallView.bonus is wired");
-            Assert.That(bonus.gameObject.activeSelf, Is.False, "hidden until a bonus is bound");
-            var plans = paywall.transform.Find("Panel/SafeArea/Plans");
-            Assert.That(bonus.transform.parent, Is.SameAs(plans), "in the packages' column");
-            var lastRow = plans.Find($"Row{Kturker.UnityBase.Features.Shell.Purchases.PaywallView.Rows - 1}");
-            Assert.That(bonus.transform.GetSiblingIndex(), Is.GreaterThan(lastRow.GetSiblingIndex()), "under the packages");
-            Assert.That(bonus.transform.GetSiblingIndex(), Is.LessThan(plans.Find("Status").GetSiblingIndex()), "above the status line");
         }
         // /cmpose:purchases
 
@@ -701,7 +684,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
 
         // Every button is the kit's (rounded, themed, pressed with a spring), or a kit box that presses like one (the
-        // paywall's package rows); every toggle is a KitSwitch and every slider a KitSlider
+        // menu's coin counter); every toggle is a KitSwitch and every slider a KitSlider
         [Test]
         public void Every_button_is_a_kit_button()
         {

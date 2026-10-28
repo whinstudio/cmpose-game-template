@@ -97,7 +97,8 @@
         "Assets/_Project/Core/Purchases",
         "Assets/_Project/Features/Shell/Purchases",
         "Assets/_Project/Features/Showcase/Common/Purchases",
-        "Assets/_Project/Features/Economy/PurchasesPremiumEvents.cs"
+        "Assets/_Project/Features/Economy/ShopGrants.cs",
+        "Assets/_Project/Features/Economy/PurchasesEconomyShop.cs"
       ],
       "asmdefs": ["Kturker.UnityBase.Core.Purchases", "Kturker.UnityBase.Features.Shell.Purchases", "Kturker.UnityBase.Features.Showcase.Common.Purchases"],
       "packages": ["com.revenuecat.purchases-unity", "com.google.external-dependency-manager"]

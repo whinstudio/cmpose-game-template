@@ -137,7 +137,7 @@ namespace Kturker.UnityBase.Tests.EditMode
     }
     // /cmpose:ads
     // cmpose:purchases
-    public sealed class FakePremiumButtonView : IPremiumButtonView
+    public sealed class FakeShopButtonView : IShopButtonView
     {
         public bool? Visible;
         public event Action Clicked;

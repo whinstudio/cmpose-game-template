@@ -33,8 +33,8 @@
   "economy.login.claimed": "Preso",
   "economy.login.next": "Prossimo premio tra {0}",
   "economy.offer.watch": "Guarda pubblicità",
+  "economy.shop": "Negozio",
   "economy.picker.title": "Potenziamenti",
   "economy.picker.hint": "Tocca un potenziamento per portarlo in questa partita",
-  "economy.picker.play": "Gioca",
-  "economy.welcome.line": "Regalo: {0}"
+  "economy.picker.play": "Gioca"
 }

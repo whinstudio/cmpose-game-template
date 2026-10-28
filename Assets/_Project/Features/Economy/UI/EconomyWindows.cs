@@ -22,7 +22,7 @@ namespace Kturker.UnityBase.Features.Economy
     }
 
     // The economy's windows for the root scope: makes the overlay from Resources the first time one is needed and
-    // keeps it across scenes (canvas sorting 700: above Settings, below the paywall), and ticks the open window once a
+    // keeps it across scenes (canvas sorting 700: above Settings, below the shop), and ticks the open window once a
     // second (unscaled). Nothing is made with the economy off or during an AutoPlay run, and an extra the game does not
     // have (no supply, wheel or login bonus in its file, an id that is not one of its custom extras) never opens.
     public sealed class EconomyWindows : IEconomyWindows, IBoosterOffer, IBoosterPicker, ITickable, IDisposable
@@ -39,6 +39,7 @@ namespace Kturker.UnityBase.Features.Economy
         private readonly IUiFeedback feedback;
         private readonly UiBinder binder;
         private readonly ILog log;
+        private readonly IEconomyShop shop;
         private readonly Func<bool> autoPlay;
         private EconomyWindowsView view;
         private SupplyWindow supplyWindow;
@@ -50,7 +51,7 @@ namespace Kturker.UnityBase.Features.Economy
         private float sinceTick;
 
         public EconomyWindows(Economy economy, Supply supply, Wheel wheel, LoginBonus login, IEconomyAds ads, ILocalizer localizer,
-            IUiFeedback feedback, UiBinder binder, ILog log, Func<bool> autoPlay)
+            IUiFeedback feedback, UiBinder binder, ILog log, IEconomyShop shop, Func<bool> autoPlay)
         {
             this.economy = economy;
             this.supply = supply;
@@ -62,6 +63,7 @@ namespace Kturker.UnityBase.Features.Economy
             this.feedback = feedback;
             this.binder = binder;
             this.log = log;
+            this.shop = shop;
             this.autoPlay = autoPlay;
         }
 
@@ -123,7 +125,7 @@ namespace Kturker.UnityBase.Features.Economy
             wheelWindow = new WheelWindow(view.Wheel, economy, wheel, ads, localizer, feedback, autoPlay, new System.Random());
             loginWindow = new LoginBonusWindow(view.Login, economy, login, ads, localizer, feedback, autoPlay);
             extraWindow = new ExtraWindow(view.Extra, economy, ads, feedback, autoPlay, binder.BindTree);
-            offer = new BoosterOfferDialog(view.Offer, economy, ads, currency, feedback, autoPlay);
+            offer = new BoosterOfferDialog(view.Offer, economy, ads, currency, feedback, shop, autoPlay);
             picker = new BoosterPicker(view.Picker, economy, offer, currency, feedback);
             return true;
         }

@@ -159,9 +159,8 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(root.Resolve<Wheel>(), Is.SameAs(root.Resolve<Wheel>()));
             Assert.That(root.Resolve<LoginBonus>(), Is.SameAs(root.Resolve<LoginBonus>()));
             var initializables = root.Resolve<IReadOnlyList<IInitializable>>();
-            Assert.That(initializables.OfType<WelcomeBundle>().Single(), Is.SameAs(root.Resolve<WelcomeBundle>()));
             Assert.That(initializables.OfType<WheelRunCounter>().Count(), Is.EqualTo(1));
-            Assert.That(root.Resolve<IPaywallBonus>(), Is.InstanceOf<WelcomeBonusLine>());
+            Assert.That(root.Resolve<IShopCatalog>(), Is.SameAs(root.Resolve<EconomyShopCatalog>()));
             var windows = root.Resolve<EconomyWindows>();
             Assert.That(root.Resolve<IEconomyWindows>(), Is.SameAs(windows));
             Assert.That(root.Resolve<IBoosterOffer>(), Is.SameAs(windows));
@@ -191,10 +190,10 @@ namespace Kturker.UnityBase.Tests.EditMode
             // The editor never configures RevenueCat (its no-op wrapper never answers)
             Assert.That(root.Resolve<IPurchases>().IsAvailable, Is.False);
             Assert.That(root.Resolve<IRevenueCatGateway>(), Is.InstanceOf<RevenueCatGateway>());
-            Assert.That(root.Resolve<IPaywall>(), Is.InstanceOf<PaywallHost>().And.SameAs(root.Resolve<IPaywall>()));
-            Assert.That(startables.OfType<FirstLaunchPaywall>().Count(), Is.EqualTo(1));
+            Assert.That(root.Resolve<IShop>(), Is.InstanceOf<ShopHost>().And.SameAs(root.Resolve<IShop>()));
+            Assert.That(root.Resolve<IEconomyShop>(), Is.InstanceOf<PurchasesEconomyShop>());
             Assert.That(root.Resolve<IPremiumStatus>(), Is.SameAs(root.Resolve<IPurchases>()));
-            Assert.That(root.Resolve<IPremiumPurchaseEvents>(), Is.InstanceOf<PurchasesPremiumEvents>());
+            Assert.That(initializables.OfType<ShopGrants>().Single(), Is.SameAs(root.Resolve<ShopGrants>()));
             // /cmpose:purchases
             // cmpose:ads
             Assert.That(root.Resolve<IAds>(), Is.InstanceOf<GmaAds>().And.SameAs(root.Resolve<GmaAds>()));
@@ -243,7 +242,7 @@ namespace Kturker.UnityBase.Tests.EditMode
                 // cmpose:showcase
                 builder.RegisterInstance<IShowcaseMenuView>(new FakeShowcaseMenuView());
                 // cmpose:purchases
-                builder.RegisterInstance<IPremiumButtonView>(new FakePremiumButtonView());
+                builder.RegisterInstance<IShopButtonView>(new FakeShopButtonView());
                 // /cmpose:purchases
                 // cmpose:leaderboards
                 builder.RegisterInstance<IShowcaseScoresView>(new FakeShowcaseScoresView());
@@ -264,7 +263,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             // cmpose:showcase
             Assert.That(startables.OfType<ShowcaseMenuPresenter>().Count(), Is.EqualTo(1));
             // cmpose:purchases
-            Assert.That(startables.OfType<ShowcasePremiumPresenter>().Count(), Is.EqualTo(1));
+            Assert.That(startables.OfType<ShowcaseShopPresenter>().Count(), Is.EqualTo(1));
             // /cmpose:purchases
             // cmpose:leaderboards
             Assert.That(startables.OfType<ShowcaseScoresPresenter>().Count(), Is.EqualTo(1));
@@ -280,7 +279,12 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(scope.Resolve<IReadOnlyList<ISettingsSection>>().OfType<LanguageSelector>().Count(), Is.EqualTo(1));
             // /cmpose:multiLang
             // cmpose:purchases
-            Assert.That(scope.Resolve<IReadOnlyList<ISettingsSection>>().OfType<PremiumSection>().Count(), Is.EqualTo(1));
+            // The Remove Ads row only in a game with ads
+            var removeAdsRows = 0;
+            // cmpose:ads
+            removeAdsRows = 1;
+            // /cmpose:ads
+            Assert.That(scope.Resolve<IReadOnlyList<ISettingsSection>>().OfType<PremiumSection>().Count(), Is.EqualTo(removeAdsRows));
             // /cmpose:purchases
             // cmpose:ads
             Assert.That(scope.Resolve<IReadOnlyList<ISettingsSection>>().OfType<PrivacySection>().Count(), Is.EqualTo(1));

@@ -118,7 +118,7 @@ namespace Kturker.UnityBase.Core.DI
             // /cmpose:networkInspector
             // cmpose:purchases
             new PurchasesInstaller().Install(builder);
-            new PaywallInstaller().Install(builder);
+            new ShopInstaller().Install(builder);
             // /cmpose:purchases
             // cmpose:ads
             new AdsInstaller().Install(builder);

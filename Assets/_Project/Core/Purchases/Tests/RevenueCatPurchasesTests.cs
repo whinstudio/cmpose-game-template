@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -20,24 +21,21 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
             return new RevenueCatPurchases(gateway, preferences, log, Key, available);
         }
 
-        private static StoreReply<System.Collections.Generic.IReadOnlyList<StorePackage>> Offering(params StorePackage[] packages) =>
-            StoreReply<System.Collections.Generic.IReadOnlyList<StorePackage>>.Ok(packages);
-
-        private static StorePackage Monthly => new StorePackage("$rc_monthly", "MONTHLY", "$9.99", 9.99, "USD", null, null);
-        private static StorePackage Annual => new StorePackage("$rc_annual", "ANNUAL", "$59.99", 59.99, "USD", "$4.99", null);
-
         private static T Run<T>(UniTask<T> task) => task.GetAwaiter().GetResult();
 
+        private static StoreTransaction Transaction(string id, string productId) => FakeRevenueCatGateway.Transaction(id, productId);
+
         [Test]
-        public void Unavailable_purchases_never_touch_the_sdk()
+        public void Unavailable_returns_null_products_and_error_purchases()
         {
             var purchases = Make(out var gateway, out _, out var log, available: false);
             purchases.Start();
 
             Assert.That(purchases.IsAvailable, Is.False);
-            Assert.That(Run(purchases.OfferAsync(CancellationToken.None)), Is.Null);
-            Assert.That(Run(purchases.PurchaseAsync("$rc_monthly", CancellationToken.None)).MessageKey, Is.EqualTo(PurchasesKeys.ErrorUnavailable));
+            Assert.That(Run(purchases.ProductsAsync(CancellationToken.None)), Is.Null);
+            Assert.That(Run(purchases.PurchaseAsync("coins_1", CancellationToken.None)).MessageKey, Is.EqualTo(PurchasesKeys.ErrorUnavailable));
             Assert.That(Run(purchases.RestoreAsync(CancellationToken.None)).MessageKey, Is.EqualTo(PurchasesKeys.ErrorUnavailable));
+            Assert.That(purchases.Transactions, Is.Empty);
             Assert.That(gateway.ConfiguredKeys, Is.Empty);
             Assert.That(gateway.CustomerCalls + gateway.OfferingCalls + gateway.Restores + gateway.Purchased.Count, Is.Zero);
             Assert.That(log.Lines, Has.Some.EqualTo("MARKER CMPOSE_PURCHASES available=false premium=false"));
@@ -47,7 +45,7 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
         public void Start_configures_with_the_key_and_follows_the_customer_info()
         {
             var purchases = Make(out var gateway, out var preferences, out var log);
-            gateway.CustomerReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Ok(FakeRevenueCatGateway.Premium);
+            gateway.CustomerReply = StoreReply<CustomerSnapshot>.Ok(FakeRevenueCatGateway.Premium);
             var changes = 0;
             purchases.Changed += () => changes++;
 
@@ -67,99 +65,189 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
         }
 
         [Test]
-        public void Offer_maps_the_packages_in_order()
+        public void Products_keep_the_offering_order_and_prices()
         {
             var purchases = Make(out var gateway, out _, out _);
-            gateway.Offerings = Offering(Monthly, Annual);
+            gateway.Offerings = StoreReply<IReadOnlyList<ShopProduct>>.Ok(new[]
+            {
+                new ShopProduct(ShopProducts.RemoveAds, "$4.99"), new ShopProduct("coins_1", "$0.99")
+            });
 
-            var offer = Run(purchases.OfferAsync(CancellationToken.None));
+            var products = Run(purchases.ProductsAsync(CancellationToken.None));
 
-            Assert.That(offer.Packages.Select(p => p.Id), Is.EqualTo(new[] { "$rc_monthly", "$rc_annual" }));
-            Assert.That(offer.Packages[1].SavingsPercent, Is.EqualTo(50));
-            Assert.That(offer.Packages[1].PricePerMonth, Is.EqualTo("$4.99"));
+            Assert.That(products.Select(p => p.Id), Is.EqualTo(new[] { ShopProducts.RemoveAds, "coins_1" }));
+            Assert.That(products.Select(p => p.PriceString), Is.EqualTo(new[] { "$4.99", "$0.99" }));
         }
 
         [Test]
-        public void Offer_is_null_without_a_current_offering_or_on_error()
+        public void Products_are_null_without_a_current_offering_or_on_error()
         {
             var purchases = Make(out var gateway, out _, out var log);
-            gateway.Offerings = StoreReply<System.Collections.Generic.IReadOnlyList<StorePackage>>.Ok(null);
-            Assert.That(Run(purchases.OfferAsync(CancellationToken.None)), Is.Null);
+            gateway.Offerings = StoreReply<IReadOnlyList<ShopProduct>>.Ok(null);
+            Assert.That(Run(purchases.ProductsAsync(CancellationToken.None)), Is.Null);
 
-            gateway.Offerings = StoreReply<System.Collections.Generic.IReadOnlyList<StorePackage>>.Failed(StoreErrorKind.Network);
-            Assert.That(Run(purchases.OfferAsync(CancellationToken.None)), Is.Null);
+            gateway.Offerings = StoreReply<IReadOnlyList<ShopProduct>>.Failed(StoreErrorKind.Network);
+            Assert.That(Run(purchases.ProductsAsync(CancellationToken.None)), Is.Null);
 
             Assert.That(log.Lines.Count(l => l.StartsWith("WARNING")), Is.EqualTo(2));
         }
 
         [Test]
-        public void A_purchase_turns_premium_on_and_fires_changed_once()
+        public void Purchase_raises_ProductPurchased_with_the_transaction()
         {
             var purchases = Make(out var gateway, out _, out _);
-            gateway.Offerings = Offering(Monthly, Annual);
-            Run(purchases.OfferAsync(CancellationToken.None));
+            gateway.Offerings = FakeRevenueCatGateway.Offering("coins_1", "coins_2");
+            var t1 = Transaction("t1", "coins_2");
+            gateway.PurchaseReply = FakeRevenueCatGateway.Bought(FakeRevenueCatGateway.Customer(new string[0], t1), t1);
+            var bought = new List<StoreTransaction>();
+            purchases.ProductPurchased += bought.Add;
+
+            var result = Run(purchases.PurchaseAsync("coins_2", CancellationToken.None));
+
+            Assert.That(result, Is.SameAs(PurchaseResult.Success));
+            Assert.That(gateway.Purchased, Is.EqualTo(new[] { "coins_2" }));
+            Assert.That(bought.Count, Is.EqualTo(1));
+            Assert.That(bought[0].Id, Is.EqualTo("t1"));
+            Assert.That(bought[0].ProductId, Is.EqualTo("coins_2"));
+            Assert.That(purchases.IsPremium, Is.False, "coins unlock no entitlement");
+        }
+
+        [Test]
+        public void Remove_ads_purchase_turns_premium_on()
+        {
+            var purchases = Make(out var gateway, out var preferences, out _);
+            gateway.Offerings = FakeRevenueCatGateway.Offering(ShopProducts.RemoveAds);
+            var t = Transaction("t1", ShopProducts.RemoveAds);
+            gateway.PurchaseReply = FakeRevenueCatGateway.Bought(FakeRevenueCatGateway.Customer(new[] { PurchasesConfig.PremiumEntitlement }, t), t);
             var changes = 0;
             purchases.Changed += () => changes++;
 
-            var result = Run(purchases.PurchaseAsync("$rc_annual", CancellationToken.None));
+            var result = Run(purchases.PurchaseAsync(ShopProducts.RemoveAds, CancellationToken.None));
 
             Assert.That(result, Is.SameAs(PurchaseResult.Success));
-            Assert.That(gateway.Purchased, Is.EqualTo(new[] { "$rc_annual" }));
             Assert.That(purchases.IsPremium, Is.True);
             Assert.That(changes, Is.EqualTo(1));
+            Assert.That(preferences.Values[RevenueCatPurchases.PremiumKey], Is.EqualTo(true));
+        }
+
+        [Test]
+        public void A_purchase_without_a_transaction_succeeds_and_raises_no_product_event()
+        {
+            var purchases = Make(out var gateway, out _, out var log);
+            gateway.Offerings = FakeRevenueCatGateway.Offering("coins_1");
+            gateway.PurchaseReply = FakeRevenueCatGateway.Bought(FakeRevenueCatGateway.Free, null);
+            var bought = 0;
+            purchases.ProductPurchased += _ => bought++;
+
+            Assert.That(Run(purchases.PurchaseAsync("coins_1", CancellationToken.None)), Is.SameAs(PurchaseResult.Success));
+            Assert.That(bought, Is.Zero);
+            Assert.That(log.Lines, Has.Some.StartsWith("WARNING"));
+        }
+
+        [Test]
+        public void Owns_a_one_time_product_from_transactions()
+        {
+            var purchases = Make(out var gateway, out _, out _);
+            gateway.CustomerReply = StoreReply<CustomerSnapshot>.Ok(
+                FakeRevenueCatGateway.Customer(new string[0], Transaction("t1", ShopProducts.StarterPack)));
+
+            Assert.That(purchases.Owns(ShopProducts.StarterPack), Is.False, "nothing is known before RevenueCat answers");
+            purchases.Start();
+
+            Assert.That(purchases.Owns(ShopProducts.StarterPack), Is.True);
+            Assert.That(purchases.Owns("coins_1"), Is.False);
+        }
+
+        [Test]
+        public void Refresh_raises_TransactionsUpdated()
+        {
+            var purchases = Make(out var gateway, out _, out _);
+            var both = new[] { Transaction("t1", "coins_1"), Transaction("t2", "bundle_1") };
+            gateway.CustomerReply = StoreReply<CustomerSnapshot>.Ok(FakeRevenueCatGateway.Customer(new string[0], both));
+            var updates = new List<IReadOnlyList<StoreTransaction>>();
+            purchases.TransactionsUpdated += updates.Add;
+
+            purchases.Start();
+
+            Assert.That(updates.Count, Is.EqualTo(1));
+            Assert.That(updates[0].Select(t => t.Id), Is.EqualTo(new[] { "t1", "t2" }));
+            Assert.That(purchases.Transactions.Select(t => t.Id), Is.EqualTo(new[] { "t1", "t2" }));
+        }
+
+        [Test]
+        public void A_customer_info_push_raises_TransactionsUpdated_without_a_purchase_event()
+        {
+            var purchases = Make(out var gateway, out _, out _);
+            purchases.Start();
+            var updates = new List<IReadOnlyList<StoreTransaction>>();
+            var bought = 0;
+            purchases.TransactionsUpdated += updates.Add;
+            purchases.ProductPurchased += _ => bought++;
+
+            gateway.Push(FakeRevenueCatGateway.Customer(new string[0], Transaction("t9", "coins_3")));
+
+            Assert.That(updates.Single().Single().Id, Is.EqualTo("t9"));
+            Assert.That(bought, Is.Zero, "a purchase the app missed reaches the economy through TransactionsUpdated only");
         }
 
         [Test]
         public void A_cancelled_purchase_is_cancelled_and_store_errors_become_keys()
         {
             var purchases = Make(out var gateway, out _, out _);
-            gateway.Offerings = Offering(Monthly);
-            Run(purchases.OfferAsync(CancellationToken.None));
+            gateway.Offerings = FakeRevenueCatGateway.Offering("coins_1");
+            var bought = 0;
+            purchases.ProductPurchased += _ => bought++;
 
-            gateway.PurchaseReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Failed(StoreErrorKind.Cancelled);
-            Assert.That(Run(purchases.PurchaseAsync("$rc_monthly", CancellationToken.None)), Is.SameAs(PurchaseResult.Cancelled));
+            gateway.PurchaseReply = StoreReply<PurchaseReply>.Failed(StoreErrorKind.Cancelled);
+            Assert.That(Run(purchases.PurchaseAsync("coins_1", CancellationToken.None)), Is.SameAs(PurchaseResult.Cancelled));
 
-            gateway.PurchaseReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Failed(StoreErrorKind.Network);
-            var error = Run(purchases.PurchaseAsync("$rc_monthly", CancellationToken.None));
+            gateway.PurchaseReply = StoreReply<PurchaseReply>.Failed(StoreErrorKind.Network);
+            var error = Run(purchases.PurchaseAsync("coins_1", CancellationToken.None));
             Assert.That(error.Outcome, Is.EqualTo(PurchaseOutcome.Error));
             Assert.That(error.MessageKey, Is.EqualTo("purchases.error.network"));
             Assert.That(purchases.IsPremium, Is.False);
+            Assert.That(bought, Is.Zero);
         }
 
         [Test]
-        public void An_unknown_package_asks_for_the_offer_once_then_fails_without_buying()
+        public void A_product_not_in_the_offering_is_package_unavailable()
         {
             var purchases = Make(out var gateway, out _, out _);
-            gateway.Offerings = Offering(Monthly);
+            gateway.Offerings = FakeRevenueCatGateway.Offering("coins_1");
 
-            var missing = Run(purchases.PurchaseAsync("$rc_annual", CancellationToken.None));
+            var missing = Run(purchases.PurchaseAsync(ShopProducts.StarterPack, CancellationToken.None));
             Assert.That(missing.MessageKey, Is.EqualTo(PurchasesKeys.ErrorPackageUnavailable));
             Assert.That(gateway.OfferingCalls, Is.EqualTo(1));
             Assert.That(gateway.Purchased, Is.Empty);
 
-            // Opened before RevenueCat answered: the first purchase fetches the offer, then buys
+            // Opened before RevenueCat answered: the first purchase fetches the products, then buys
             var fresh = Make(out var other, out _, out _);
-            other.Offerings = Offering(Monthly);
-            Assert.That(Run(fresh.PurchaseAsync("$rc_monthly", CancellationToken.None)), Is.SameAs(PurchaseResult.Success));
+            other.Offerings = FakeRevenueCatGateway.Offering("coins_1");
+            Assert.That(Run(fresh.PurchaseAsync("coins_1", CancellationToken.None)), Is.SameAs(PurchaseResult.Success));
             Assert.That(other.OfferingCalls, Is.EqualTo(1));
-            Assert.That(other.Purchased, Is.EqualTo(new[] { "$rc_monthly" }));
+            Assert.That(other.Purchased, Is.EqualTo(new[] { "coins_1" }));
         }
 
         [Test]
-        public void Restore_succeeds_only_when_it_brings_premium_back()
+        public void Restore_without_premium_is_nothing_to_restore()
         {
             var purchases = Make(out var gateway, out _, out _);
+            var bought = 0;
+            purchases.ProductPurchased += _ => bought++;
 
+            gateway.RestoreReply = StoreReply<CustomerSnapshot>.Ok(
+                FakeRevenueCatGateway.Customer(new string[0], Transaction("t1", ShopProducts.StarterPack)));
             var nothing = Run(purchases.RestoreAsync(CancellationToken.None));
             Assert.That(nothing.MessageKey, Is.EqualTo(PurchasesKeys.ErrorNothingToRestore));
 
-            gateway.RestoreReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Ok(FakeRevenueCatGateway.Premium);
+            gateway.RestoreReply = StoreReply<CustomerSnapshot>.Ok(FakeRevenueCatGateway.Premium);
             Assert.That(Run(purchases.RestoreAsync(CancellationToken.None)), Is.SameAs(PurchaseResult.Success));
             Assert.That(purchases.IsPremium, Is.True);
 
-            gateway.RestoreReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Failed(StoreErrorKind.Store);
+            gateway.RestoreReply = StoreReply<CustomerSnapshot>.Failed(StoreErrorKind.Store);
             Assert.That(Run(purchases.RestoreAsync(CancellationToken.None)).MessageKey, Is.EqualTo("purchases.error.store"));
             Assert.That(gateway.Restores, Is.EqualTo(3));
+            Assert.That(bought, Is.Zero, "a restore is not a purchase");
         }
 
         [Test]
@@ -167,7 +255,7 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
         {
             var gateway = new FakeRevenueCatGateway
             {
-                PendingCustomer = new UniTaskCompletionSource<StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>>()
+                PendingCustomer = new UniTaskCompletionSource<StoreReply<CustomerSnapshot>>()
             };
             var preferences = new FakePreferences();
             preferences.SetBool(RevenueCatPurchases.PremiumKey, true);
@@ -195,31 +283,10 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
             purchases.Changed += () => changes++;
 
             gateway.Push(FakeRevenueCatGateway.Free);
-            gateway.Push(new[] { "something-else" });
+            gateway.Push(FakeRevenueCatGateway.Customer(new[] { "something-else" }));
 
             Assert.That(changes, Is.Zero);
             Assert.That(preferences.Saves, Is.Zero);
-        }
-
-        [Test]
-        public void Premium_purchased_fires_on_a_purchase_only()
-        {
-            var purchases = Make(out var gateway, out _, out _);
-            gateway.Offerings = Offering(Monthly, Annual);
-            var purchased = 0;
-            purchases.PremiumPurchased += () => purchased++;
-
-            gateway.CustomerReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Ok(FakeRevenueCatGateway.Premium);
-            purchases.Start();
-            gateway.RestoreReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Ok(FakeRevenueCatGateway.Premium);
-            Run(purchases.RestoreAsync(CancellationToken.None));
-            gateway.PurchaseReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Failed(StoreErrorKind.Cancelled);
-            Run(purchases.PurchaseAsync("$rc_annual", CancellationToken.None));
-            Assert.That(purchased, Is.Zero, "a refresh, a restore and a cancelled purchase are not purchases");
-
-            gateway.PurchaseReply = StoreReply<System.Collections.Generic.IReadOnlyCollection<string>>.Ok(FakeRevenueCatGateway.Premium);
-            Run(purchases.PurchaseAsync("$rc_annual", CancellationToken.None));
-            Assert.That(purchased, Is.EqualTo(1));
         }
 
         [Test]

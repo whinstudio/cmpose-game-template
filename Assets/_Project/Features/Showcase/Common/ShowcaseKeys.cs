@@ -12,7 +12,7 @@ namespace Kturker.UnityBase.Features.Showcase.Common
         public const string Continue = "showcase.continue";
         public const string ContinueAd = "showcase.continueAd";
         public const string AdNotReady = "showcase.adNotReady";
-        public const string Premium = "showcase.premium";
+        public const string Shop = "showcase.shop";
         public const string Stats = "showcase.stats";
     }
 }

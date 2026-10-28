@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
@@ -7,49 +8,62 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
 {
     public sealed class FakeRevenueCatGateway : IRevenueCatGateway
     {
-        public static readonly IReadOnlyCollection<string> Premium = new[] { PurchasesConfig.PremiumEntitlement };
-        public static readonly IReadOnlyCollection<string> Free = new string[0];
+        public static readonly CustomerSnapshot Premium = Customer(new[] { PurchasesConfig.PremiumEntitlement });
+        public static readonly CustomerSnapshot Free = Customer(new string[0]);
 
         public readonly List<string> ConfiguredKeys = new List<string>();
         public readonly List<string> Purchased = new List<string>();
         public int OfferingCalls;
         public int Restores;
         public int CustomerCalls;
-        public StoreReply<IReadOnlyList<StorePackage>> Offerings = StoreReply<IReadOnlyList<StorePackage>>.Ok(new StorePackage[0]);
-        public StoreReply<IReadOnlyCollection<string>> PurchaseReply = StoreReply<IReadOnlyCollection<string>>.Ok(Premium);
-        public StoreReply<IReadOnlyCollection<string>> RestoreReply = StoreReply<IReadOnlyCollection<string>>.Ok(Free);
-        public StoreReply<IReadOnlyCollection<string>> CustomerReply = StoreReply<IReadOnlyCollection<string>>.Ok(Free);
+        public StoreReply<IReadOnlyList<ShopProduct>> Offerings = StoreReply<IReadOnlyList<ShopProduct>>.Ok(new ShopProduct[0]);
+        public StoreReply<PurchaseReply> PurchaseReply = StoreReply<PurchaseReply>.Ok(new PurchaseReply(Premium, null));
+        public StoreReply<CustomerSnapshot> RestoreReply = StoreReply<CustomerSnapshot>.Ok(Free);
+        public StoreReply<CustomerSnapshot> CustomerReply = StoreReply<CustomerSnapshot>.Ok(Free);
         // When set, CustomerInfoAsync waits for it (RevenueCat has not answered yet)
-        public UniTaskCompletionSource<StoreReply<IReadOnlyCollection<string>>> PendingCustomer;
-        private Action<IReadOnlyCollection<string>> listener;
+        public UniTaskCompletionSource<StoreReply<CustomerSnapshot>> PendingCustomer;
+        private Action<CustomerSnapshot> listener;
 
-        public void Configure(string apiKey, Action<IReadOnlyCollection<string>> customerInfoUpdated)
+        public static CustomerSnapshot Customer(IReadOnlyCollection<string> entitlements, params StoreTransaction[] transactions) =>
+            new CustomerSnapshot(entitlements, transactions);
+
+        public static StoreTransaction Transaction(string id, string productId) =>
+            new StoreTransaction(id, productId, new DateTime(2026, 10, 28, 12, 0, 0, DateTimeKind.Utc));
+
+        public static StoreReply<IReadOnlyList<ShopProduct>> Offering(params string[] productIds) =>
+            StoreReply<IReadOnlyList<ShopProduct>>.Ok(productIds.Select(id => new ShopProduct(id, "$0.99")).ToList());
+
+        // A successful purchase whose customer info and transaction are these
+        public static StoreReply<PurchaseReply> Bought(CustomerSnapshot customer, StoreTransaction transaction) =>
+            StoreReply<PurchaseReply>.Ok(new PurchaseReply(customer, transaction));
+
+        public void Configure(string apiKey, Action<CustomerSnapshot> updated)
         {
             ConfiguredKeys.Add(apiKey);
-            listener = customerInfoUpdated;
+            listener = updated;
         }
 
-        public void Push(IReadOnlyCollection<string> entitlements) => listener(entitlements);
+        public void Push(CustomerSnapshot customer) => listener(customer);
 
-        public UniTask<StoreReply<IReadOnlyList<StorePackage>>> OfferingsAsync()
+        public UniTask<StoreReply<IReadOnlyList<ShopProduct>>> OfferingsAsync()
         {
             OfferingCalls++;
             return UniTask.FromResult(Offerings);
         }
 
-        public UniTask<StoreReply<IReadOnlyCollection<string>>> PurchaseAsync(string packageId)
+        public UniTask<StoreReply<PurchaseReply>> PurchaseAsync(string productId)
         {
-            Purchased.Add(packageId);
+            Purchased.Add(productId);
             return UniTask.FromResult(PurchaseReply);
         }
 
-        public UniTask<StoreReply<IReadOnlyCollection<string>>> RestoreAsync()
+        public UniTask<StoreReply<CustomerSnapshot>> RestoreAsync()
         {
             Restores++;
             return UniTask.FromResult(RestoreReply);
         }
 
-        public UniTask<StoreReply<IReadOnlyCollection<string>>> CustomerInfoAsync()
+        public UniTask<StoreReply<CustomerSnapshot>> CustomerInfoAsync()
         {
             CustomerCalls++;
             return PendingCustomer != null ? PendingCustomer.Task : UniTask.FromResult(CustomerReply);
@@ -60,33 +74,42 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
     {
         public bool IsAvailable { get; set; } = true;
         public bool IsPremium { get; set; }
+        public IReadOnlyList<StoreTransaction> Transactions { get; set; } = new StoreTransaction[0];
         public event Action Changed;
-        public PaywallOffer Offer;
+        public event Action<StoreTransaction> ProductPurchased;
+        public event Action<IReadOnlyList<StoreTransaction>> TransactionsUpdated;
+        public IReadOnlyList<ShopProduct> Products;
         // When set, the call waits for it
-        public UniTaskCompletionSource<PaywallOffer> PendingOffer;
+        public UniTaskCompletionSource<IReadOnlyList<ShopProduct>> PendingProducts;
         public UniTaskCompletionSource<PurchaseResult> PendingPurchase;
         public PurchaseResult PurchaseResult = PurchaseResult.Success;
         public PurchaseResult RestoreResult = PurchaseResult.Success;
         public readonly List<string> Purchased = new List<string>();
-        public int OfferCalls;
+        public int ProductCalls;
         public int Restores;
-        public CancellationToken LastOfferToken;
-
-        public event Action PremiumPurchased;
+        public CancellationToken LastProductsToken;
 
         public void RaiseChanged() => Changed?.Invoke();
-        public void RaisePremiumPurchased() => PremiumPurchased?.Invoke();
+        public void RaiseProductPurchased(StoreTransaction transaction) => ProductPurchased?.Invoke(transaction);
 
-        public UniTask<PaywallOffer> OfferAsync(CancellationToken cancellation)
+        public void RaiseTransactionsUpdated(IReadOnlyList<StoreTransaction> transactions)
         {
-            OfferCalls++;
-            LastOfferToken = cancellation;
-            return PendingOffer != null ? PendingOffer.Task : UniTask.FromResult(Offer);
+            Transactions = transactions;
+            TransactionsUpdated?.Invoke(transactions);
         }
 
-        public UniTask<PurchaseResult> PurchaseAsync(string packageId, CancellationToken cancellation)
+        public bool Owns(string productId) => Transactions.Any(t => t.ProductId == productId);
+
+        public UniTask<IReadOnlyList<ShopProduct>> ProductsAsync(CancellationToken cancellation)
         {
-            Purchased.Add(packageId);
+            ProductCalls++;
+            LastProductsToken = cancellation;
+            return PendingProducts != null ? PendingProducts.Task : UniTask.FromResult(Products);
+        }
+
+        public UniTask<PurchaseResult> PurchaseAsync(string productId, CancellationToken cancellation)
+        {
+            Purchased.Add(productId);
             return PendingPurchase != null ? PendingPurchase.Task : UniTask.FromResult(PurchaseResult);
         }
 
@@ -97,9 +120,10 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
         }
     }
 
-    public sealed class FakePaywall : IPaywall
+    public sealed class FakeShop : IShop
     {
-        public readonly List<PaywallSource> Shown = new List<PaywallSource>();
-        public void Show(PaywallSource source) => Shown.Add(source);
+        public readonly List<ShopSource> Shown = new List<ShopSource>();
+        public bool CanShow { get; set; } = true;
+        public void Show(ShopSource source) => Shown.Add(source);
     }
 }

@@ -7,33 +7,20 @@ namespace Kturker.UnityBase.Core.Purchases
         public const string StateGet = "purchases.state.get";
         public const string StateActive = "purchases.state.active";
         public const string StateUnavailable = "purchases.state.unavailable";
-        public const string Title = "purchases.title";
-        public const string Feature1 = "purchases.feature1";
-        public const string Feature2 = "purchases.feature2";
-        public const string PerMonth = "purchases.perMonth";
-        public const string Savings = "purchases.savings";
-        public const string Buy = "purchases.buy";
+        public const string Title = "purchases.shop.title";
         public const string Restore = "purchases.restore";
+        public const string Restored = "purchases.restored";
+        public const string Retry = "purchases.retry";
         public const string Unavailable = "purchases.unavailable";
+        // The line of a row that turns the ads off (remove_ads, no_ads_bundle) and a row's discount label ("-40%")
+        public const string NoAds = "purchases.shop.noAds";
+        public const string Tag = "purchases.shop.tag";
+
+        // A shop row's title (ShopProducts ids)
+        public static string RowTitle(string id) => $"purchases.shop.{id}.title";
         public const string ErrorUnavailable = "purchases.error.unavailable";
         public const string ErrorPackageUnavailable = "purchases.error.packageUnavailable";
         public const string ErrorNothingToRestore = "purchases.error.nothingToRestore";
-
-        public static string Period(PackagePeriod period)
-        {
-            switch (period)
-            {
-                case PackagePeriod.Weekly: return "purchases.period.weekly";
-                case PackagePeriod.Monthly: return "purchases.period.monthly";
-                case PackagePeriod.Annual: return "purchases.period.annual";
-                case PackagePeriod.Lifetime: return "purchases.period.lifetime";
-                default: return "purchases.period.other";
-            }
-        }
-
-        // purchases.trial.<day|week|month|year>.<one|other>, with the number as {0}
-        public static string Trial(TrialPeriod trial) =>
-            $"purchases.trial.{trial.Unit.ToString().ToLowerInvariant()}.{(trial.Value == 1 ? "one" : "other")}";
 
         public static string Error(StoreErrorKind kind)
         {

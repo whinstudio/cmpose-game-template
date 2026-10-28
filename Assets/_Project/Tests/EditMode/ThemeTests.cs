@@ -12,7 +12,7 @@ namespace Kturker.UnityBase.Tests.EditMode
 {
     // WCAG contrast ratio of two opaque palette colours (sRGB values as the palette stores them): 1 = the same
     // luminance, 21 = black on white.
-    // - Boxes stand out from what is behind them by BoxOnPanel: Track (the paywall's package rows on the Surface panel)
+    // - Boxes stand out from what is behind them by BoxOnPanel: Track (the shop's rows on the screen's background)
     //   from Surface; SurfaceVariant (the chosen row, the GitHub card on the Game screen) from Surface and Background.
     // - The chosen row stands out from the other rows by SelectedOnRow (it also shows a Primary side bar).
     // - Secondary text (TextMuted: the per-month detail) reaches SmallText on both row colours; accent text (Primary:

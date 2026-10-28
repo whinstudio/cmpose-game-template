@@ -15,7 +15,8 @@ namespace Kturker.UnityBase.Features.Economy
         IMenuSideButton AddExtraButton(string extraId, Sprite icon, Action onClick);
     }
 
-    // The economy on the menu: the currency at the top bar's left (its mark, in its own colour), and a side button for
+    // The economy on the menu: the currency at the top bar's left (its mark, in its own colour; a tap opens the shop
+    // while it can show, IEconomyShop), and a side button for
     // each ready extra the game has, in the file's extras order: the supply and the login bonus in the left column, the
     // wheel in the right one (whose other two slots are the leaderboard's and the achievements'). Custom extras add
     // theirs with IEconomyExtraButtons. A game with no extra shows only the counter. The badges follow the timers
@@ -32,6 +33,7 @@ namespace Kturker.UnityBase.Features.Economy
         private readonly IEconomyWindows windows;
         private readonly EconomyCurrency currency;
         private readonly IUiFeedback feedback;
+        private readonly IEconomyShop shop;
         private IMenuSideButton supplyButton;
         private IMenuSideButton wheelButton;
         private IMenuSideButton loginButton;
@@ -41,7 +43,7 @@ namespace Kturker.UnityBase.Features.Economy
         private float sinceRefresh;
 
         public EconomyMenu(IMenuSideButtons sides, IMenuCoins coins, Economy economy, Supply supply, Wheel wheel, LoginBonus login,
-            IEconomyWindows windows, EconomyCurrency currency, IUiFeedback feedback)
+            IEconomyWindows windows, EconomyCurrency currency, IUiFeedback feedback, IEconomyShop shop)
         {
             this.sides = sides;
             this.coins = coins;
@@ -52,6 +54,7 @@ namespace Kturker.UnityBase.Features.Economy
             this.windows = windows;
             this.currency = currency;
             this.feedback = feedback;
+            this.shop = shop;
         }
 
         public void Start()
@@ -64,6 +67,7 @@ namespace Kturker.UnityBase.Features.Economy
             PlaceReady();
             started = true;
             economy.Changed += Refresh;
+            coins.CoinsClicked += OnCoins;
             Refresh();
         }
 
@@ -92,7 +96,11 @@ namespace Kturker.UnityBase.Features.Economy
 
         public void Dispose()
         {
-            if (started) economy.Changed -= Refresh;
+            if (started)
+            {
+                economy.Changed -= Refresh;
+                coins.CoinsClicked -= OnCoins;
+            }
             started = false;
         }
 
@@ -148,6 +156,13 @@ namespace Kturker.UnityBase.Features.Economy
         {
             leftButtons++;
             return sides.AddSideButton(MenuSide.Left, icon, key, () => Open(open));
+        }
+
+        private void OnCoins()
+        {
+            if (!shop.CanShow) return;
+            feedback.Click();
+            shop.Show(false);
         }
 
         private void Open(Func<bool> open)

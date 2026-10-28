@@ -28,8 +28,9 @@ namespace Kturker.UnityBase.Features.Economy
         [SerializeField] private long wheelAdDay;
         [SerializeField] private int loginDay;
         [SerializeField] private long loginClaimedDay;
-        [SerializeField] private bool welcomeGiven;
         [SerializeField] private List<ExtraValue> extraValues = new List<ExtraValue>();
+        [SerializeField] private long firstLaunchUtcTicks;
+        [SerializeField] private List<string> grantedTransactions = new List<string>();
 
         public int Coins { get => coins; set => coins = value; }
         public bool StartGranted { get => startGranted; set => startGranted = value; }
@@ -45,7 +46,9 @@ namespace Kturker.UnityBase.Features.Economy
         // The streak day claimed on LoginClaimedDay (1-7; 0: none)
         public int LoginDay { get => loginDay; set => loginDay = value; }
         public long LoginClaimedDay { get => loginClaimedDay; set => loginClaimedDay = value; }
-        public bool WelcomeGiven { get => welcomeGiven; set => welcomeGiven = value; }
+        // The first launch with the shop's ledger, UTC DateTime ticks (0: not yet; an older save gets now on its first
+        // launch with it). Customer info older than this pays nothing (ShopGrants).
+        public long FirstLaunchUtcTicks { get => firstLaunchUtcTicks; set => firstLaunchUtcTicks = value; }
 
         public List<BoosterStock> Boosters
         {
@@ -66,6 +69,16 @@ namespace Kturker.UnityBase.Features.Economy
             }
         }
 
+        // The store transaction ids whose shop row was paid (ShopGrants), so a purchase pays once
+        public List<string> GrantedTransactions
+        {
+            get
+            {
+                if (grantedTransactions == null) grantedTransactions = new List<string>();
+                return grantedTransactions;
+            }
+        }
+
         // A damaged or edited save never yields negative coins, counts or counters
         public void Normalize()
         {
@@ -77,6 +90,8 @@ namespace Kturker.UnityBase.Features.Economy
             wheelAdSpins = Math.Max(0, wheelAdSpins);
             loginDay = Mathf.Clamp(loginDay, 0, EconomyConfig.LoginDays);
             ExtraValues.RemoveAll(value => value == null || string.IsNullOrEmpty(value.Id) || value.Key == null);
+            firstLaunchUtcTicks = Math.Max(0L, firstLaunchUtcTicks);
+            GrantedTransactions.RemoveAll(string.IsNullOrEmpty);
         }
     }
 

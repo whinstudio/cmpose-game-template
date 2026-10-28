@@ -19,6 +19,7 @@ namespace Kturker.UnityBase.Features.Economy
         event Action BuyClicked;
         event Action WatchClicked;
         event Action CloseClicked;
+        event Action ShopClicked;
         void SetOpen(bool open);
 
         // icon null: the fallback circle with the name's first letter
@@ -29,6 +30,9 @@ namespace Kturker.UnityBase.Features.Economy
 
         // The buy button is enabled while the coins reach the price; the ad button shows only while one can be watched
         void SetActions(bool canBuy, bool adShown);
+
+        // The button that opens the shop, shown while the coins do not reach the price and the shop can show
+        void SetShop(bool shown);
 
         // A line under the buttons (null hides it)
         void ShowMessage(string key, params object[] args);
@@ -45,8 +49,10 @@ namespace Kturker.UnityBase.Features.Economy
     }
 
     // E4: the price is enabled while the currency reaches it; "Watch ad" shows while a rewarded ad is on offer (and
-    // the run's ad of this booster is unused); with neither the window says "Acorns: not enough". An ad that is
-    // not ready, closed early or failed gives nothing and says so; the window stays open.
+    // the run's ad of this booster is unused); with neither the window says "Acorns: not enough". While the coins do
+    // not reach the price a Shop button opens the shop (ShopSource.NotEnough) over the window, which stays open and
+    // enables the price once a bought pack pays. An ad that is not ready, closed early or failed gives nothing and says
+    // so; the window stays open.
     public sealed class BoosterOfferDialog : IBoosterOffer, IDisposable
     {
         private readonly IBoosterOfferView view;
@@ -54,6 +60,7 @@ namespace Kturker.UnityBase.Features.Economy
         private readonly IEconomyAds ads;
         private readonly EconomyCurrency currency;
         private readonly IUiFeedback feedback;
+        private readonly IEconomyShop shop;
         private readonly Func<bool> autoPlay;
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
         private UniTaskCompletionSource<OfferResult> pending;
@@ -65,17 +72,19 @@ namespace Kturker.UnityBase.Features.Economy
         private string message;
 
         public BoosterOfferDialog(IBoosterOfferView view, IEconomy economy, IEconomyAds ads, EconomyCurrency currency, IUiFeedback feedback,
-            Func<bool> autoPlay)
+            IEconomyShop shop, Func<bool> autoPlay)
         {
             this.view = view;
             this.economy = economy;
             this.ads = ads;
             this.currency = currency;
             this.feedback = feedback;
+            this.shop = shop;
             this.autoPlay = autoPlay;
             view.BuyClicked += OnBuy;
             view.WatchClicked += OnWatch;
             view.CloseClicked += OnClose;
+            view.ShopClicked += OnShop;
         }
 
         public bool IsOpen => pending != null;
@@ -107,6 +116,7 @@ namespace Kturker.UnityBase.Features.Economy
             view.BuyClicked -= OnBuy;
             view.WatchClicked -= OnWatch;
             view.CloseClicked -= OnClose;
+            view.ShopClicked -= OnShop;
         }
 
         private void Refresh()
@@ -118,6 +128,7 @@ namespace Kturker.UnityBase.Features.Economy
             const string notEnough = EconomyKeys.CurrencyNotEnough;
             view.ShowPrice(booster.Price, coins, currency);
             view.SetActions(canBuy, adShown);
+            view.SetShop(!canBuy && shop.CanShow);
             if (!canBuy && !adShown) Say(notEnough);
             else if (message == notEnough) Say(null);
         }
@@ -174,6 +185,13 @@ namespace Kturker.UnityBase.Features.Economy
             }
             Refresh();
             Say(EconomyKeys.AdNotReady);
+        }
+
+        private void OnShop()
+        {
+            if (!IsOpen || busy || !shop.CanShow) return;
+            feedback.Click();
+            shop.Show(true);
         }
 
         private void OnClose()

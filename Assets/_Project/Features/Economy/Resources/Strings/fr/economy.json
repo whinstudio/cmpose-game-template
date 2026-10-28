@@ -33,8 +33,8 @@
   "economy.login.claimed": "Pris",
   "economy.login.next": "Prochaine récompense dans {0}",
   "economy.offer.watch": "Voir une pub",
+  "economy.shop": "Boutique",
   "economy.picker.title": "Bonus",
   "economy.picker.hint": "Touche un bonus pour l'emporter dans cette partie",
-  "economy.picker.play": "Jouer",
-  "economy.welcome.line": "Cadeau : {0}"
+  "economy.picker.play": "Jouer"
 }

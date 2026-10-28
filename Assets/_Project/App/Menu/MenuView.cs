@@ -38,6 +38,7 @@ namespace Kturker.UnityBase.App.Menu
         [SerializeField] private RectTransform topBar;
         [SerializeField] private Button settingsButton;
         [SerializeField] private GameObject coins;
+        [SerializeField] private Button coinsButton;
         [SerializeField] private FallbackIcon coinIcon;
         [SerializeField] private TMP_Text coinCount;
         [SerializeField] private RectTransform leftSide;
@@ -53,6 +54,7 @@ namespace Kturker.UnityBase.App.Menu
 
         public event Action<int> GameClicked;
         public event Action SettingsClicked;
+        public event Action CoinsClicked;
 
         public IReadOnlyList<Button> GameButtons => gameButtons;
         public Button SettingsButton => settingsButton;
@@ -75,6 +77,7 @@ namespace Kturker.UnityBase.App.Menu
         {
             ShowBranding(GameBranding.TitleLogo, BackgroundFor(GameBranding.MenuBackground, GameSkin.Current), GameSkin.Current?.Scrim);
             settingsButton.onClick.AddListener(OnSettings);
+            coinsButton.onClick.AddListener(OnCoins);
             ReserveBannerSpace(SafeArea.ReservedTop > 0f);
         }
 
@@ -99,6 +102,7 @@ namespace Kturker.UnityBase.App.Menu
         private void OnDestroy()
         {
             settingsButton.onClick.RemoveListener(OnSettings);
+            coinsButton.onClick.RemoveListener(OnCoins);
             foreach (var button in gameButtons) button.onClick.RemoveAllListeners();
         }
 
@@ -219,5 +223,7 @@ namespace Kturker.UnityBase.App.Menu
         }
 
         private void OnSettings() => SettingsClicked?.Invoke();
+
+        private void OnCoins() => CoinsClicked?.Invoke();
     }
 }
