@@ -25,6 +25,9 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
 
         private static StoreTransaction Transaction(string id, string productId) => FakeRevenueCatGateway.Transaction(id, productId);
 
+        private static StoreTransaction Transaction(string id, string productId, int minute) =>
+            new StoreTransaction(id, productId, new System.DateTime(2026, 10, 28, 12, minute, 0, System.DateTimeKind.Utc));
+
         [Test]
         public void Unavailable_returns_null_products_and_error_purchases()
         {
@@ -110,6 +113,45 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
             Assert.That(bought[0].Id, Is.EqualTo("t1"));
             Assert.That(bought[0].ProductId, Is.EqualTo("coins_2"));
             Assert.That(purchases.IsPremium, Is.False, "coins unlock no entitlement");
+        }
+
+        [Test]
+        public void A_purchase_is_reported_with_the_customer_info_id_of_its_transaction()
+        {
+            var purchases = Make(out var gateway, out _, out _);
+            gateway.Offerings = FakeRevenueCatGateway.Offering("coins_1");
+            var earlier = Transaction("o1_old", "coins_1", 1);
+            gateway.CustomerReply = StoreReply<CustomerSnapshot>.Ok(FakeRevenueCatGateway.Customer(new string[0], earlier));
+            purchases.Start();
+            // The store's id in the purchase result, RevenueCat's in the customer info (Test Store and Google Play)
+            var store = Transaction("GPA.1234", "coins_1");
+            var listed = Transaction("o1_new", "coins_1", 2);
+            gateway.PurchaseReply = FakeRevenueCatGateway.Bought(FakeRevenueCatGateway.Customer(new string[0], earlier, listed), store);
+            var bought = new List<StoreTransaction>();
+            purchases.ProductPurchased += bought.Add;
+
+            Run(purchases.PurchaseAsync("coins_1", CancellationToken.None));
+
+            Assert.That(bought.Select(t => t.Id), Is.EqualTo(new[] { "o1_new" }));
+        }
+
+        [Test]
+        public void A_purchase_whose_customer_info_came_first_is_still_reported_with_its_customer_info_id()
+        {
+            var purchases = Make(out var gateway, out _, out _);
+            gateway.Offerings = FakeRevenueCatGateway.Offering("coins_1");
+            var earlier = Transaction("o1_old", "coins_1", 1);
+            var listed = Transaction("o1_new", "coins_1", 2);
+            gateway.CustomerReply = StoreReply<CustomerSnapshot>.Ok(FakeRevenueCatGateway.Customer(new string[0], earlier, listed));
+            purchases.Start();
+            gateway.PurchaseReply = FakeRevenueCatGateway.Bought(FakeRevenueCatGateway.Customer(new string[0], earlier, listed),
+                Transaction("GPA.1234", "coins_1"));
+            var bought = new List<StoreTransaction>();
+            purchases.ProductPurchased += bought.Add;
+
+            Run(purchases.PurchaseAsync("coins_1", CancellationToken.None));
+
+            Assert.That(bought.Select(t => t.Id), Is.EqualTo(new[] { "o1_new" }));
         }
 
         [Test]

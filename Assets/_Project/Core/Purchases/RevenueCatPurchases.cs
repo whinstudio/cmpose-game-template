@@ -84,7 +84,12 @@ namespace Kturker.UnityBase.Core.Purchases
             var reply = await gateway.PurchaseAsync(productId).AttachExternalCancellation(cancellation);
             if (!reply.IsOk) return Failed("Purchase", reply.Error);
             Update(reply.Value.Customer);
-            if (reply.Value.Transaction != null) ProductPurchased?.Invoke(reply.Value.Transaction);
+            // The purchase result carries the store's transaction id, the customer info RevenueCat's ("o1_…") for the same
+            // purchase: report the product's latest customer info entry, so both paths name the purchase alike and it is
+            // paid once (the SDK's listener may have delivered that customer info before the purchase callback)
+            var bought = Transactions.Where(t => t.ProductId == productId).OrderByDescending(t => t.PurchasedUtc).FirstOrDefault()
+                ?? reply.Value.Transaction;
+            if (bought != null) ProductPurchased?.Invoke(bought);
             else log.Warning($"Purchase of {productId} came without a transaction: the next customer info carries it");
             return PurchaseResult.Success;
         }
