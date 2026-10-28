@@ -12,6 +12,9 @@ namespace Kturker.UnityBase.Core.Purchases
         public const string ApiKeyApple = "test_qmHxQuucnBoXDlJVLUGsCxcGXrw";
         public const string ApiKeyGoogle = "test_qmHxQuucnBoXDlJVLUGsCxcGXrw";
         public const string PremiumEntitlement = "premium";
+        // The shop sells the packages of this offering; without it, those of the current offering. A RevenueCat project
+        // shared with apps keeps their paywall in the current offering and the games' products here.
+        public const string ShopOffering = "shop";
 
         public static string ApiKey(bool ios) => ios ? ApiKeyApple : ApiKeyGoogle;
 

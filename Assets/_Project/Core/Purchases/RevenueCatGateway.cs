@@ -103,7 +103,7 @@ namespace Kturker.UnityBase.Core.Purchases
                         return;
                     }
                     packages.Clear();
-                    var current = all?.Current;
+                    var current = all?.All != null && all.All.TryGetValue(PurchasesConfig.ShopOffering, out var shop) ? shop : all?.Current;
                     if (current == null)
                     {
                         source.TrySetResult(StoreReply<IReadOnlyList<ShopProduct>>.Ok(null));

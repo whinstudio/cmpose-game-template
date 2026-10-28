@@ -29,7 +29,7 @@ namespace Kturker.UnityBase.Core.Purchases
         // ran) is in the list. The same transaction comes again and again: count it once by its Id.
         event Action<IReadOnlyList<StoreTransaction>> TransactionsUpdated;
 
-        // The current offering's products in the order of the RevenueCat dashboard; null when it could not be loaded
+        // The shop offering's (else the current offering's) products in the order of the RevenueCat dashboard; null when it could not be loaded
         UniTask<IReadOnlyList<ShopProduct>> ProductsAsync(CancellationToken cancellation);
         UniTask<PurchaseResult> PurchaseAsync(string productId, CancellationToken cancellation);
         UniTask<PurchaseResult> RestoreAsync(CancellationToken cancellation);

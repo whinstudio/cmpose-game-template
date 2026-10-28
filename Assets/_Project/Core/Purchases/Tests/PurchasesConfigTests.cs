@@ -49,5 +49,12 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
             Assert.That(PurchasesConfig.IsTestStoreKey("appl_AbCdEf123"), Is.False);
             Assert.That(PurchasesConfig.IsTestStoreKey(null), Is.False);
         }
+
+        // The Test Store project is shared with the app template, whose paywall is its current offering
+        [Test]
+        public void The_shop_sells_the_shop_offering()
+        {
+            Assert.That(PurchasesConfig.ShopOffering, Is.EqualTo("shop"));
+        }
     }
 }

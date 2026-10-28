@@ -10,7 +10,7 @@ namespace Kturker.UnityBase.Core.Purchases
     {
         void Configure(string apiKey, Action<CustomerSnapshot> updated);
 
-        // Ok(null): RevenueCat has no current offering
+        // The "shop" offering, else the current one; Ok(null): RevenueCat has neither
         UniTask<StoreReply<IReadOnlyList<ShopProduct>>> OfferingsAsync();
 
         // productId must come from the last OfferingsAsync

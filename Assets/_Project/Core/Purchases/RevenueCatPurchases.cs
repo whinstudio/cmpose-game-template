@@ -68,7 +68,7 @@ namespace Kturker.UnityBase.Core.Purchases
             if (reply.Value == null)
             {
                 offeredIds = new HashSet<string>();
-                log.Warning("No current offering: mark one current in the RevenueCat dashboard");
+                log.Warning("No shop offering: add a 'shop' offering (or mark one current) in the RevenueCat dashboard");
                 return null;
             }
             offeredIds = new HashSet<string>(reply.Value.Select(p => p.Id));

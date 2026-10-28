@@ -172,7 +172,9 @@ builds and the editor keep purchases off.
 Before you send the game to the stores:
 1. In RevenueCat, create the project's App Store and Google Play apps, the products (ids as in `ShopProducts`:
    `remove_ads`, `starter_pack`, `no_ads_bundle` one-time; `bundle_1..3`, `coins_1..6` consumable), the `premium`
-   entitlement (`remove_ads` and `no_ads_bundle` unlock it) and a current offering whose package ids are the product ids.
+   entitlement (`remove_ads` and `no_ads_bundle` unlock it) and an offering named `shop` (`PurchasesConfig.ShopOffering`;
+   without it the current offering is used) whose package ids are the product ids. The template's Test Store key
+   belongs to a project shared with the app template: its `default` offering is the apps' paywall, `shop` the games'.
 2. Put the public SDK keys in `Assets/_Project/Core/Purchases/PurchasesConfig.cs` (`ApiKeyApple`: `appl_…`,
    `ApiKeyGoogle`: `goog_…`) and the entitlement id in `PremiumEntitlement`.
 3. Build a release and check the log: `CMPOSE_PURCHASES available=true`.
