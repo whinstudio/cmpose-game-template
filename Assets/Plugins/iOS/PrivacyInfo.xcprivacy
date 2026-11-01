@@ -16,6 +16,8 @@
         <!-- cmpose:leaderboards:end -->
         <!-- cmpose:network:start -->
         <!-- cmpose:network:end -->
+        <!-- cmpose:insights:start -->
+        <!-- cmpose:insights:end -->
     </array>
     <key>NSPrivacyAccessedAPITypes</key>
     <array>

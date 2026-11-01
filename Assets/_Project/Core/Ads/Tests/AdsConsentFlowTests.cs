@@ -37,11 +37,14 @@ namespace Kturker.UnityBase.Core.Ads.Tests
         private AdsConsentFlow Start(bool enabled = true, bool development = false, bool testIds = false, bool debugEea = false,
             bool automation = false)
         {
-            var flow = new AdsConsentFlow(gateway, tracking, ads, log, enabled, development, testIds, debugEea,
-                automation: automation);
+            var flow = Create(enabled, development, testIds, debugEea, automation);
             flow.Start();
             return flow;
         }
+
+        private AdsConsentFlow Create(bool enabled = true, bool development = false, bool testIds = false,
+            bool debugEea = false, bool automation = false) =>
+            new AdsConsentFlow(gateway, tracking, ads, log, enabled, development, testIds, debugEea, automation: automation);
 
         private string Marker => log.Lines.Last(l => l.StartsWith("MARKER CMPOSE_ADS "));
 
@@ -276,7 +279,82 @@ namespace Kturker.UnityBase.Core.Ads.Tests
             flow.ShowOptionsAsync().GetAwaiter().GetResult();
 
             Assert.That(ads.IsAvailable, Is.True);
+            Assert.That(flow.Granted, Is.True);
             Assert.That(log.Lines, Has.Some.Contains("busy"));
+        }
+
+        // Analytics has no answer until UMP gives one, then follows it; capture runs and the editor never allow it.
+        // "refused": the player chose "Do not consent" where GDPR applies; UMP still allows non-personalised ads
+        [TestCase("obtained", true)]
+        [TestCase("refused", false)]
+        [TestCase("notRequired", true)]
+        [TestCase("denied", false)]
+        [TestCase("errorInRelease", false)]
+        [TestCase("errorInDevelopment", true)]
+        [TestCase("automation", false)]
+        [TestCase("disabled", false)]
+        public void Analytics_consent_matches_each_ump_outcome(string outcome, bool granted)
+        {
+            string error = null;
+            if (outcome == "obtained" || outcome == "refused")
+            {
+                gateway.Consent = ConsentState.Obtained;
+                gateway.StorageConsent = outcome == "obtained";
+            }
+            if (outcome == "denied")
+            {
+                gateway.CanRequestAds = false;
+                gateway.Consent = ConsentState.Required;
+            }
+            if (outcome.StartsWith("error")) error = "offline";
+            gateway.PendingConsentInfo = new UniTaskCompletionSource<string>();
+            var flow = Create(enabled: outcome != "disabled", development: outcome == "errorInDevelopment",
+                automation: outcome == "automation");
+            var changes = 0;
+            flow.Changed += () => changes++;
+
+            Assert.That(flow.Granted, Is.Null);
+            flow.Start();
+            if (outcome != "automation" && outcome != "disabled")
+            {
+                Assert.That(flow.Granted, Is.Null);
+                Assert.That(changes, Is.Zero);
+                gateway.PendingConsentInfo.TrySetResult(error);
+            }
+
+            Assert.That(flow.Granted, Is.EqualTo(granted));
+            Assert.That(changes, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Consent_withdrawn_in_the_privacy_options_turns_analytics_off()
+        {
+            var flow = Start();
+            Assert.That(flow.Granted, Is.True);
+            var changes = 0;
+            flow.Changed += () => changes++;
+            // As the SDK does: ads may still be requested (non-personalised), the TCF answer turns storage off
+            gateway.OnPrivacyForm = () =>
+            {
+                gateway.Consent = ConsentState.Obtained;
+                gateway.StorageConsent = false;
+            };
+
+            flow.ShowOptionsAsync().GetAwaiter().GetResult();
+
+            Assert.That(flow.Granted, Is.False);
+            Assert.That(changes, Is.EqualTo(1));
+        }
+
+        [TestCase(1, "1111111111", true)]
+        [TestCase(1, "0111111111", false)]
+        [TestCase(1, "", false)]
+        [TestCase(1, null, false)]
+        [TestCase(0, "0000000000", null)]
+        [TestCase(0, "", null)]
+        public void Tcf_purpose_one_decides_storage_where_gdpr_applies(int gdprApplies, string purposes, bool? expected)
+        {
+            Assert.That(TcfConsent.StorageConsent(gdprApplies, purposes), Is.EqualTo(expected));
         }
     }
 }

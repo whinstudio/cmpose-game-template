@@ -10,8 +10,11 @@ namespace Kturker.UnityBase.Core.Ads
     // error starts ads only in a development build. The editor touches neither SDK. Also the privacy options form,
     // after which ads start (once) or stop as consent now says. Compass's capture runs (flag file `compass-autoplay` or
     // `compass-capture`, AutomationRun) skip consent and ads. A run that ends without ads tells GmaAds (Deactivate), so
-    // the room it keeps for the banner while consent is pending goes.
-    public sealed class AdsConsentFlow : IStartable, IDisposable, IAdsPrivacy
+    // the room it keeps for the banner while consent is pending goes. Analytics follows the same answer: allowed when
+    // ads are and, where GDPR applies, the player agreed to storage on the device (TCF purpose 1: refusing in the form
+    // still allows non-personalised ads); also on a UMP error in a development build; never in the editor or a
+    // capture run.
+    public sealed class AdsConsentFlow : IStartable, IDisposable, IAdsPrivacy, IAnalyticsConsent
     {
         public const string TestIdsWarning = "Ads use Google test IDs: replace them in AdsConfig before you ship";
 
@@ -28,6 +31,7 @@ namespace Kturker.UnityBase.Core.Ads
         private bool busy;
         private bool disposed;
         private string consent = "skipped";
+        private bool? granted;
         private TrackingStatus att = TrackingStatus.NotApplicable;
 
         public AdsConsentFlow(IGmaGateway gateway, ITrackingAuthorization tracking, GmaAds ads, ILog log, bool enabled,
@@ -45,6 +49,8 @@ namespace Kturker.UnityBase.Core.Ads
         }
 
         public bool OptionsRequired => enabled && !automation && gateway.PrivacyOptionsRequired;
+
+        public bool? Granted => granted;
 
         public event Action Changed;
 
@@ -81,16 +87,20 @@ namespace Kturker.UnityBase.Core.Ads
         {
             if (!enabled)
             {
+                granted = false;
                 ads.Deactivate();
                 Mark();
+                Changed?.Invoke();
                 return;
             }
             if (automation)
             {
                 consent = "automation";
+                granted = false;
                 log.Marker("CMPOSE_ADS consent=automation");
                 ads.Deactivate();
                 Mark();
+                Changed?.Invoke();
                 return;
             }
             if (testIds && !developmentBuild) log.Warning(TestIdsWarning);
@@ -107,6 +117,7 @@ namespace Kturker.UnityBase.Core.Ads
             if (error != null)
             {
                 consent = "error";
+                granted = developmentBuild;
                 log.Warning(developmentBuild
                     ? $"Ad consent failed ({error}): a development build shows test ads anyway"
                     : $"Ad consent failed ({error}): no ads this run");
@@ -124,6 +135,7 @@ namespace Kturker.UnityBase.Core.Ads
         {
             var canRequest = gateway.CanRequestAds;
             consent = !canRequest ? "denied" : gateway.Consent == ConsentState.NotRequired ? "notRequired" : "obtained";
+            granted = canRequest && gateway.StorageConsent != false;
             if (canRequest) await StartAdsAsync();
             else ads.Deactivate();
         }

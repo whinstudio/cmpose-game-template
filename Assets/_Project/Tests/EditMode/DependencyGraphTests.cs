@@ -75,6 +75,9 @@ using Kturker.UnityBase.Features.Sample.Leaderboards;
 using Kturker.UnityBase.Features.Showcase.Common.Leaderboards;
 // /cmpose:showcase
 // /cmpose:leaderboards
+// cmpose:insights
+using Kturker.UnityBase.Core.Insights;
+// /cmpose:insights
 // cmpose:showcase
 using Kturker.UnityBase.Features.Showcase.Common;
 // /cmpose:showcase
@@ -211,7 +214,24 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(root.Resolve<IGameServices>().IsAvailable, Is.False);
             Assert.That(root.Resolve<IGameServicesGateway>(), Is.InstanceOf<NoGameServicesGateway>());
             // /cmpose:leaderboards
+            // cmpose:insights
+            Assert.That(root.Resolve<IInsights>(), Is.InstanceOf<Insights>().And.SameAs(startables.OfType<Insights>().Single()));
+            // The editor never starts Firebase
+            Assert.That(root.Resolve<IInsights>().IsEnabled, Is.False);
+            Assert.That(root.Resolve<IInsightsGateway>(), Is.InstanceOf<NoInsightsGateway>());
+            Assert.That(root.Resolve<ILogSource>(), Is.InstanceOf<UnityLogSource>());
+            // /cmpose:insights
         }
+
+        // cmpose:ads
+        [Test]
+        public void Ads_flag_replaces_the_default_analytics_consent()
+        {
+            using var root = BuildRoot();
+            var flow = root.Resolve<IReadOnlyList<IStartable>>().OfType<AdsConsentFlow>().Single();
+            Assert.That(root.Resolve<IAnalyticsConsent>(), Is.SameAs(flow).And.SameAs(root.Resolve<AdsConsentFlow>()));
+        }
+        // /cmpose:ads
 
         [Test]
         public void Boot_scope_resolves_the_boot_entry()

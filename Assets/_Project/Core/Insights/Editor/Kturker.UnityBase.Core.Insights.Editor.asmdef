@@ -1,0 +1,7 @@
+{
+    "name": "Kturker.UnityBase.Core.Insights.Editor",
+    "rootNamespace": "Kturker.UnityBase.Core.Insights.Editor",
+    "references": [],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": false
+}

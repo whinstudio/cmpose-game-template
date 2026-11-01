@@ -237,6 +237,69 @@ state and lets the player sign in. The template ships **placeholder** IDs, so th
 4. Build a release and check the log: `CMPOSE_GAMES available=true signedIn=true` and no "placeholder IDs" warning.
 <!-- /cmpose:leaderboards -->
 
+<!-- cmpose:insights -->
+## Crash reports and analytics
+
+With the insights flag the game sends crash reports to Firebase Crashlytics and events to Google Analytics for
+Firebase. Native crashes, C# exceptions (as non-fatal reports with their C# stack) and, as breadcrumbs, the errors and
+warnings logged before them reach Crashlytics without any code. For the rest, inject `IInsights`:
+
+```csharp
+insights.LogEvent("level_complete", new Dictionary<string, object> { ["level"] = 3 });
+insights.SetUserId(playerId);              // an id your game owns, never an email or a name
+insights.RecordException(exception);       // an exception you caught but still want to see
+insights.Log("Opened the shop");           // a breadcrumb shown with the next report
+```
+
+Never put player data (names, emails, tokens, receipts) in events, parameters, ids or log lines. Firebase starts when
+Unity starts the game, so a crash before that is not reported. Release builds report C# frames with their class and
+method, without file and line.
+
+The template ships no Firebase project, so insights stay off (`CMPOSE_INSIGHTS available=false`; a release build logs
+`Insights off: add google-services.json / GoogleService-Info.plist (see README)`) until you add yours:
+1. In the Firebase console, create a project (or use one you have), add an Android app with your package name and an
+   iOS app with your bundle id, and turn on Crashlytics and Google Analytics.
+2. Download the two config files and put them in `Assets/Firebase/` (create the folder):
+   `Assets/Firebase/google-services.json` and `Assets/Firebase/GoogleService-Info.plist`. Nothing else to set: the
+   Android build turns the json into the resources Firebase reads, and the iOS build copies the plist into the app and
+   adds Crashlytics' symbol upload. The files are not git-ignored. Their API key is an identifier Firebase expects in
+   the app, not a password, but restrict it in the Google Cloud console (APIs & Services → Credentials: your apps
+   and the Firebase APIs only) and follow your team's rules on committing it.
+3. Build a release and check the log: `CMPOSE_INSIGHTS available=true` and no "Insights off" warning.
+
+To see a test crash, throw from a button of your own (`throw new InvalidOperationException("Test crash")` gives a
+non-fatal report; `UnityEngine.Diagnostics.Utils.ForceCrash(ForcedCrashCategory.AccessViolation)` a native crash),
+then open the game again: Crashlytics sends a report at the next start, and the console shows it within a few minutes.
+On iOS use a device or a signed simulator build (an unsigned one cannot send), and a Release build: Debug builds make
+no dSYM, so Crashlytics holds their native crashes as "missing dSYM".
+
+**Consent.** Analytics is off when the game starts. With the ads flag it waits for the player's answer to Google's
+consent form and follows it (a player who refuses gets no analytics, even though non-personalised ads may still
+show), also when the player changes it later in Settings → Privacy choices; without the ads flag it is on from the
+start. Crash reports do not wait for consent. `insights.SetCollectionEnabled(false)` turns
+both off (for a setting of your own; the template does not remember it, so call it at every start), `true` turns
+them on again.
+
+**Native symbols (Android).** Crashlytics needs the game's native symbols to show IL2CPP native crashes readably.
+In Build Profiles → Android set Debug Symbols to Level Public and Format Zip, so the build writes a `.symbols.zip`
+next to the APK or AAB; unzip it and upload the folder with the [Firebase CLI](https://firebase.google.com/docs/cli):
+
+```bash
+firebase crashlytics:symbols:upload --app=<Android app id from google-services.json: mobilesdk_app_id> <unzipped symbols folder>
+```
+
+iOS release builds upload their dSYMs during the build.
+
+**Store forms.** Declare what Firebase collects, following Firebase's own lists
+([Google Play](https://firebase.google.com/docs/android/play-data-disclosure),
+[App Store](https://firebase.google.com/docs/ios/app-store-data-collection)):
+- Google Play → Data safety: App info and performance (crash logs, diagnostics), App activity (app interactions) and
+  Device or other IDs; collected, not shared, for analytics and app functionality.
+- App Store Connect → App Privacy: Crash Data, Performance Data and Other Diagnostic Data (Crashlytics), Product
+  Interaction and Device ID (Analytics); used for analytics and app functionality, not for tracking, and linked to the
+  player only when you call `SetUserId`.
+<!-- /cmpose:insights -->
+
 ## Showcase or blank
 
 cmpose.dev/game makes two kinds of project from this template. **Blank** gives you the menu, settings and the

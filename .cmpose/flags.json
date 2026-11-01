@@ -127,6 +127,14 @@
       "asmdefs": ["Kturker.UnityBase.Core.Leaderboards", "Kturker.UnityBase.Core.Leaderboards.Editor", "Kturker.UnityBase.Features.Sample.Leaderboards", "Kturker.UnityBase.Features.Showcase.Common.Leaderboards"],
       "packages": []
     },
+    "insights": {
+      "define": "CMPOSE_INSIGHTS",
+      "paths": [
+        "Assets/_Project/Core/Insights"
+      ],
+      "asmdefs": ["Kturker.UnityBase.Core.Insights", "Kturker.UnityBase.Core.Insights.Editor"],
+      "packages": ["com.google.external-dependency-manager"]
+    },
     "sample": {
       "define": "CMPOSE_SAMPLE",
       "paths": [

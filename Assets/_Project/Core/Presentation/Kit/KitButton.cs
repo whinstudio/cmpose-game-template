@@ -8,8 +8,10 @@ namespace Kturker.UnityBase.Core.Presentation
     // A themed button (KitFactory.Button builds it): rounded to the style's radius, standing on the style's surface,
     // coloured by its variant. The Button, PressFeedback and the Label child sit on the same object. An icon button
     // (KitFactory.Button with a sprite) shows the glyph in a faint disc at its left, the label beside it. A game skin
-    // (GameSkin) draws the body with its sprite instead, the pressed sprite while the finger is down; while the normal
-    // sprite shows, the label and the glyph sit on its raised face (ContentOffset), not on the middle of the whole sprite.
+    // (GameSkin) draws the body with its sprite instead, the pressed sprite while the finger is down; the label and the
+    // glyph sit on the middle of the nine-slice centre of the sprite that shows (ContentOffset), not on the middle of the
+    // whole sprite. Skinned or not, the label also moves by its font's CapOffset, so its capitals sit on that middle
+    // rather than the font's ascender-to-descender box.
     [RequireComponent(typeof(Button))]
     public sealed class KitButton : KitElement, IPointerDownHandler, IPointerUpHandler
     {
@@ -23,8 +25,12 @@ namespace Kturker.UnityBase.Core.Presentation
         [SerializeField] private Image icon;
         // How far the label and the glyph are moved off their places now (units); kept with them when a scene is saved
         [SerializeField] private Vector2 contentOffset;
+        // How far the label alone is raised on top of that for its font's capitals now (CapOffset; units)
+        [SerializeField] private float capOffset;
         // The skin entry the body is dressed with (null: the kit's own shape)
         private SkinButton skin;
+        // The label's ThemedText whose font changes Recap hears
+        private ThemedText followed;
 
         // The disc behind an icon: the glyph's colour, faint
         public const float IconBackOpacity = 0.14f;
@@ -37,8 +43,8 @@ namespace Kturker.UnityBase.Core.Presentation
         public Button Button => GetComponent<Button>();
         // The body's corner radius in units
         public float Radius => KitShape.RadiusOf(body);
-        // Where the label and the glyph stand off the body's middle: up by half the skin's depth (SkinButton.Depth) while
-        // the normal sprite shows; zero while pressed and without a skin
+        // Where the label and the glyph stand off the body's middle: on the middle of the nine-slice centre of the sprite
+        // that shows (SkinButton.Lift); zero without a skin
         public Vector2 ContentOffset => contentOffset;
 
         internal void Init(KitButtonVariant value, Image shadowImage, Image edgeImage, Image bodyImage, Image shineImage, TMP_Text labelText)
@@ -103,7 +109,7 @@ namespace Kturker.UnityBase.Core.Presentation
         {
             if (skin == null || body == null || !Button.IsInteractable()) return;
             body.sprite = skin.Pressed;
-            Offset(Vector2.zero);
+            Offset(FaceOffset(skin.Pressed));
         }
 
         public void OnPointerUp(PointerEventData eventData) => Release();
@@ -114,17 +120,67 @@ namespace Kturker.UnityBase.Core.Presentation
         {
             if (skin == null || body == null) return;
             body.sprite = skin.Normal;
-            Offset(FaceOffset());
+            Offset(FaceOffset(skin.Normal));
         }
 
-        // Half the depth of the skin's normal sprite in units: depth source pixels drawn at the skin's SliceScale
-        private Vector2 FaceOffset()
+        // How far the label's capitals sit below its middle (units; negative: above) at the size TMP draws it (fontSize:
+        // the size autosizing chose once laid out): TMP's Center puts the middle of the font's ascender-to-descender box
+        // on the box's middle, the capitals span baseline to cap line
+        public static float CapOffset(TMP_Text label)
+        {
+            var font = label != null ? label.font : null;
+            if (font == null) return 0f;
+            var face = font.faceInfo;
+            if (face.pointSize <= 0) return 0f;
+            return ((face.ascentLine + face.descentLine) / 2f - face.capLine / 2f) * label.fontSize / face.pointSize * face.scale;
+        }
+
+        // The label's ThemedText may set its font after Apply (bound alone): the capitals follow it
+        private void Follow(ThemedText text)
+        {
+            if (text == followed) return;
+            if (followed != null) followed.FontChanged -= Recap;
+            followed = text;
+            if (followed != null) followed.FontChanged += Recap;
+        }
+
+        // TMP chooses an autosized label's size while laying it out: the capitals follow that size once it is known.
+        // Moving the label does not lay it out again, so this does not loop
+        private void FollowLayout()
+        {
+            if (label == null) return;
+            label.OnPreRenderText -= LaidOut;
+            label.OnPreRenderText += LaidOut;
+        }
+
+        private void LaidOut(TMP_TextInfo _) => Recap();
+
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+            if (label != null) label.OnPreRenderText -= LaidOut;
+            Follow(null);
+        }
+
+        // Raises the label by its font's CapOffset, on top of the face's offset
+        private void Recap()
+        {
+            if (!this || label == null) return;
+            var value = CapOffset(label);
+            var delta = value - capOffset;
+            if (delta == 0f) return;
+            capOffset = value;
+            label.rectTransform.anchoredPosition += new Vector2(0f, delta);
+        }
+
+        // The skin's lift of sprite in units: lift source pixels drawn at the skin's SliceScale
+        private Vector2 FaceOffset(Sprite sprite)
         {
             var current = GameSkin.Current;
-            if (skin == null || skin.Normal == null || current == null) return Vector2.zero;
+            if (skin == null || sprite == null || current == null) return Vector2.zero;
             var canvas = GetComponentInParent<Canvas>(true);
             var reference = canvas != null ? canvas.referencePixelsPerUnit : 100f;
-            return new Vector2(0f, skin.Depth * current.SliceScale * reference / skin.Normal.pixelsPerUnit / 2f);
+            return new Vector2(0f, skin.Lift(sprite) * current.SliceScale * reference / sprite.pixelsPerUnit);
         }
 
         // Moves the label and the glyph (the disc with its glyph, if there is one) to value off their places
@@ -141,6 +197,9 @@ namespace Kturker.UnityBase.Core.Presentation
         protected override void Apply(Palette palette, ThemeStyle style)
         {
             if (body == null) return;
+            Follow(label != null ? label.GetComponent<ThemedText>() : null);
+            FollowLayout();
+            Recap();
             var current = GameSkin.Current;
             skin = current?.Button(variant);
             if (skin != null)
@@ -177,7 +236,7 @@ namespace Kturker.UnityBase.Core.Presentation
             if (label != null) KitShape.Fix(label, skin.Text);
             if (icon != null) KitShape.Fix(icon, skin.Text);
             if (iconBack != null) KitShape.Fix(iconBack, ThemedGraphic.Tone(skin.Text, 0f, IconBackOpacity));
-            Offset(FaceOffset());
+            Offset(FaceOffset(skin.Normal));
         }
     }
 }

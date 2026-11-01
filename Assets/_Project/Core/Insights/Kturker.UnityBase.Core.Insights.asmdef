@@ -1,0 +1,10 @@
+{
+    "name": "Kturker.UnityBase.Core.Insights",
+    "rootNamespace": "Kturker.UnityBase.Core.Insights",
+    "references": [
+        "Kturker.UnityBase.Core.Domain",
+        "UniTask",
+        "VContainer"
+    ],
+    "autoReferenced": true
+}

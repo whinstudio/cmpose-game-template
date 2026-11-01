@@ -1,0 +1,8 @@
+<dependencies>
+  <!-- Firebase iOS 12.19.0, the last release on CocoaPods (13 and later ship through Swift Package Manager only, which
+       EDM4U does not use). The Android BoM in CmposeInsights.androidlib moves on its own; see MAINTAINING.md "Insights" -->
+  <iosPods>
+    <iosPod name="FirebaseCrashlytics" version="12.19.0" />
+    <iosPod name="FirebaseAnalytics" version="12.19.0" />
+  </iosPods>
+</dependencies>

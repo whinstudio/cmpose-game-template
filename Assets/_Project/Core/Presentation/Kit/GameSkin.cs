@@ -319,5 +319,14 @@ namespace Kturker.UnityBase.Core.Presentation
         public Color Text { get; }
         // How far the normal sprite's face stands above the pressed one's, in source pixels (0: a flat pack)
         public float Depth => Normal != null && Pressed != null ? Mathf.Max(0f, Normal.rect.height - Pressed.rect.height) : 0f;
+
+        // How far the middle of sprite's nine-slice centre stands above the sprite's middle, in source pixels: a shadow lip
+        // thickens the bottom border (border.y) over the top (border.w); the normal sprite also counts its Depth
+        public float Lift(Sprite sprite)
+        {
+            if (sprite == null) return 0f;
+            var lip = sprite.border.y - sprite.border.w;
+            return Mathf.Max(0f, (sprite == Normal ? Mathf.Max(Depth, lip) : lip) / 2f);
+        }
     }
 }

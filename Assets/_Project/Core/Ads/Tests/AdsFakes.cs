@@ -16,6 +16,8 @@ namespace Kturker.UnityBase.Core.Ads.Tests
         public Action OnConsentForm;
         public Action OnPrivacyForm;
         public bool? DebugEea;
+        // When set, RequestConsentInfoAsync waits for it (UMP has not answered yet)
+        public UniTaskCompletionSource<string> PendingConsentInfo;
         public bool InterstitialLoadSucceeds = true;
         public bool RewardedLoadSucceeds = true;
         public AdResult InterstitialReply = AdResult.Shown;
@@ -36,13 +38,14 @@ namespace Kturker.UnityBase.Core.Ads.Tests
 
         public ConsentState Consent { get; set; } = ConsentState.NotRequired;
         public bool CanRequestAds { get; set; } = true;
+        public bool? StorageConsent { get; set; }
         public bool PrivacyOptionsRequired { get; set; }
 
         public UniTask<string> RequestConsentInfoAsync(bool debugEea)
         {
             Calls.Add("consentInfo");
             DebugEea = debugEea;
-            return UniTask.FromResult(ConsentInfoError);
+            return PendingConsentInfo != null ? PendingConsentInfo.Task : UniTask.FromResult(ConsentInfoError);
         }
 
         public UniTask<string> ShowConsentFormIfRequiredAsync()

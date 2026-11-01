@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 
@@ -12,6 +13,9 @@ namespace Kturker.UnityBase.Core.Presentation
 
         public TextRole Role => role;
 
+        // Fires after Bind set another font (KitButton re-centres its label's capitals on it)
+        public event Action FontChanged;
+
         // Sets the role before binding (KitFactory); Bind applies it
         public void SetRole(TextRole value) => role = value;
 
@@ -19,7 +23,10 @@ namespace Kturker.UnityBase.Core.Presentation
         {
             if (!this || source == null || source.Style == null) return;
             var font = source.Style.FontFor(role);
-            if (font != null) GetComponent<TMP_Text>().font = font;
+            var text = GetComponent<TMP_Text>();
+            if (font == null || text.font == font) return;
+            text.font = font;
+            FontChanged?.Invoke();
         }
     }
 }

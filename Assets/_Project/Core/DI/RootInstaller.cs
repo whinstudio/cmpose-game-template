@@ -42,6 +42,9 @@ using Kturker.UnityBase.Features.Shell.Ads;
 // cmpose:leaderboards
 using Kturker.UnityBase.Core.Leaderboards;
 // /cmpose:leaderboards
+// cmpose:insights
+using Kturker.UnityBase.Core.Insights;
+// /cmpose:insights
 
 namespace Kturker.UnityBase.Core.DI
 {
@@ -100,6 +103,8 @@ namespace Kturker.UnityBase.Core.DI
             builder.RegisterEntryPoint<UpdateFlow>().AsSelf();
             // The game shell's level flow (the menu reads it too); a save store keeps it
             builder.Register<ILevelProgress, NoLevelProgress>(Lifetime.Singleton);
+            // Analytics consent: granted from the start; the ads flag registers the consent form's answer instead
+            builder.Register<IAnalyticsConsent, GrantedAnalyticsConsent>(Lifetime.Singleton);
             // cmpose:saveSystem
             new SaveInstaller().Install(builder);
             builder.Register<ILevelProgress, LevelProgress>(Lifetime.Singleton);
@@ -127,6 +132,9 @@ namespace Kturker.UnityBase.Core.DI
             // cmpose:leaderboards
             new LeaderboardsInstaller().Install(builder);
             // /cmpose:leaderboards
+            // cmpose:insights
+            new InsightsInstaller().Install(builder);
+            // /cmpose:insights
             // Every scene's game shell reports its finished runs here; the economy's wheel counts them
             builder.Register<ShellRunEvents>(Lifetime.Singleton).As<IShellRunEvents>().AsSelf();
             new EconomyInstaller().Install(builder);

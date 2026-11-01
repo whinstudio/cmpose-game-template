@@ -30,6 +30,7 @@
         "Kturker.UnityBase.Features.Economy",
         "Kturker.UnityBase.Features.Sample.Leaderboards",
         "Kturker.UnityBase.Core.Leaderboards",
+        "Kturker.UnityBase.Core.Insights",
         "Kturker.UnityBase.Features.Sample.Network",
         "Kturker.UnityBase.Core.Localization",
         "Kturker.UnityBase.Core.DI",

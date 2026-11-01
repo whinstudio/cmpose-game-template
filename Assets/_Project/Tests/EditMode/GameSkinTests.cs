@@ -400,11 +400,14 @@ namespace Kturker.UnityBase.Tests.EditMode
             return sprites;
         }
 
-        public static Sprite Make(List<Object> made, string name)
+        public static Sprite Make(List<Object> made, string name) => Make(made, name, new Vector4(12f, 12f, 12f, 12f));
+
+        // A 48 x 48 sprite sliced at border (left, bottom, right, top)
+        public static Sprite Make(List<Object> made, string name, Vector4 border)
         {
             var texture = new Texture2D(48, 48) { name = name };
             var sprite = Sprite.Create(texture, new Rect(0f, 0f, 48f, 48f), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect,
-                new Vector4(12f, 12f, 12f, 12f));
+                border);
             sprite.name = name;
             made.Add(texture);
             made.Add(sprite);

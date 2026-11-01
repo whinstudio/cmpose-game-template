@@ -1,0 +1,19 @@
+{
+    "name": "Kturker.UnityBase.Core.Insights.Tests",
+    "rootNamespace": "Kturker.UnityBase.Core.Insights.Tests",
+    "references": [
+        "Kturker.UnityBase.Core.Insights",
+        "Kturker.UnityBase.Core.Insights.Editor",
+        "Kturker.UnityBase.Core.Domain",
+        "Kturker.UnityBase.Tests.EditMode",
+        "UniTask",
+        "VContainer",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": ["Editor"],
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

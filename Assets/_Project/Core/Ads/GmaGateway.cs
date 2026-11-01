@@ -62,6 +62,34 @@ namespace Kturker.UnityBase.Core.Ads
 
         public bool CanRequestAds => ConsentInformation.CanRequestAds();
 
+        // UMP writes the TCF keys to the default SharedPreferences on Android and to NSUserDefaults (where PlayerPrefs
+        // lives) on iOS. Unreadable: no consent.
+        public bool? StorageConsent
+        {
+            get
+            {
+                try
+                {
+#if UNITY_ANDROID && !UNITY_EDITOR
+                    using (var player = new UnityEngine.AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                    using (var activity = player.GetStatic<UnityEngine.AndroidJavaObject>("currentActivity"))
+                    using (var prefs = activity.Call<UnityEngine.AndroidJavaObject>("getSharedPreferences",
+                        activity.Call<string>("getPackageName") + "_preferences", 0))
+                        return TcfConsent.StorageConsent(prefs.Call<int>("getInt", TcfConsent.GdprAppliesKey, 0),
+                            prefs.Call<string>("getString", TcfConsent.PurposeConsentsKey, ""));
+#else
+                    return TcfConsent.StorageConsent(UnityEngine.PlayerPrefs.GetInt(TcfConsent.GdprAppliesKey, 0),
+                        UnityEngine.PlayerPrefs.GetString(TcfConsent.PurposeConsentsKey, ""));
+#endif
+                }
+                catch (Exception e)
+                {
+                    log.Warning($"TCF consent unreadable: {e.Message}");
+                    return false;
+                }
+            }
+        }
+
         public bool PrivacyOptionsRequired =>
             ConsentInformation.PrivacyOptionsRequirementStatus == PrivacyOptionsRequirementStatus.Required;
 

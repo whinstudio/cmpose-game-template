@@ -1,0 +1,31 @@
+apply plugin: 'com.android.library'
+
+// The insights flag's Android side: Firebase Crashlytics and Analytics and the template's own thin Java bridge to them
+// (dev.cmpose.insights, a fixed package that does not follow the game's bundle id). No google-services or Crashlytics
+// Gradle plugin: InsightsAndroidPostprocessor writes the config resources into the exported copy of this library.
+// SDK and Java levels come from the gradle.properties Unity writes. EDM4U is not involved (see MAINTAINING.md "Insights").
+android {
+    namespace "dev.cmpose.insights"
+    compileSdk getProperty("unity.compileSdkVersion") as int
+    buildToolsVersion getProperty("unity.buildToolsVersion")
+
+    compileOptions {
+        sourceCompatibility JavaVersion.valueOf(getProperty("unity.javaCompatabilityVersion"))
+        targetCompatibility JavaVersion.valueOf(getProperty("unity.javaCompatabilityVersion"))
+    }
+
+    defaultConfig {
+        minSdk getProperty("unity.minSdkVersion") as int
+        consumerProguardFiles "consumer-rules.pro"
+    }
+}
+
+dependencies {
+    // Pinned; the iOS Pods stay on Firebase 12 (the last CocoaPods line). See MAINTAINING.md "Insights" before changing it
+    implementation platform("com.google.firebase:firebase-bom:35.1.0")
+    // The bridge calls the Java API directly; the NDK reporter catches IL2CPP native crashes (signals). Native
+    // symbols are not uploaded by any build step: upload them with the command in the README
+    implementation "com.google.firebase:firebase-crashlytics"
+    implementation "com.google.firebase:firebase-crashlytics-ndk"
+    implementation "com.google.firebase:firebase-analytics"
+}

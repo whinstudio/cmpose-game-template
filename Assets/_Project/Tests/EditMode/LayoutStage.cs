@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Kturker.UnityBase.Core.Presentation;
 using NUnit.Framework;
 using TMPro;
@@ -70,8 +71,33 @@ namespace Kturker.UnityBase.Tests.EditMode
             foreach (var text in root.GetComponentsInChildren<TMP_Text>()) text.ForceMeshUpdate(true);
         }
 
+        // Per staged root, the objects it was built hidden (IndexPath): Lay shows them all
+        private static readonly Dictionary<GameObject, HashSet<string>> builtHidden = new Dictionary<GameObject, HashSet<string>>();
+
+        // The sibling-index path of t under its root
+        public static string IndexPath(Transform t) => t.parent == null ? "" : $"{IndexPath(t.parent)}/{t.GetSiblingIndex()}";
+
+        // Shown as built: nothing from t up to stop (excluded) was built hidden in its staged root
+        public static bool ShownAsBuilt(Transform t, Transform stop)
+        {
+            if (!builtHidden.TryGetValue(t.root.gameObject, out var hidden)) return true;
+            for (; t != null && t != stop; t = t.parent)
+                if (hidden.Contains(IndexPath(t))) return false;
+            return true;
+        }
+
+        // Lays a staged root's safe areas out again for the current SafeArea.ReservedTop and ReservedBottom
+        public static void Reserve(GameObject root, Vector2 screen)
+        {
+            SafeAreas(root, screen);
+            Layout(root);
+        }
+
         private static void Lay(GameObject root, Vector2 screen, IThemeSource theme)
         {
+            foreach (var gone in builtHidden.Keys.Where(k => k == null).ToList()) builtHidden.Remove(gone);
+            builtHidden[root] = new HashSet<string>(root.GetComponentsInChildren<Transform>(true).Where(t => !t.gameObject.activeSelf)
+                .Select(IndexPath));
             var scaler = root.GetComponent<CanvasScaler>();
             Assert.That(scaler, Is.Not.Null, $"{root.name}: CanvasScaler");
             var reference = scaler.referenceResolution;
@@ -85,6 +111,15 @@ namespace Kturker.UnityBase.Tests.EditMode
             rect.anchoredPosition3D = Vector3.zero;
             rect.sizeDelta = screen / scale;
             foreach (var t in root.GetComponentsInChildren<Transform>(true)) t.gameObject.SetActive(true);
+            SafeAreas(root, screen);
+            foreach (var element in root.GetComponentsInChildren<KitElement>()) element.Bind(theme);
+            foreach (var graphic in root.GetComponentsInChildren<ThemedGraphic>()) graphic.Bind(theme);
+            foreach (var text in root.GetComponentsInChildren<ThemedText>()) text.Bind(theme);
+            Layout(root);
+        }
+
+        private static void SafeAreas(GameObject root, Vector2 screen)
+        {
             var pixels = new Vector2Int(Mathf.RoundToInt(screen.x), Mathf.RoundToInt(screen.y));
             var (min, max) = SafeArea.Anchors(new Rect(Vector2.zero, screen), pixels, SafeArea.ReservedBottom, SafeArea.ReservedTop);
             foreach (var safe in root.GetComponentsInChildren<SafeArea>())
@@ -95,10 +130,6 @@ namespace Kturker.UnityBase.Tests.EditMode
                 area.offsetMin = Vector2.zero;
                 area.offsetMax = Vector2.zero;
             }
-            foreach (var element in root.GetComponentsInChildren<KitElement>()) element.Bind(theme);
-            foreach (var graphic in root.GetComponentsInChildren<ThemedGraphic>()) graphic.Bind(theme);
-            foreach (var text in root.GetComponentsInChildren<ThemedText>()) text.Bind(theme);
-            Layout(root);
         }
 
         // A rect in world (canvas) units

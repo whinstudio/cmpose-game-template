@@ -10,6 +10,7 @@ namespace Kturker.UnityBase.Core.Ads
 {
     // ads flag: IAds over Google Mobile Ads, started by AdsConsentFlow after UMP (and ATT on iOS), never in the
     // editor. Premium comes from IPremiumStatus when a flag registers one (purchases); otherwise nobody is premium.
+    // AdsConsentFlow is also IAnalyticsConsent: registered after the root's granted default, it replaces it.
     public sealed class AdsInstaller : IInstaller
     {
         public void Install(IContainerBuilder builder)
@@ -29,7 +30,7 @@ namespace Kturker.UnityBase.Core.Ads
                     enabled: !Application.isEditor, developmentBuild: development, testIds: AdsConfig.UsesTestIds(units),
                     debugEea: development && AdsConfig.DebugGeographyEea, automation: AutomationRun.Active),
                 Lifetime.Singleton)
-                .AsSelf();
+                .As<IAnalyticsConsent>().AsSelf();
             builder.Register<ISettingsSection, PrivacySection>(Lifetime.Singleton);
         }
 

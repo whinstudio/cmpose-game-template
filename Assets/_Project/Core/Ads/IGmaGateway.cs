@@ -12,6 +12,9 @@ namespace Kturker.UnityBase.Core.Ads
         UniTask<string> ShowPrivacyOptionsAsync();
         ConsentState Consent { get; }
         bool CanRequestAds { get; }
+
+        // TCF purpose 1 as UMP stored it (TcfConsent): null when GDPR does not apply
+        bool? StorageConsent { get; }
         bool PrivacyOptionsRequired { get; }
 
         UniTask InitializeAsync();

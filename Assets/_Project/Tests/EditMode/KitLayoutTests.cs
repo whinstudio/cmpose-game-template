@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Kturker.UnityBase.Core.Presentation;
 using NUnit.Framework;
+using TMPro;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -45,12 +48,12 @@ namespace Kturker.UnityBase.Tests.EditMode
             return new FakeThemeSource { Current = palette };
         }
 
-        // A sliced 48 x height sprite at 100 px per unit
-        private Sprite Sprite(string name, int height)
+        // A sliced 48 x height sprite at 100 px per unit, border (left, bottom, right, top) 12 px unless given
+        private Sprite Sprite(string name, int height, Vector4? border = null)
         {
             var texture = new Texture2D(48, height) { name = name };
             var sprite = UnityEngine.Sprite.Create(texture, new Rect(0f, 0f, 48f, height), new Vector2(0.5f, 0.5f), 100f, 0,
-                SpriteMeshType.FullRect, new Vector4(12f, 12f, 12f, 12f));
+                SpriteMeshType.FullRect, border ?? new Vector4(12f, 12f, 12f, 12f));
             sprite.name = name;
             made.Add(texture);
             made.Add(sprite);
@@ -136,7 +139,9 @@ namespace Kturker.UnityBase.Tests.EditMode
             // 4 px at sliceScale 4 is 16 units, half of it 8
             Assert.That(button.ContentOffset.y, Is.EqualTo(8f).Within(0.001f));
             Assert.That(Centre(button.Icon.rectTransform).y - Centre(button.Body.rectTransform).y, Is.EqualTo(8f).Within(0.5f));
-            Assert.That(Centre(button.Label.rectTransform).y - Centre(button.Body.rectTransform).y, Is.EqualTo(8f).Within(0.5f));
+            // The label also sits its font's cap offset off: only the face's lift is measured
+            Assert.That(Centre(button.Label.rectTransform).y - Centre(button.Body.rectTransform).y - KitButton.CapOffset(button.Label),
+                Is.EqualTo(8f).Within(0.5f));
 
             button.OnPointerDown(new PointerEventData(null));
             Assert.That(button.ContentOffset, Is.EqualTo(Vector2.zero), "pressed: the face is down");
@@ -151,6 +156,180 @@ namespace Kturker.UnityBase.Tests.EditMode
             button.Bind(Theme());
             Assert.That(button.ContentOffset, Is.EqualTo(Vector2.zero));
             Assert.That(Centre(button.Icon.rectTransform).y, Is.EqualTo(Centre(button.Body.rectTransform).y).Within(0.5f));
+        }
+
+        [Test]
+        public void Equal_size_skin_lifts_label_by_half_the_border_difference()
+        {
+            // A Kenney pack: normal and pressed are both 48 x 48, but the normal sprite's shadow lip makes its bottom
+            // border 2 px thicker than its top, so the middle of its nine-slice centre is 1 px above the sprite's
+            var sprites = new Dictionary<string, Sprite>
+            {
+                ["Art/pixel-ui-pack/blue"] = SkinSprites.Make(made, "blue", new Vector4(3f, 5f, 3f, 3f)),
+                ["Art/pixel-ui-pack/blue_pressed"] = SkinSprites.Make(made, "blue_pressed", new Vector4(2f, 2f, 2f, 2f))
+            };
+            var skin = GameSkin.Parse(SkinSprites.Json, path =>
+            {
+                if (!sprites.TryGetValue(path, out var sprite)) sprites[path] = sprite = SkinSprites.Make(made, path.Substring(path.LastIndexOf('/') + 1));
+                return sprite;
+            }, _ => null);
+            GameSkin.ForTests(skin);
+            Assert.That(skin.Button(KitButtonVariant.Primary).Depth, Is.EqualTo(0f), "equal sprites have no depth");
+
+            var button = KitFactory.Button(canvas.transform, "Play", KitButtonVariant.Primary);
+            button.Bind(Theme());
+
+            // 1 px at sliceScale 4 is 4 units
+            Assert.That(button.ContentOffset.y, Is.EqualTo(4f).Within(0.001f));
+            // The label also sits its font's cap offset off: only the face's lift is measured
+            Assert.That(Centre(button.Label.rectTransform).y - Centre(button.Body.rectTransform).y - KitButton.CapOffset(button.Label),
+                Is.EqualTo(4f).Within(0.5f));
+
+            // The pressed sprite's borders are even: its centre's middle is the sprite's
+            button.OnPointerDown(new PointerEventData(null));
+            Assert.That(button.ContentOffset, Is.EqualTo(Vector2.zero), "pressed: even borders");
+
+            button.OnPointerUp(new PointerEventData(null));
+            Assert.That(button.ContentOffset.y, Is.EqualTo(4f).Within(0.001f));
+        }
+
+        [Test]
+        public void Taller_skin_with_a_lip_lifts_label_by_the_larger_of_the_two()
+        {
+            // The normal sprite stands 8 px taller (Depth 8) and its bottom border is 4 px thicker than its top (lip 4):
+            // the face is lifted by the larger, not by both
+            var sprites = new Dictionary<string, Sprite>
+            {
+                ["Art/pixel-ui-pack/blue"] = Sprite("blue", 56, new Vector4(3f, 7f, 3f, 3f)),
+                ["Art/pixel-ui-pack/blue_pressed"] = SkinSprites.Make(made, "blue_pressed", new Vector4(2f, 2f, 2f, 2f))
+            };
+            var skin = GameSkin.Parse(SkinSprites.Json, path =>
+            {
+                if (!sprites.TryGetValue(path, out var sprite)) sprites[path] = sprite = SkinSprites.Make(made, path.Substring(path.LastIndexOf('/') + 1));
+                return sprite;
+            }, _ => null);
+            GameSkin.ForTests(skin);
+            var entry = skin.Button(KitButtonVariant.Primary);
+            Assert.That(entry.Depth, Is.EqualTo(8f));
+            Assert.That(entry.Lift(entry.Normal), Is.EqualTo(4f).Within(0.001f), "max(8, 4) / 2");
+
+            var button = KitFactory.Button(canvas.transform, "Play", KitButtonVariant.Primary);
+            button.Bind(Theme());
+
+            // 4 px at sliceScale 4 is 16 units (the sum would give 24)
+            Assert.That(button.ContentOffset.y, Is.EqualTo(16f).Within(0.001f));
+        }
+
+        // Family fonts whose capitals TMP's Center leaves well off the middle (KitButton.CapOffset at 56 pt): Exo 2's
+        // about 3 units low, Baloo 2's about 1.8 high
+        private static readonly string[] OffCentreFonts = { "Exo2/Exo2-Regular SDF", "Baloo2/Baloo2-Bold SDF" };
+
+        // The app's style with display (the font of button labels) in place of its own
+        private FakeThemeSource Theme(TMP_FontAsset display)
+        {
+            var style = Object.Instantiate(ThemeStyle.Load());
+            made.Add(style);
+            var serialized = new SerializedObject(style);
+            serialized.FindProperty("displayFont").objectReferenceValue = display;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            var theme = Theme();
+            theme.Style = style;
+            return theme;
+        }
+
+        // The label's capitals (H) in the body's space: the middle of a line's capitals on the face's middle, and a
+        // wrapped label's first cap line as far above it as its last baseline is below
+        private static void AssertCapitalsCentred(KitButton button, string font)
+        {
+            var label = button.Label;
+            var body = button.Body.rectTransform;
+            var middle = body.rect.center.y + button.ContentOffset.y;
+            float Y(float y) => body.InverseTransformPoint(label.rectTransform.TransformPoint(new Vector3(0f, y, 0f))).y;
+
+            // topLeft and bottomLeft include the atlas padding, the same above and below a glyph: it cancels in a
+            // middle, and the first and the last line's H carry the same
+            label.text = "HH";
+            label.ForceMeshUpdate();
+            var h = label.textInfo.characterInfo[0];
+            Assert.That((Y(h.topLeft.y) + Y(h.bottomLeft.y)) / 2f, Is.EqualTo(middle).Within(1f), $"{font}: one line");
+
+            label.text = "HH HH HH HH HH HH HH HH";
+            label.ForceMeshUpdate();
+            var info = label.textInfo;
+            Assert.That(info.lineCount, Is.GreaterThanOrEqualTo(2), $"{font}: wraps");
+            var top = Y(info.characterInfo[info.lineInfo[0].firstCharacterIndex].topLeft.y);
+            var bottom = Y(info.characterInfo[info.lineInfo[info.lineCount - 1].firstCharacterIndex].bottomLeft.y);
+            Assert.That(top - middle, Is.EqualTo(middle - bottom).Within(1f), $"{font}: two lines");
+        }
+
+        [Test]
+        public void Capitals_sit_in_the_middle_of_the_face()
+        {
+            var button = KitFactory.Button(canvas.transform, "Play", KitButtonVariant.Primary);
+            FakeThemeSource theme = null;
+            foreach (var path in OffCentreFonts)
+            {
+                var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>($"Assets/_Project/Core/Presentation/Fonts/{path}.asset");
+                Assert.That(font, Is.Not.Null, path);
+                theme = Theme(font);
+                button.Bind(theme);
+                Assert.That(button.Label.font, Is.SameAs(font), path);
+                AssertCapitalsCentred(button, path);
+            }
+
+            // A game may delete a skin font its skin does not name (MAINTAINING.md, "Skin fonts")
+            var pixelify = SkinFonts.Load(SkinFonts.PixelifySans);
+            if (pixelify == null) return;
+            // The skin's font reaches the label after the button applied (its ThemedText bound alone): the capitals follow
+            GameSkin.ForTests(GameSkin.Parse("{\"version\":2,\"fonts\":{\"display\":\"pixelify-sans\",\"body\":\"pixelify-sans\"}}",
+                _ => null, _ => null));
+            button.Label.GetComponent<ThemedText>().Bind(theme);
+            Assert.That(button.Label.font, Is.SameAs(pixelify));
+            AssertCapitalsCentred(button, "Pixelify Sans");
+        }
+
+        // How far the middle of the label's capitals (its first cap line to its last baseline, H's edges as above)
+        // stands above the face's middle, in the body's units, after TMP lays text out
+        private static float CapitalsOff(KitButton button, string text)
+        {
+            var label = button.Label;
+            var body = button.Body.rectTransform;
+            float Y(float y) => body.InverseTransformPoint(label.rectTransform.TransformPoint(new Vector3(0f, y, 0f))).y;
+            label.text = text;
+            label.ForceMeshUpdate();
+            var info = label.textInfo;
+            var top = Y(info.characterInfo[info.lineInfo[0].firstCharacterIndex].topLeft.y);
+            var bottom = Y(info.characterInfo[info.lineInfo[info.lineCount - 1].firstCharacterIndex].bottomLeft.y);
+            return (top + bottom) / 2f - (body.rect.center.y + button.ContentOffset.y);
+        }
+
+        [Test]
+        public void Capitals_stay_centred_when_the_label_shrinks()
+        {
+            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/_Project/Core/Presentation/Fonts/Exo2/Exo2-Regular SDF.asset");
+            Assert.That(font, Is.Not.Null);
+            var button = KitFactory.Button(canvas.transform, "Play", KitButtonVariant.Primary);
+            button.Bind(Theme(font));
+            var label = button.Label;
+            // Room to shrink well below the largest size, where a correction made for that size is a unit and more off
+            label.fontSizeMin = 16f;
+            var text = string.Join(" ", Enumerable.Repeat("HHHH", 30));
+
+            Assert.That(CapitalsOff(button, text), Is.EqualTo(0f).Within(1f), $"at {label.fontSize} pt");
+            Assert.That(label.textInfo.lineCount, Is.GreaterThan(1), "wrapped");
+            Assert.That(label.fontSize, Is.LessThan(label.fontSizeMax * 0.6f), "shrunk");
+
+            // Back to a short label: the largest size, centred again
+            Assert.That(CapitalsOff(button, "HH"), Is.EqualTo(0f).Within(1f), $"at {label.fontSize} pt");
+            Assert.That(label.fontSize, Is.EqualTo(label.fontSizeMax));
+
+            // Moving the label does not lay it out again (no loop): nothing is left dirty, a canvas update draws nothing new
+            var laidOut = 0;
+            label.OnPreRenderText += _ => laidOut++;
+            label.rectTransform.anchoredPosition += new Vector2(0f, 2f);
+            Canvas.ForceUpdateCanvases();
+            Assert.That(label.havePropertiesChanged, Is.False);
+            Assert.That(laidOut, Is.EqualTo(0));
         }
 
         [Test]
@@ -262,6 +441,107 @@ namespace Kturker.UnityBase.Tests.EditMode
             parent.sizeDelta = new Vector2(1920f, 600f);
             fit.Fit();
             Assert.That(card.localScale.x, Is.EqualTo((600f - 2f * KitLayout.Gap) / 900f).Within(0.0001f));
+        }
+
+        // A card built before its parent is laid out (a prefab built off-screen) keeps its full size, then fits once the
+        // parent has a height
+        [Test]
+        public void Fit_scale_waits_for_a_laid_out_parent()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1920f, 0f));
+            var card = Box("Card", parent, new Vector2(900f, 1500f));
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+
+            Assert.That(card.localScale, Is.EqualTo(Vector3.one), "no height yet: full size");
+            Assert.That(fit.Scale, Is.EqualTo(1f));
+
+            parent.sizeDelta = new Vector2(1920f, 1080f);
+            fit.Fit();
+            Assert.That(card.localScale.x, Is.EqualTo((1080f - 2f * KitLayout.Gap) / 1500f).Within(0.0001f));
+            Assert.That(fit.Scale, Is.LessThan(1f));
+        }
+
+        // A fixed-height card grows with a parent taller than the 1920-unit reference, as a band of it would
+        [Test]
+        public void Fitted_card_grows_on_a_tall_parent()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1080f, 2400f));
+            var card = Box("Card", parent, new Vector2(900f, 1400f));
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+
+            Assert.That(card.rect.height, Is.EqualTo(1400f * 2400f / KitFitScale.ReferenceHeight).Within(0.01f));
+            Assert.That(card.localScale, Is.EqualTo(Vector3.one));
+            Assert.That(fit.Scale, Is.EqualTo(1f));
+        }
+
+        [Test]
+        public void Fitted_card_keeps_its_height_on_the_reference_parent()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1080f, KitFitScale.ReferenceHeight));
+            var card = Box("Card", parent, new Vector2(900f, 1400f));
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+
+            Assert.That(card.rect.height, Is.EqualTo(1400f).Within(0.01f));
+            Assert.That(card.localScale, Is.EqualTo(Vector3.one));
+        }
+
+        [Test]
+        public void Fitted_card_shrinks_on_a_short_parent()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1920f, 1080f));
+            var card = Box("Card", parent, new Vector2(900f, 1400f));
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+
+            Assert.That(card.rect.height, Is.EqualTo(1400f).Within(0.01f));
+            Assert.That(card.localScale.y, Is.EqualTo((1080f - 2f * KitLayout.Gap) / 1400f).Within(0.0001f));
+
+            // On a tall parent again it grows from its authored height, and back on the reference it returns to it
+            parent.sizeDelta = new Vector2(1080f, 2400f);
+            fit.Fit();
+            Assert.That(card.rect.height, Is.EqualTo(1400f * 2400f / KitFitScale.ReferenceHeight).Within(0.01f), "tall again");
+            Assert.That(card.localScale, Is.EqualTo(Vector3.one), "tall again: full size");
+            parent.sizeDelta = new Vector2(1080f, KitFitScale.ReferenceHeight);
+            fit.Fit();
+            Assert.That(card.rect.height, Is.EqualTo(1400f).Within(0.01f), "back on the reference");
+        }
+
+        // A card as tall as its content (the Settings card) keeps the height its ContentSizeFitter gives it
+        [Test]
+        public void Content_sized_card_does_not_grow()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1080f, 2400f));
+            var card = Box("Card", parent, new Vector2(900f, 1400f));
+            var element = card.gameObject.AddComponent<LayoutElement>();
+            element.preferredWidth = 900f;
+            element.preferredHeight = 1400f;
+            card.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+
+            Assert.That(card.rect.height, Is.EqualTo(1400f).Within(0.01f));
+            Assert.That(card.localScale, Is.EqualTo(Vector3.one));
+        }
+
+        // An aspect-fitted card sizes itself too: KitFitScale leaves its height to the fitter
+        [Test]
+        public void Aspect_fitted_card_does_not_grow()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1080f, 2400f));
+            // 2000 tall fits 2400 less the margins; grown to 2500 it would not, so a grow the fitter takes back would
+            // still shrink the card
+            var card = Box("Card", parent, new Vector2(900f, 2000f));
+            var aspect = card.gameObject.AddComponent<AspectRatioFitter>();
+            aspect.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
+            aspect.aspectRatio = 900f / 2000f;
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+
+            Assert.That(card.rect.height, Is.EqualTo(2000f).Within(0.01f));
+            Assert.That(card.localScale, Is.EqualTo(Vector3.one));
         }
 
         // The sheet's pop scales a centred panel to 1 when open: one that fits a short screen pops to its fitted scale

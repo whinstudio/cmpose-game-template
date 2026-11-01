@@ -30,6 +30,8 @@ namespace Kturker.UnityBase.Tests.EditMode
         // cmpose:sample
         private const string GameScene = "Assets/_Project/Scenes/Game.unity";
         // /cmpose:sample
+        // The economy's windows, each a KitSheet under its own root on one canvas
+        private const string EconomyPrefab = "Assets/_Project/Features/Economy/Resources/Economy/EconomyWindows.prefab";
         // The settings rows: two columns each, the label left and the control right
         private static readonly string[] SettingsRows = { "Music", "Sfx", "Vibration", "Section0", "Section1", "Section2", "Section3" };
         // Within this many units
@@ -360,12 +362,148 @@ namespace Kturker.UnityBase.Tests.EditMode
                 ForEachScreen((name, screen, theme) =>
                 {
                     Check($"{name} Settings", LayoutStage.Prefab(SettingsPrefab, screen, theme, made));
+                    Check($"{name} Economy", LayoutStage.Prefab(EconomyPrefab, screen, theme, made));
                     InScene(MenuScene, screen, theme, canvas => Check($"{name} Menu", canvas.gameObject));
                     // cmpose:sample
                     InScene(GameScene, screen, theme, canvas => Check($"{name} Game", canvas.gameObject));
                     // /cmpose:sample
                 });
             }
+            Assert.That(problems, Is.Empty, string.Join("\n", problems));
+        }
+
+        // The top banner a game may reserve (SafeArea.ReservedTop): on a landscape phone the shortest real screen
+        private static readonly float[] Reserved = { 0f, 150f };
+
+        // Each fitted window under root opened as built (the parts it builds hidden stay hidden: Next under Claim, the
+        // odds over the wheel): its card's parts never overlap and its buttons stay on the card
+        private static void CheckWindows(string where, GameObject root, int expected, List<string> problems)
+        {
+            var checkedWindows = 0;
+            foreach (var sheet in root.GetComponentsInChildren<KitSheet>(true))
+            {
+                if (sheet.Panel == null || sheet.Panel.GetComponent<KitFitScale>() == null) continue;
+                checkedWindows++;
+                var window = sheet.transform.parent.name;
+                var area = LayoutStage.World(sheet.Content);
+                var parts = new List<(string Name, Rect Rect)>();
+                foreach (Transform child in sheet.Content)
+                {
+                    if (!LayoutStage.ShownAsBuilt(child, sheet.transform)) continue;
+                    // An empty slot draws nothing (the shell's game over keeps the showcase's Actions row unused)
+                    if (!child.GetComponentsInChildren<Graphic>(true).Any(g => LayoutStage.ShownAsBuilt(g.transform, sheet.transform))) continue;
+                    var rect = LayoutStage.World((RectTransform)child);
+                    // A background or a scrim over the whole content area
+                    if (Inside(rect, area)) continue;
+                    parts.Add((child.name, rect));
+                }
+                for (var a = 0; a < parts.Count; a++)
+                for (var b = a + 1; b < parts.Count; b++)
+                {
+                    var x = Mathf.Min(parts[a].Rect.xMax, parts[b].Rect.xMax) - Mathf.Max(parts[a].Rect.xMin, parts[b].Rect.xMin);
+                    var y = Mathf.Min(parts[a].Rect.yMax, parts[b].Rect.yMax) - Mathf.Max(parts[a].Rect.yMin, parts[b].Rect.yMin);
+                    if (x > Slack && y > Slack) problems.Add($"{where}: {window}: {parts[a].Name} overlaps {parts[b].Name} by {Mathf.Min(x, y)}");
+                }
+                var card = LayoutStage.World(sheet.Panel);
+                foreach (var button in sheet.Content.GetComponentsInChildren<Button>(true))
+                {
+                    if (!LayoutStage.ShownAsBuilt(button.transform, sheet.transform)) continue;
+                    var rect = LayoutStage.World((RectTransform)button.transform);
+                    if (!Inside(card, rect)) problems.Add($"{where}: {window}: {LayoutStage.PathOf(button.transform)} {rect} outside the card {card}");
+                }
+            }
+            // A window that loses its KitFitScale must not drop out of the check silently
+            if (checkedWindows != expected) problems.Add($"{where}: checked {checkedWindows} fitted windows, expected {expected}");
+        }
+
+        // cmpose:sample
+        // The Game scene's fitted cards and their bands of the 1920-unit reference (SceneBuilder's FittedModal calls)
+        private static readonly (string Card, float YMin, float YMax)[] GameCardBands =
+        {
+            ("Pause", 0.27f, 0.73f), ("ShellGameOver", 0.14f, 0.86f), ("LevelComplete", 0.12f, 0.88f), ("LevelFailed", 0.2f, 0.8f),
+            ("Guide", 0.16f, 0.84f)
+        };
+
+        // A portrait card as tall as its band: of the reference on the 1080 x 1920 phone, of the safe area on a taller one
+        private static void CheckCardHeights(string where, Vector2 screen, Transform canvas, List<string> problems)
+        {
+            var portrait = LayoutStage.Screens.First(s => s.Name == "16:9").Screen;
+            var tall = LayoutStage.Screens.First(s => s.Name == "20:9").Screen;
+            if (screen != portrait && screen != tall) return;
+            foreach (var (name, yMin, yMax) in GameCardBands)
+            {
+                var card = Require(canvas, $"{name}/Panel/SafeArea/Card");
+                var height = LayoutStage.World((RectTransform)card).height;
+                var band = screen == tall ? LayoutStage.World((RectTransform)card.parent).height : KitFitScale.ReferenceHeight;
+                var expected = (yMax - yMin) * band;
+                if (Mathf.Abs(height - expected) > 1f) problems.Add($"{where}: {name}: card {height} high, not {expected}");
+            }
+        }
+        // /cmpose:sample
+
+        // The economy windows and the Game scene's fitted cards (Pause, the end cards, Guide) on every screen, with and
+        // without a top banner reserved; the scene opens once per screen and skin and is laid out again for the banner
+        [Test]
+        public void Window_parts_never_overlap()
+        {
+            var problems = new List<string>();
+            ForEachScreen((name, screen, theme) =>
+            {
+                foreach (var reserved in Reserved)
+                {
+                    SafeArea.ReservedTop = reserved;
+                    var where = reserved > 0f ? $"{name}, reserved {reserved}" : name;
+                    CheckWindows(where, LayoutStage.Prefab(EconomyPrefab, screen, theme, made), 6, problems);
+                }
+                SafeArea.ReservedTop = 0f;
+                // cmpose:sample
+                InScene(GameScene, screen, theme, canvas =>
+                {
+                    CheckCardHeights(name, screen, canvas, problems);
+                    foreach (var reserved in Reserved)
+                    {
+                        SafeArea.ReservedTop = reserved;
+                        if (reserved > 0f) LayoutStage.Reserve(canvas.gameObject, screen);
+                        CheckWindows(reserved > 0f ? $"{name}, reserved {reserved}" : name, canvas.gameObject, 5, problems);
+                    }
+                    SafeArea.ReservedTop = 0f;
+                });
+                // /cmpose:sample
+            });
+            Assert.That(problems, Is.Empty, string.Join("\n", problems));
+        }
+
+        // Each economy window's band of the safe area's height before it was fitted (SceneBuilder's EconomyWindow calls)
+        private static readonly (string Window, float YMin, float YMax)[] EconomyBands =
+        {
+            ("Supply", 0.14f, 0.86f), ("Wheel", 0.1f, 0.9f), ("Login", 0.12f, 0.88f), ("Extra", 0.18f, 0.82f), ("Picker", 0.18f, 0.82f),
+            ("Offer", 0.22f, 0.78f)
+        };
+
+        // Fitting the economy cards to landscape leaves the portraits as they were, unscaled: as tall as the band of the
+        // 1920-unit reference on the 1080 x 1920 phone, and of the safe area on a taller 20:9 one
+        [Test]
+        public void Economy_windows_keep_their_portrait_size()
+        {
+            var problems = new List<string>();
+            var portrait = LayoutStage.Screens.First(s => s.Name == "16:9").Screen;
+            var tall = LayoutStage.Screens.First(s => s.Name == "20:9").Screen;
+            ForEachScreen((name, screen, theme) =>
+            {
+                if (screen != portrait && screen != tall) return;
+                var root = LayoutStage.Prefab(EconomyPrefab, screen, theme, made).transform;
+                foreach (var (window, yMin, yMax) in EconomyBands)
+                {
+                    var card = Require(root, window).GetComponentInChildren<KitSheet>(true).Panel;
+                    var fit = card.GetComponent<KitFitScale>();
+                    if (fit == null) problems.Add($"{name}: {window}: card has no KitFitScale");
+                    else if (Mathf.Abs(fit.Scale - 1f) > 0.0001f) problems.Add($"{name}: {window}: card scaled to {fit.Scale}");
+                    var height = LayoutStage.World(card).height;
+                    var band = screen == tall ? LayoutStage.World((RectTransform)card.parent).height : KitFitScale.ReferenceHeight;
+                    var expected = (yMax - yMin) * band;
+                    if (Mathf.Abs(height - expected) > 1f) problems.Add($"{name}: {window}: card {height} high, not {expected}");
+                }
+            });
             Assert.That(problems, Is.Empty, string.Join("\n", problems));
         }
 
