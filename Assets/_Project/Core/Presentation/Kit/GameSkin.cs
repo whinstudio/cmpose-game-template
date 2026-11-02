@@ -33,7 +33,7 @@ namespace Kturker.UnityBase.Core.Presentation
 
         public int Version { get; private set; } = 1;
         public Color? BrandBackground { get; private set; }
-        // Role colours that replace the theme's, light and dark alike; empty without a palette section
+        // Role colours that replace the theme's; empty without a palette section
         public IReadOnlyDictionary<ThemeRole, Color> Palette => palette;
         public Sprite MenuBackground { get; private set; }
         public Sprite GameBackground { get; private set; }

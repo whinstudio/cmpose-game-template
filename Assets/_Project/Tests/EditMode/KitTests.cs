@@ -82,7 +82,12 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(KitSprites.Shadow.border, Is.EqualTo(Vector4.one * (KitSprites.ShadowRadius + KitSprites.ShadowBlur)));
             Assert.That(KitSprites.Rounded.pixelsPerUnit, Is.EqualTo(100f));
             Assert.That(KitSprites.Shadow.pixelsPerUnit, Is.EqualTo(100f));
-            foreach (var (sprite, name) in new[] { (KitSprites.Star, "Star"), (KitSprites.Gear, "Gear"), (KitSprites.Info, "Info") })
+            foreach (var (sprite, name) in new[]
+                     {
+                         (KitSprites.Star, "Star"), (KitSprites.Gear, "Gear"), (KitSprites.Info, "Info"), (KitSprites.Close, "Close"),
+                         (KitSprites.Back, "Back"), (KitSprites.Check, "Check"), (KitSprites.Music, "Music"), (KitSprites.Sound, "Sound"),
+                         (KitSprites.Vibration, "Vibration"), (KitSprites.Globe, "Globe")
+                     })
                 Assert.That(sprite, Is.Not.Null, $"Resources/Kit/{name}: run KitSpriteBuilder.BuildKitSprites");
         }
 

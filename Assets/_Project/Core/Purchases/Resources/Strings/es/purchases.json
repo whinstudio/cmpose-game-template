@@ -1,8 +1,4 @@
 {
-  "settings.premium": "Sin anuncios",
-  "purchases.state.get": "Obtener",
-  "purchases.state.active": "Activo",
-  "purchases.state.unavailable": "No disponible",
   "purchases.shop.title": "Tienda",
   "purchases.shop.noAds": "Sin anuncios",
   "purchases.shop.tag": "-{0} %",

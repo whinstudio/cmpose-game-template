@@ -22,7 +22,7 @@ namespace Kturker.UnityBase.Core.Leaderboards
             builder.RegisterEntryPoint<GameServices>(resolver => new GameServices(resolver.Resolve<IGameServicesGateway>(),
                     resolver.Resolve<IPreferences>(), resolver.Resolve<ILog>(), configured, warnPlaceholders), Lifetime.Singleton)
                 .AsSelf();
-            builder.Register<ISettingsSection, GameServicesSection>(Lifetime.Singleton);
+            builder.Register<ISettingsAction, SignInAction>(Lifetime.Singleton);
         }
     }
 }

@@ -1,123 +1,301 @@
 using System;
 using System.Collections.Generic;
+using Kturker.UnityBase.Core.Localization;
 using Kturker.UnityBase.Core.Presentation;
+using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using VContainer;
 
 namespace Kturker.UnityBase.App.Settings
 {
-    // One prefab (SettingsPanel.prefab) in the Menu and Game scenes; the root stays active, the panel toggles
+    // One prefab (SettingsPanel.prefab) in the Menu and Game scenes; the root stays active, the panel toggles. The card:
+    // the title, the round Close at its top right corner, Body (the switch rows and the language row in Rows; RemoveAds
+    // as the one primary over the grid of the other buttons in Actions; SettingsCardLayout puts them side by side in
+    // landscape) and the footer (the legal links, the version; a message shows in their place while it lasts, so the
+    // card keeps its height). The language page opens over the card in its place: the card keeps its size, the page's
+    // list scrolls; every language row has a ring, the chosen one a filled one with a tick. Hidden buttons and rows
+    // leave no gap; the texts of a group share one size (KitTextGroup). Android's back key goes back from the language page, otherwise
+    // closes the card. The Credits panel draws over the card.
     public sealed class SettingsView : MonoBehaviour, ISettingsView
     {
-        public const int RowSlots = 4;
-        // Every row's two columns (SceneBuilder): the label over 0..LabelShare of the row's width, the control over
-        // ControlStart..1 (a slider and a value button fill it, the switch sits at its right end)
-        public const float LabelShare = 0.42f;
-        public const float ControlStart = 0.46f;
+        // "Now: {0}" under "Device language", {0} the language the device language gives
+        public const string DeviceLanguageNowKey = "settings.deviceLanguageNow";
 
         [SerializeField] private GameObject panel;
-        [SerializeField] private Slider musicSlider;
-        [SerializeField] private Slider sfxSlider;
-        [SerializeField] private Toggle vibrationToggle;
-        [SerializeField] private SettingsRowView[] rows;
-        [SerializeField] private Button rateButton;
-        [SerializeField] private Button creditsButton;
-        [SerializeField] private CreditsPanel credits;
-        [SerializeField] private Button aboutButton;
         [SerializeField] private Button closeButton;
-        private Action[] rowHandlers;
+        // What the language page covers: they stay laid out (the card keeps its size) but hide and take no touches
+        [SerializeField] private CanvasGroup[] page = Array.Empty<CanvasGroup>();
+        [SerializeField] private Toggle musicToggle;
+        [SerializeField] private Toggle sfxToggle;
+        [SerializeField] private Toggle vibrationToggle;
+        [SerializeField] private GameObject languageRow;
+        [SerializeField] private Button languageButton;
+        [SerializeField] private TMP_Text languageCode;
+        [SerializeField] private GameObject actions;
+        [SerializeField] private Button primaryButton;
+        [SerializeField] private GameObject grid;
+        // In SettingsButton order after RemoveAds: Restore, SignIn, AdPrivacy, Support, Rate, Credits
+        [SerializeField] private Button[] gridButtons = Array.Empty<Button>();
+        [SerializeField] private LocalizedText message;
+        [SerializeField] private Button privacyLink;
+        [SerializeField] private GameObject linkDot;
+        [SerializeField] private Button termsLink;
+        [SerializeField] private TMP_Text version;
+        [SerializeField] private GameObject languages;
+        [SerializeField] private Button backButton;
+        [SerializeField] private ScrollRect languageList;
+        [SerializeField] private Button deviceButton;
+        [SerializeField] private LocalizedText deviceNow;
+        // The filled ring with the tick in "Device language"'s mark (each row's Mark/Fill)
+        [SerializeField] private GameObject deviceChosen;
+        // A language's row, copied for each language (hidden)
+        [SerializeField] private Button languageTemplate;
+        [SerializeField] private CreditsPanel credits;
 
-        public event Action<float> MusicChanged;
-        public event Action<float> SfxChanged;
-        public event Action<bool> VibrationChanged;
-        public event Action RateClicked;
-        public event Action AboutClicked;
-        public event Action CreditsClicked;
-        public event Action CreditsCloseClicked;
+        private readonly List<(string Code, Button Button, GameObject Chosen)> rows = new List<(string, Button, GameObject)>();
+        private UiBinder binder;
+        private bool privacyShown;
+        private bool termsShown;
+        private bool messageShown;
+
+        public event Action<bool> MusicToggled;
+        public event Action<bool> SfxToggled;
+        public event Action<bool> VibrationToggled;
+        public event Action<SettingsButton> ButtonClicked;
+        public event Action LanguageClicked;
+        public event Action LanguagesBackClicked;
+        public event Action PrivacyClicked;
+        public event Action TermsClicked;
         public event Action CloseClicked;
-        public event Action<int> SectionClicked;
+        public event Action CreditsCloseClicked;
+        public event Action<string> LanguageChosen;
 
         public bool IsOpen => panel.activeSelf;
-        public Slider SfxSlider => sfxSlider;
+        public bool LanguagesOpen => languages.activeSelf;
+        public Toggle SfxSwitch => sfxToggle;
         public Button CloseButton => closeButton;
-        public Button AboutButton => aboutButton;
-        public Button CreditsButton => creditsButton;
+        public Button CreditsButton => Grid(SettingsButton.Credits);
         public CreditsPanel Credits => credits;
+
+        // Binds the language rows copied at runtime (the scene itself was bound before); without it (EditMode tests)
+        // they keep the builder's colours
+        [Inject]
+        public void Construct(UiBinder uiBinder) => binder = uiBinder;
 
         private void Awake()
         {
             KitScreens.Hide(panel);
-            musicSlider.onValueChanged.AddListener(OnMusic);
-            sfxSlider.onValueChanged.AddListener(OnSfx);
-            vibrationToggle.onValueChanged.AddListener(OnVibration);
-            rateButton.onClick.AddListener(OnRate);
-            aboutButton.onClick.AddListener(OnAbout);
-            creditsButton.onClick.AddListener(OnCredits);
-            credits.CloseClicked += OnCreditsClose;
+            languages.SetActive(false);
+            languageTemplate.gameObject.SetActive(false);
             closeButton.onClick.AddListener(OnClose);
-            rowHandlers = new Action[rows.Length];
-            for (var i = 0; i < rows.Length; i++)
+            musicToggle.onValueChanged.AddListener(OnMusic);
+            sfxToggle.onValueChanged.AddListener(OnSfx);
+            vibrationToggle.onValueChanged.AddListener(OnVibration);
+            languageButton.onClick.AddListener(OnLanguage);
+            primaryButton.onClick.AddListener(OnPrimary);
+            for (var i = 0; i < gridButtons.Length; i++)
             {
-                var index = i;
-                rowHandlers[i] = () => SectionClicked?.Invoke(index);
-                rows[i].Clicked += rowHandlers[i];
+                var button = (SettingsButton)(i + 1);
+                gridButtons[i].onClick.AddListener(() => ButtonClicked?.Invoke(button));
             }
+            privacyLink.onClick.AddListener(OnPrivacy);
+            termsLink.onClick.AddListener(OnTerms);
+            backButton.onClick.AddListener(OnBack);
+            deviceButton.onClick.AddListener(OnDevice);
+            credits.CloseClicked += OnCreditsClose;
         }
 
         private void OnDestroy()
         {
-            musicSlider.onValueChanged.RemoveListener(OnMusic);
-            sfxSlider.onValueChanged.RemoveListener(OnSfx);
-            vibrationToggle.onValueChanged.RemoveListener(OnVibration);
-            rateButton.onClick.RemoveListener(OnRate);
-            aboutButton.onClick.RemoveListener(OnAbout);
-            creditsButton.onClick.RemoveListener(OnCredits);
-            credits.CloseClicked -= OnCreditsClose;
             closeButton.onClick.RemoveListener(OnClose);
-            for (var i = 0; i < rows.Length; i++) rows[i].Clicked -= rowHandlers[i];
+            musicToggle.onValueChanged.RemoveListener(OnMusic);
+            sfxToggle.onValueChanged.RemoveListener(OnSfx);
+            vibrationToggle.onValueChanged.RemoveListener(OnVibration);
+            languageButton.onClick.RemoveListener(OnLanguage);
+            primaryButton.onClick.RemoveListener(OnPrimary);
+            foreach (var button in gridButtons) button.onClick.RemoveAllListeners();
+            privacyLink.onClick.RemoveListener(OnPrivacy);
+            termsLink.onClick.RemoveListener(OnTerms);
+            backButton.onClick.RemoveListener(OnBack);
+            deviceButton.onClick.RemoveListener(OnDevice);
+            credits.CloseClicked -= OnCreditsClose;
         }
 
-        public void Show(float music, float sfx, bool vibration)
+        // Android's back key (Escape in the Input System): the credits, then the language page, then the card
+        private void Update()
         {
-            musicSlider.SetValueWithoutNotify(music);
-            sfxSlider.SetValueWithoutNotify(sfx);
-            vibrationToggle.SetIsOnWithoutNotify(vibration);
+            var keyboard = Keyboard.current;
+            if (!IsOpen || keyboard == null || !keyboard.escapeKey.wasPressedThisFrame) return;
+            if (credits.IsOpen) OnCreditsClose();
+            else if (LanguagesOpen) OnBack();
+            else OnClose();
+        }
+
+        public void Show(bool music, bool sfx, bool vibration)
+        {
+            Set(musicToggle, music);
+            Set(sfxToggle, sfx);
+            Set(vibrationToggle, vibration);
             KitScreens.Show(panel);
         }
 
-        public void SetRateVisible(bool visible) => rateButton.gameObject.SetActive(visible);
+        public void ShowLanguageRow(string code)
+        {
+            languageRow.SetActive(code != null);
+            if (code != null) languageCode.text = $"{code} ›";
+        }
 
-        public void SetAboutVisible(bool visible) => aboutButton.gameObject.SetActive(visible);
+        public void ShowButtons(IReadOnlyList<SettingsButton> buttons)
+        {
+            var any = false;
+            var shown = Contains(buttons, SettingsButton.RemoveAds);
+            primaryButton.gameObject.SetActive(shown);
+            any |= shown;
+            var anyInGrid = false;
+            for (var i = 0; i < gridButtons.Length; i++)
+            {
+                shown = Contains(buttons, (SettingsButton)(i + 1));
+                gridButtons[i].gameObject.SetActive(shown);
+                anyInGrid |= shown;
+            }
+            grid.SetActive(anyInGrid);
+            actions.SetActive(any || anyInGrid);
+        }
 
-        public void SetCreditsVisible(bool visible) => creditsButton.gameObject.SetActive(visible);
+        public void ShowLinks(bool privacy, bool terms)
+        {
+            privacyShown = privacy;
+            termsShown = terms;
+            ShowFooter();
+        }
+
+        public void ShowVersion(string label) => version.text = label;
+
+        // In the footer's place
+        public void ShowMessage(string key)
+        {
+            messageShown = key != null;
+            if (key == null) message.SetLiteral(string.Empty);
+            else message.SetKey(key);
+            ShowFooter();
+        }
+
+        public void ShowLanguages(IReadOnlyList<(string Code, string Name)> list, string selected, string currentName)
+        {
+            Rebuild(list);
+            deviceNow.SetKey(DeviceLanguageNowKey, currentName);
+            deviceChosen.SetActive(selected == null);
+            foreach (var row in rows) row.Chosen.SetActive(row.Code == selected);
+            if (LanguagesOpen) return;
+            foreach (var covered in page) Veil(covered, true);
+            languages.SetActive(true);
+            languageList.StopMovement();
+            languageList.verticalNormalizedPosition = 1f;
+        }
+
+        public void HideLanguages()
+        {
+            languages.SetActive(false);
+            foreach (var covered in page) Veil(covered, false);
+        }
 
         public void ShowCredits(string text) => credits.Show(text);
 
         public void HideCredits() => credits.Hide();
 
-        // Rows beyond the slots are not shown (RowSlots: SceneBuilder builds that many)
-        public void ShowSections(IReadOnlyList<SettingsRow> sections)
+        public void Hide()
         {
-            for (var i = 0; i < rows.Length; i++)
+            KitScreens.Hide(panel);
+            HideLanguages();
+        }
+
+        public Button Grid(SettingsButton button)
+        {
+            var index = (int)button - 1;
+            return index >= 0 && index < gridButtons.Length ? gridButtons[index] : null;
+        }
+
+        // One copy of the template per language, in the list's order, made again only when the languages change
+        private void Rebuild(IReadOnlyList<(string Code, string Name)> list)
+        {
+            if (Same(list)) return;
+            foreach (var row in rows) Destroy(row.Button.gameObject);
+            rows.Clear();
+            foreach (var (code, name) in list)
             {
-                if (i < sections.Count) rows[i].Show(sections[i]);
-                else rows[i].Hide();
+                var button = Instantiate(languageTemplate, languageTemplate.transform.parent, false);
+                button.name = code;
+                button.gameObject.SetActive(true);
+                button.GetComponent<KitButton>().Label.GetComponent<LocalizedText>().SetLiteral(name);
+                var chosen = code;
+                button.onClick.AddListener(() => OnChosen(chosen));
+                binder?.BindTree(button.gameObject);
+                rows.Add((code, button, button.transform.Find("Mark/Fill").gameObject));
             }
         }
 
-        public void Hide() => KitScreens.Hide(panel);
+        private bool Same(IReadOnlyList<(string Code, string Name)> list)
+        {
+            if (list.Count != rows.Count) return false;
+            for (var i = 0; i < list.Count; i++)
+                if (list[i].Code != rows[i].Code) return false;
+            return true;
+        }
 
-        private void OnMusic(float value) => MusicChanged?.Invoke(value);
+        private void ShowFooter()
+        {
+            privacyLink.gameObject.SetActive(privacyShown && !messageShown);
+            termsLink.gameObject.SetActive(termsShown && !messageShown);
+            linkDot.SetActive(privacyShown && termsShown && !messageShown);
+            version.gameObject.SetActive(!messageShown);
+            message.gameObject.SetActive(messageShown);
+        }
 
-        private void OnSfx(float value) => SfxChanged?.Invoke(value);
+        // The switch's knob and colour follow at once, also before the switch first updates
+        private static void Set(Toggle toggle, bool on)
+        {
+            var kit = toggle.GetComponent<KitSwitch>();
+            if (kit != null) kit.SetWithoutNotify(on);
+            else toggle.SetIsOnWithoutNotify(on);
+        }
 
-        private void OnVibration(bool value) => VibrationChanged?.Invoke(value);
+        private static void Veil(CanvasGroup group, bool veiled)
+        {
+            group.alpha = veiled ? 0f : 1f;
+            group.interactable = !veiled;
+            group.blocksRaycasts = !veiled;
+        }
 
-        private void OnRate() => RateClicked?.Invoke();
+        private static bool Contains(IReadOnlyList<SettingsButton> buttons, SettingsButton button)
+        {
+            for (var i = 0; i < buttons.Count; i++)
+            {
+                if (buttons[i] == button) return true;
+            }
+            return false;
+        }
 
-        private void OnAbout() => AboutClicked?.Invoke();
+        private void OnMusic(bool on) => MusicToggled?.Invoke(on);
 
-        private void OnCredits() => CreditsClicked?.Invoke();
+        private void OnSfx(bool on) => SfxToggled?.Invoke(on);
+
+        private void OnVibration(bool on) => VibrationToggled?.Invoke(on);
+
+        private void OnLanguage() => LanguageClicked?.Invoke();
+
+        private void OnPrimary() => ButtonClicked?.Invoke(SettingsButton.RemoveAds);
+
+        private void OnPrivacy() => PrivacyClicked?.Invoke();
+
+        private void OnTerms() => TermsClicked?.Invoke();
+
+        private void OnBack() => LanguagesBackClicked?.Invoke();
+
+        private void OnDevice() => LanguageChosen?.Invoke(null);
+
+        private void OnChosen(string code) => LanguageChosen?.Invoke(code);
 
         private void OnCreditsClose() => CreditsCloseClicked?.Invoke();
 

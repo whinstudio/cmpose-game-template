@@ -8,7 +8,8 @@ namespace Kturker.UnityBase.Core.Presentation
     // of RoundedRadius / r. Star, a chunky five-pointed star with round tips (simple, not sliced: the level card's
     // stars, the menu's sparkles); Gear and Info, the Settings and About icons, Podium, the leaderboard's, Video, the
     // rewarded-ad mark, and the economy's Coin and Gem (the currencies' icons; the star currency draws Star), Gift (the
-    // supply), Wheel and Calendar (the login bonus) (simple).
+    // supply), Wheel and Calendar (the login bonus), and the settings card's Close (an X), Back (a left chevron), Check
+    // (a tick) and its rows' Music, Sound, Vibration and Globe (simple).
     public static class KitSprites
     {
         public const string RoundedPath = "Kit/Rounded";
@@ -23,6 +24,13 @@ namespace Kturker.UnityBase.Core.Presentation
         public const string WheelPath = "Kit/Wheel";
         public const string CalendarPath = "Kit/Calendar";
         public const string GemPath = "Kit/Gem";
+        public const string ClosePath = "Kit/Close";
+        public const string BackPath = "Kit/Back";
+        public const string CheckPath = "Kit/Check";
+        public const string MusicPath = "Kit/Music";
+        public const string SoundPath = "Kit/Sound";
+        public const string VibrationPath = "Kit/Vibration";
+        public const string GlobePath = "Kit/Globe";
         public const float RoundedRadius = 64f;
         public const float ShadowRadius = 32f;
         public const float ShadowBlur = 64f;
@@ -41,6 +49,13 @@ namespace Kturker.UnityBase.Core.Presentation
         private static Sprite wheel;
         private static Sprite calendar;
         private static Sprite gem;
+        private static Sprite close;
+        private static Sprite back;
+        private static Sprite check;
+        private static Sprite music;
+        private static Sprite sound;
+        private static Sprite vibration;
+        private static Sprite globe;
 
         public static Sprite Rounded => rounded != null ? rounded : rounded = Resources.Load<Sprite>(RoundedPath);
         public static Sprite Shadow => shadow != null ? shadow : shadow = Resources.Load<Sprite>(ShadowPath);
@@ -54,5 +69,12 @@ namespace Kturker.UnityBase.Core.Presentation
         public static Sprite Wheel => wheel != null ? wheel : wheel = Resources.Load<Sprite>(WheelPath);
         public static Sprite Calendar => calendar != null ? calendar : calendar = Resources.Load<Sprite>(CalendarPath);
         public static Sprite Gem => gem != null ? gem : gem = Resources.Load<Sprite>(GemPath);
+        public static Sprite Close => close != null ? close : close = Resources.Load<Sprite>(ClosePath);
+        public static Sprite Back => back != null ? back : back = Resources.Load<Sprite>(BackPath);
+        public static Sprite Check => check != null ? check : check = Resources.Load<Sprite>(CheckPath);
+        public static Sprite Music => music != null ? music : music = Resources.Load<Sprite>(MusicPath);
+        public static Sprite Sound => sound != null ? sound : sound = Resources.Load<Sprite>(SoundPath);
+        public static Sprite Vibration => vibration != null ? vibration : vibration = Resources.Load<Sprite>(VibrationPath);
+        public static Sprite Globe => globe != null ? globe : globe = Resources.Load<Sprite>(GlobePath);
     }
 }

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Kturker.UnityBase.App.About;
 using Kturker.UnityBase.App.Game;
 using Kturker.UnityBase.App.Menu;
 using Kturker.UnityBase.App.Settings;
@@ -171,6 +170,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         public void SetFloat(string key, float value) => Values[key] = value;
         public string GetString(string key, string defaultValue) => Values.TryGetValue(key, out var v) && v is string s ? s : defaultValue;
         public void SetString(string key, string value) => Values[key] = value;
+        public void Delete(string key) => Values.Remove(key);
         public void Save() => Saves++;
     }
 
@@ -221,15 +221,6 @@ namespace Kturker.UnityBase.Tests.EditMode
     public sealed class FakeSettingsPanel : ISettingsPanel
     {
         public int Opened;
-        public IAboutPanel Offered;
-        public bool IsOpen => Opened > 0;
-        public void Open() => Opened++;
-        public void OfferAbout(IAboutPanel about) => Offered = about;
-    }
-
-    public sealed class FakeAboutPanel : IAboutPanel
-    {
-        public int Opened;
         public bool IsOpen => Opened > 0;
         public void Open() => Opened++;
     }
@@ -238,15 +229,38 @@ namespace Kturker.UnityBase.Tests.EditMode
     {
         public int Shown;
         public int Hidden;
-        public float Music;
-        public float Sfx;
+        public bool Music;
+        public bool Sfx;
         public bool Vibration;
-        public event Action<float> MusicChanged;
-        public event Action<float> SfxChanged;
-        public event Action<bool> VibrationChanged;
+        // "unset" until the presenter shows or hides the row
+        public string LanguageRow = "unset";
+        public IReadOnlyList<SettingsButton> Buttons;
+        public int ButtonRenders;
+        public bool PrivacyLink;
+        public bool TermsLink;
+        public string Version;
+        public string Message;
+        public readonly List<string> Messages = new List<string>();
+        public IReadOnlyList<(string Code, string Name)> Languages;
+        public string LanguageSelected;
+        public string LanguageCurrentName;
+        public bool LanguagesOpen;
+        public int LanguagesHidden;
+        public string CreditsShown;
+        public int CreditsHidden;
+        public event Action<bool> MusicToggled;
+        public event Action<bool> SfxToggled;
+        public event Action<bool> VibrationToggled;
+        public event Action<SettingsButton> ButtonClicked;
+        public event Action LanguageClicked;
+        public event Action LanguagesBackClicked;
+        public event Action PrivacyClicked;
+        public event Action TermsClicked;
         public event Action CloseClicked;
+        public event Action CreditsCloseClicked;
+        public event Action<string> LanguageChosen;
 
-        public void Show(float music, float sfx, bool vibration)
+        public void Show(bool music, bool sfx, bool vibration)
         {
             Shown++;
             Music = music;
@@ -254,65 +268,56 @@ namespace Kturker.UnityBase.Tests.EditMode
             Vibration = vibration;
         }
 
-        public void Hide() => Hidden++;
-        public void ChangeMusic(float value) => MusicChanged?.Invoke(value);
-        public void ChangeSfx(float value) => SfxChanged?.Invoke(value);
-        public void ChangeVibration(bool value) => VibrationChanged?.Invoke(value);
-        public void ClickClose() => CloseClicked?.Invoke();
-        public bool RateVisible;
-        public event Action RateClicked;
-        public void SetRateVisible(bool visible) => RateVisible = visible;
-        public void ClickRate() => RateClicked?.Invoke();
-        public bool AboutVisible;
-        public event Action AboutClicked;
-        public void SetAboutVisible(bool visible) => AboutVisible = visible;
-        public void ClickAbout() => AboutClicked?.Invoke();
-        public bool CreditsVisible;
-        public string CreditsShown;
-        public int CreditsHidden;
-        public event Action CreditsClicked;
-        public event Action CreditsCloseClicked;
-        public void SetCreditsVisible(bool visible) => CreditsVisible = visible;
+        public void ShowLanguageRow(string code) => LanguageRow = code;
+
+        public void ShowButtons(IReadOnlyList<SettingsButton> buttons)
+        {
+            Buttons = buttons;
+            ButtonRenders++;
+        }
+
+        public void ShowLinks(bool privacy, bool terms)
+        {
+            PrivacyLink = privacy;
+            TermsLink = terms;
+        }
+
+        public void ShowVersion(string label) => Version = label;
+
+        public void ShowMessage(string key)
+        {
+            Message = key;
+            Messages.Add(key);
+        }
+
+        public void ShowLanguages(IReadOnlyList<(string Code, string Name)> languages, string selected, string currentName)
+        {
+            Languages = languages;
+            LanguageSelected = selected;
+            LanguageCurrentName = currentName;
+            LanguagesOpen = true;
+        }
+
+        public void HideLanguages()
+        {
+            LanguagesOpen = false;
+            LanguagesHidden++;
+        }
+
         public void ShowCredits(string text) => CreditsShown = text;
         public void HideCredits() => CreditsHidden++;
-        public void ClickCredits() => CreditsClicked?.Invoke();
-        public void ClickCreditsClose() => CreditsCloseClicked?.Invoke();
-        public IReadOnlyList<SettingsRow> Rows = new List<SettingsRow>();
-        public int SectionRenders;
-        public event Action<int> SectionClicked;
-        public void ShowSections(IReadOnlyList<SettingsRow> rows)
-        {
-            Rows = rows;
-            SectionRenders++;
-        }
-        public void ClickSection(int index) => SectionClicked?.Invoke(index);
-    }
-
-    public sealed class FakeAboutView : IAboutView
-    {
-        public int Shown;
-        public int Hidden;
-        public string Version;
-        public bool PrivacyVisible;
-        public bool TermsVisible;
-        public string Licenses;
-        public event Action PrivacyClicked;
-        public event Action TermsClicked;
-        public event Action CloseClicked;
-
-        public void Show(string version, bool privacyVisible, bool termsVisible, string licenses)
-        {
-            Shown++;
-            Version = version;
-            PrivacyVisible = privacyVisible;
-            TermsVisible = termsVisible;
-            Licenses = licenses;
-        }
-
         public void Hide() => Hidden++;
+        public void ToggleMusic(bool on) => MusicToggled?.Invoke(on);
+        public void ToggleSfx(bool on) => SfxToggled?.Invoke(on);
+        public void ToggleVibration(bool on) => VibrationToggled?.Invoke(on);
+        public void Click(SettingsButton button) => ButtonClicked?.Invoke(button);
+        public void ClickLanguage() => LanguageClicked?.Invoke();
+        public void ClickLanguagesBack() => LanguagesBackClicked?.Invoke();
+        public void ChooseLanguage(string code) => LanguageChosen?.Invoke(code);
         public void ClickPrivacy() => PrivacyClicked?.Invoke();
         public void ClickTerms() => TermsClicked?.Invoke();
         public void ClickClose() => CloseClicked?.Invoke();
+        public void ClickCreditsClose() => CreditsCloseClicked?.Invoke();
     }
 
     public sealed class FakePauseView : IPauseView
@@ -453,26 +458,62 @@ namespace Kturker.UnityBase.Tests.EditMode
         public static void Use(GameSkin skin) => GameSkin.ForTests(skin);
     }
 
-    public sealed class FakeSection : ISettingsSection
+    // A flag's settings button; PressAsync answers Answer, or waits for Pending when set
+    public sealed class FakeSettingsAction : ISettingsAction
     {
-        private readonly SettingsOption[] options;
-        public readonly List<int> Selections = new List<int>();
+        private bool visible = true;
 
-        public FakeSection(string titleKey, params SettingsOption[] options)
-        {
-            TitleKey = titleKey;
-            this.options = options;
-        }
+        public FakeSettingsAction(SettingsButton button) => Button = button;
 
-        public string TitleKey { get; }
-        public IReadOnlyList<SettingsOption> Options => options;
-        public int Selected { get; set; }
+        public SettingsButton Button { get; }
+        public int Presses;
+        public string Answer;
+        public UniTaskCompletionSource<string> Pending;
         public event Action Changed;
 
-        public void Select(int index)
+        public bool Visible
         {
-            Selections.Add(index);
-            Selected = index;
+            get => visible;
+            set
+            {
+                visible = value;
+                Changed?.Invoke();
+            }
+        }
+
+        public UniTask<string> PressAsync(CancellationToken ct)
+        {
+            Presses++;
+            return Pending != null ? Pending.Task : UniTask.FromResult(Answer);
+        }
+    }
+
+    // A language choice over the given languages; the "device" speaks DeviceLanguage
+    public sealed class FakeSettingsLanguage : ISettingsLanguage
+    {
+        private string chosen;
+
+        public FakeSettingsLanguage(params (string Code, string Name)[] languages) => Languages = languages;
+
+        public IReadOnlyList<(string Code, string Name)> Languages { get; }
+        public string DeviceLanguage = "en";
+        public string Current => chosen ?? DeviceLanguage;
+        public string Device => DeviceLanguage;
+        public bool FollowsDevice => chosen == null;
+        public readonly List<string> Calls = new List<string>();
+        public event Action Changed;
+
+        public void Choose(string code)
+        {
+            Calls.Add($"choose {code}");
+            chosen = code;
+            Changed?.Invoke();
+        }
+
+        public void FollowDevice()
+        {
+            Calls.Add("device");
+            chosen = null;
             Changed?.Invoke();
         }
     }

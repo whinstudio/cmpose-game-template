@@ -16,7 +16,6 @@
         "Kturker.UnityBase.Core.Update",
         "Kturker.UnityBase.Core.Localization",
         "Kturker.UnityBase.Core.Save",
-        "Kturker.UnityBase.Core.Theme",
         "Kturker.UnityBase.Core.Language",
         "Kturker.UnityBase.Core.Network",
         "Kturker.UnityBase.Core.NetworkInspector",

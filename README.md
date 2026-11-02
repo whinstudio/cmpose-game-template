@@ -11,7 +11,7 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
 
 - `Assets/_Project/Core/` — logging, scene loading, presenters, the root DI scope, and the core modules:
   Preferences, Audio, Haptics, Lifecycle (pause), DeepLink, About, Review, Update, Localization (string tables)
-- `Assets/_Project/App/` — the Boot, Menu and Game scenes' scopes and screens (Settings, About, pause, the
+- `Assets/_Project/App/` — the Boot, Menu and Game scenes' scopes and screens (Settings, pause, the
   "Start here" guide)
 - `Assets/_Project/Render/GameRig.prefab` — the Game scene's camera and lights
 - `Assets/_Project/Features/Sample/` — a feature module (Domain, Presentation, Installer); copy it to start a new one
@@ -27,11 +27,15 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
 ## What is in the box
 
 - **Menu:** a top bar (the currency on the left, shown by the economy, see "Economy"; the settings gear in the right corner), the title
-  or your logo in the middle, round feature buttons in a column at each side and a big Play at the bottom. Settings:
-  music and sound effect volume, vibration and Rate the app, plus Theme and Language when those parts are included,
-  Credits when the game has `Assets/_Project/Resources/Credits.txt` (plain text, shown as written in a scrolling
-  screen; leave it out or blank and the row is hidden) and About as the last row (version, privacy and terms links,
-  open-source licences). Settings are saved with
+  or your logo in the middle, round feature buttons in a column at each side and a big Play at the bottom.
+  **Settings** is one card, in the menu and from the pause menu: switches for music, sound effects and vibration, a
+  Language row when the game has more than one language (its list opens in the card, "Device language" first), Remove
+  ads as the one main button while it can be bought, then a grid of equal buttons (Restore, Sign in, Ad choices,
+  Support, Rate us, Credits: only the ones that apply), and the privacy and terms links with the version at the
+  bottom; Close is the X at the top right. Credits shows the game's `Assets/_Project/Resources/Credits.txt` (plain
+  text, as written, in a scrolling screen), then the open-source licences. In landscape the card puts its rows and
+  buttons side by side. Every text stays on one line in every language; the card's rules (and the tests that hold
+  them) are in [MAINTAINING.md, "Mobile UI rules"](MAINTAINING.md#mobile-ui-rules). Settings are saved with
   PlayerPrefs. While room is kept for the ads banner at the top of the menu (from before the ad loads, so nothing
   moves when it arrives), the top bar moves down one button height more, so no button sits next to the ad. Add a
   feature's button to a side column (up to three per side) with `IMenuSideButtons` (the menu's `MenuView`):
@@ -45,8 +49,8 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
   player build) until you press "Got it". The sample's Complete button is a positive moment for review requests. The sample also counts how many times Complete was
   pressed and keeps the count across restarts.
 - **Buttons** play a click sound and a light vibration (vibration on devices only).
-- **Legal links:** set `privacyUrl` and `termsUrl` in `Assets/_Project/Core/About/AppConfig.asset`; a blank URL
-  hides its button.
+- **Legal and support links:** set `privacyUrl`, `termsUrl` and `supportUrl` (https or mailto) in
+  `Assets/_Project/Core/About/AppConfig.asset`; a blank URL hides its link or button.
 
 ## Look: style family, fonts and the UI kit
 
@@ -67,7 +71,16 @@ uiBinder.BindTree(card.gameObject);                                             
 ```
 Buttons spring when pressed, panels slide and fade in (`KitScreens.Show`), and all of it runs on unscaled time, so it
 also plays while the game is paused. Every text needs a `ThemedText` (its font role) and every image a
-`ThemedGraphic` (its colour role); the EditMode `UiCoverageTests` check the template's screens for both.
+`ThemedGraphic` (its colour role); the EditMode `UiCoverageTests` check the template's screens for both. A tall display
+font (Baloo 2, in `bright` and `pastel`) may shrink a text a little to fit its box, so code that sizes a text after
+binding it sets `fontSizeMax` as well as `fontSize`.
+
+Screens follow the template's mobile UI rules: controls touched over at least 48 dp (126 units on the 1080-wide
+reference canvas), content in the safe area, at most one main button per screen, Close as an X at the top right,
+secondary buttons in a grid of equal cells (`KitButtonGrid`), and texts on one line, each group of them (titles, row
+labels, buttons, footer) at one shared size (`KitTextGroup`). A translation too long for its group's smallest size is
+shortened, the layout stays. The full list, with the tests that check each rule, is in
+[MAINTAINING.md, "Mobile UI rules"](MAINTAINING.md#mobile-ui-rules).
 
 Your game's own look goes on top of the family. Put a title logo at `Assets/_Project/Resources/Branding/title-logo.png`
 (imported as a Sprite, transparent) and the menu and the boot screen show it instead of the title text; a picture at
@@ -84,21 +97,17 @@ Every text on screen comes from a string table: `Resources/Strings/<language>/*.
 `Core/Language`). A `LocalizedText` next to a TextMeshPro text names its key; an empty key means code writes the
 text. In code, `ILocalizer.Get("key", args)` formats `{0}`-style arguments. English (`en`) is always there; the
 game also ships Turkish, French, Spanish and Italian. The first launch picks the device language when it is one
-of these, English otherwise; Settings → Language changes it (saved as `lang.code`). To add a language, copy the
+of these, English otherwise; Settings → Language changes it (saved as `lang.code`; "Device language" forgets
+the choice, so the game follows the device again). To add a language, copy the
 `en` files of every module to a new folder (for example `de`), translate the values and add it to
 `LanguageSelector.Supported`.
 <!-- /cmpose:multiLang -->
 
-<!-- cmpose:uiTheme -->
-## Colours and themes
+## Colours
 
-Colours come from palettes (`Resources/Theme/Light.asset` and `Dark.asset`), one colour per role: background,
-surface, primary, on-primary, text, muted text, track, scrim, accent, on-accent, success, danger and the rest of
-`ThemeRole`. A `ThemedGraphic` gives an image or text its
-role, a `ThemedCamera` clears with the background. Settings → Theme switches between System (follows the device,
-re-read when the game comes back to the foreground), Light and Dark (saved as `theme.mode`). The theme module and
-its tests are in `Core/Theme/`.
-<!-- /cmpose:uiTheme -->
+Colours come from a palette (`Resources/Theme/Light.asset`), one colour per role: background, surface, primary,
+on-primary, text, muted text, track, scrim, accent, on-accent, success, danger and the rest of `ThemeRole`. A
+`ThemedGraphic` gives an image or text its role, a `ThemedCamera` clears with the background.
 
 <!-- cmpose:saveSystem -->
 ## Saving game state
@@ -112,7 +121,7 @@ store.Save(Schema, progress);
 `Progress` is a `[Serializable]` class (`JsonUtility`). Writes are atomic (a crash keeps the previous save) and the
 previous save stays as a backup. When the data's shape changes, raise the version and pass an `ISaveMigration`
 for each step (`From`, `To`, a function on the data JSON); a save from a newer version of the game is not loaded.
-Preferences (volume, theme, language) stay in `IPreferences`. The save system and its tests are in `Core/Save/`.
+Preferences (sound, vibration, language) stay in `IPreferences`. The save system and its tests are in `Core/Save/`.
 <!-- /cmpose:saveSystem -->
 
 <!-- cmpose:network -->
@@ -198,7 +207,7 @@ move under the player's finger when it arrives; the room goes with `HideBanner`,
 again.
 
 At start the game asks for consent with Google's UMP form where the law requires it, then (iOS) shows the App
-Tracking Transparency prompt; Settings → Privacy choices reopens the form where it applies. Premium players
+Tracking Transparency prompt; Settings → Ad choices reopens the form where it applies. Premium players
 (purchases flag) see no forced ads (no interstitial, no banner); rewarded ads stay opt-in and Continue is free. Compass capture runs (flag file
 `compass-autoplay` or `compass-capture`) skip consent entirely.
 
@@ -224,9 +233,9 @@ await gameServices.ShowLeaderboardAsync(token);      // asks the player to sign 
 ```
 
 Nothing here throws or waits for the network: at start the game only signs in silently, and anything you report
-while the player is signed out or offline is kept and sent at the next sign-in. Settings → Game services shows the
-state and lets the player sign in. The template ships **placeholder** IDs, so the service stays off (Settings says
-"Not set up") until you set your own. Before you send the game to the stores:
+while the player is signed out or offline is kept and sent at the next sign-in. Settings → Sign in shows while the
+player is signed out and signs them in. The template ships **placeholder** IDs, so the service stays off (Settings has
+no Sign in) until you set your own. Before you send the game to the stores:
 1. Google Play Console → Play Games Services: set up the game (link your app and its signing SHA-1), add a
    leaderboard ("larger is better") and two achievements (one standard, one incremental with 10 steps), publish them.
 2. App Store Connect → your app → Game Center: enable it, add the same leaderboard ("high to low") and the two
@@ -275,7 +284,7 @@ no dSYM, so Crashlytics holds their native crashes as "missing dSYM".
 
 **Consent.** Analytics is off when the game starts. With the ads flag it waits for the player's answer to Google's
 consent form and follows it (a player who refuses gets no analytics, even though non-personalised ads may still
-show), also when the player changes it later in Settings → Privacy choices; without the ads flag it is on from the
+show), also when the player changes it later in Settings → Ad choices; without the ads flag it is on from the
 start. Crash reports do not wait for consent. `insights.SetCollectionEnabled(false)` turns
 both off (for a setting of your own; the template does not remember it, so call it at every start), `true` turns
 them on again.
@@ -442,7 +451,7 @@ review dialog, then every tenth. Apple and Google allow only their own dialog an
 never learns whether the player rated it. The sample's **Complete** button
 (`Features/Sample/Presentation/SamplePresenter.cs`) shows where the call goes.
 
-**Rate the app** in Settings opens the store page: Google Play on Android; on iOS the App Store's write-a-review
+**Rate us** in Settings opens the store page: Google Play on Android; on iOS the App Store's write-a-review
 page, which needs your numeric App Store ID (App Store Connect → App Information → Apple ID) in `appStoreId` in
 `Assets/_Project/Core/About/AppConfig.asset`. Until it is set, the button is hidden on iOS.
 

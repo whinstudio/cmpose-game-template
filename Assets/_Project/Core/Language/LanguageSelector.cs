@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Kturker.UnityBase.Core.Domain;
 using Kturker.UnityBase.Core.Localization;
 using Kturker.UnityBase.Core.Preferences;
@@ -9,9 +8,10 @@ using UnityEngine;
 
 namespace Kturker.UnityBase.Core.Language
 {
-    // multiLang flag: the Language row in Settings. The first launch takes the device language when supported,
-    // English otherwise; a choice is stored in lang.code and wins from then on.
-    public sealed class LanguageSelector : ISettingsSection
+    // multiLang flag: the settings card's language choice. Without a stored choice every launch takes the device
+    // language when supported, English otherwise; a choice is stored in lang.code and wins from then on, and "Device
+    // language" deletes it again. Compass's UI shot test picks languages through Supported and Select(int): keep both.
+    public sealed class LanguageSelector : ISettingsLanguage
     {
         public const string PreferenceKey = "lang.code";
 
@@ -19,8 +19,6 @@ namespace Kturker.UnityBase.Core.Language
         {
             ("en", "English"), ("tr", "Türkçe"), ("fr", "Français"), ("es", "Español"), ("it", "Italiano")
         };
-
-        private static readonly SettingsOption[] Names = Supported.Select(l => SettingsOption.Text(l.Name)).ToArray();
 
         private readonly TableLocalizer localizer;
         private readonly IPreferences preferences;
@@ -35,9 +33,10 @@ namespace Kturker.UnityBase.Core.Language
             this.log = log;
         }
 
-        public string TitleKey => "settings.language";
-        public IReadOnlyList<SettingsOption> Options => Names;
-        public int Selected => IndexOf(localizer.Language);
+        public IReadOnlyList<(string Code, string Name)> Languages => Supported;
+        public string Current => localizer.Language;
+        public bool FollowsDevice => IndexOf(preferences.GetString(PreferenceKey, null)) < 0;
+        public string Device => FromSystem(system.Language);
 
         public event Action Changed;
 
@@ -51,9 +50,20 @@ namespace Kturker.UnityBase.Core.Language
         public void Select(int index)
         {
             if (index < 0 || index >= Supported.Count) return;
-            var code = Supported[index].Code;
+            Choose(Supported[index].Code);
+        }
+
+        public void Choose(string code)
+        {
+            if (IndexOf(code) < 0) return;
             preferences.SetString(PreferenceKey, code);
             Use(code);
+        }
+
+        public void FollowDevice()
+        {
+            preferences.Delete(PreferenceKey);
+            Use(FromSystem(system.Language));
         }
 
         public static string FromSystem(SystemLanguage language)

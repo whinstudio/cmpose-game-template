@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kturker.UnityBase.Core.About::Kturker.UnityBase.Core.About.AppConfig
   privacyUrl: 
   termsUrl: 
+  supportUrl: 
   minVersionUrl: 
   appStoreId: 
   thirdPartyNotices: {fileID: 4900000, guid: 841fb486bb700419a8d55c63234a40fe, type: 3}

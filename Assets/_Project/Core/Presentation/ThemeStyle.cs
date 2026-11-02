@@ -7,8 +7,8 @@ using UnityEngine.Rendering;
 namespace Kturker.UnityBase.Core.Presentation
 {
     // Everything of a style family but its colours: fonts, corner radius, surfaces, motion, post-processing, the
-    // menu background and the colours the game world draws with. One per app at Resources/Theme/Style.asset (light
-    // and dark share it); SceneBuilder writes it.
+    // menu background and the colours the game world draws with. One per app at Resources/Theme/Style.asset;
+    // SceneBuilder writes it.
     [CreateAssetMenu(menuName = "UnityBase/Theme Style", fileName = "Style")]
     public sealed class ThemeStyle : ScriptableObject
     {

@@ -10,11 +10,7 @@ namespace Kturker.UnityBase.Core.Leaderboards.Tests
         public void Every_key_has_an_english_text()
         {
             var english = new TableLocalizer(new ResourcesStringSource(), new FakeLog(), false);
-            var keys = new[]
-            {
-                LeaderboardsKeys.Title, LeaderboardsKeys.SignIn, LeaderboardsKeys.SignedIn, LeaderboardsKeys.NotSetUp,
-                LeaderboardsKeys.Leaderboard, LeaderboardsKeys.Achievements
-            };
+            var keys = new[] { LeaderboardsKeys.NotSetUp, LeaderboardsKeys.Leaderboard, LeaderboardsKeys.Achievements };
             foreach (var key in keys) Assert.That(english.Get(key), Is.Not.EqualTo(key), key);
         }
     }

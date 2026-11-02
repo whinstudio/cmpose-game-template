@@ -7,8 +7,9 @@ using VContainer.Unity;
 
 namespace Kturker.UnityBase.Features.Shell.Purchases
 {
-    // The shop for the purchases flag in both project kinds (installed by RootInstaller's purchases block), and the
-    // Remove Ads row in Settings while the game has ads. The catalog is the economy's (Remove Ads only without one).
+    // The shop for the purchases flag in both project kinds (installed by RootInstaller's purchases block), the settings
+    // card's Restore button, and its Remove Ads button while the game has ads. The catalog is the economy's (Remove Ads
+    // only without one).
     public sealed class ShopInstaller : IInstaller
     {
         public void Install(IContainerBuilder builder)
@@ -21,7 +22,8 @@ namespace Kturker.UnityBase.Features.Shell.Purchases
                 resolver.TryResolve<IShopCatalog>(out var catalog) ? catalog : null, resolver.Resolve<IEconomy>(),
                 resolver.Resolve<EconomyCurrency>(), resolver.Resolve<ILocalizer>(), adsOn, resolver.Resolve<IUiFeedback>(),
                 resolver.Resolve<UiBinder>(), resolver.Resolve<ILog>(), () => AutoPlaySwitch.Requested), Lifetime.Singleton);
-            if (adsOn) builder.Register<ISettingsSection, PremiumSection>(Lifetime.Singleton);
+            builder.Register<ISettingsAction, RestoreAction>(Lifetime.Singleton);
+            if (adsOn) builder.Register<ISettingsAction, RemoveAdsAction>(Lifetime.Singleton);
         }
     }
 }

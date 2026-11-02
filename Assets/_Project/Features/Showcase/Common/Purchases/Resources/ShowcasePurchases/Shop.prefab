@@ -212,6 +212,7 @@ MonoBehaviour:
   iconBack: {fileID: 0}
   icon: {fileID: 0}
   contentOffset: {x: 0, y: 0}
+  capOffset: 0.5435293
 --- !u!1 &4143676346147047647
 GameObject:
   m_ObjectHideFlags: 0
@@ -502,7 +503,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0.5435293}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1385603493758181901
@@ -633,6 +634,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
   role: 1
+  fitted: 0
+  ownAutoSize: 0
+  ownSize: 0
+  ownMin: 0
+  ownMax: 0
+  groupOwned: 0
 --- !u!114 &267206363843895048
 MonoBehaviour:
   m_ObjectHideFlags: 0

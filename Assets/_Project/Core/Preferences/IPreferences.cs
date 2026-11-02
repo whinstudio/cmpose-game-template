@@ -12,6 +12,8 @@ namespace Kturker.UnityBase.Core.Preferences
         void SetFloat(string key, float value);
         string GetString(string key, string defaultValue);
         void SetString(string key, string value);
+        // The key reads as missing again (every Get returns its default)
+        void Delete(string key);
         void Save();
     }
 }

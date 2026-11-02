@@ -19,9 +19,6 @@ using VContainer.Unity;
 // cmpose:saveSystem
 using Kturker.UnityBase.Core.Save;
 // /cmpose:saveSystem
-// cmpose:uiTheme
-using Kturker.UnityBase.Core.Theme;
-// /cmpose:uiTheme
 // cmpose:multiLang
 using Kturker.UnityBase.Core.Language;
 // /cmpose:multiLang
@@ -86,8 +83,7 @@ namespace Kturker.UnityBase.Core.DI
             builder.Register<DeepLinkRouter>(Lifetime.Singleton);
             builder.Register<DeepLinkQueue>(Lifetime.Singleton);
             builder.RegisterEntryPoint<UnityDeepLinkSource>();
-            builder.Register<AboutInfo>(resolver => AboutInfo.From(resolver.Resolve<AppInfo>(), resolver.Resolve<AppConfig>()), Lifetime.Singleton);
-            // The game's credits (Resources/Credits.txt, Compass writes it): Settings shows its Credits row with them
+            // The game's credits (Resources/Credits.txt, Compass writes it): the settings card's Credits button shows them
             builder.Register<GameCredits>(_ => GameCredits.FromResources(), Lifetime.Singleton);
             builder.Register<IUrlOpener, UnityUrlOpener>(Lifetime.Singleton);
             builder.Register<StoreIdentity>(resolver =>
@@ -109,9 +105,6 @@ namespace Kturker.UnityBase.Core.DI
             new SaveInstaller().Install(builder);
             builder.Register<ILevelProgress, LevelProgress>(Lifetime.Singleton);
             // /cmpose:saveSystem
-            // cmpose:uiTheme
-            new ThemeInstaller().Install(builder);
-            // /cmpose:uiTheme
             // cmpose:multiLang
             new LanguageInstaller().Install(builder);
             // /cmpose:multiLang

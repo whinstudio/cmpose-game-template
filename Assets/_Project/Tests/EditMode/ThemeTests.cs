@@ -82,6 +82,14 @@ namespace Kturker.UnityBase.Tests.EditMode
 
     public sealed class ThemeTests
     {
+        // A game Compass dressed ships a skin, whose fonts would win over the style's (ThemeStyle.FontFor): these tests
+        // start without one either way
+        [SetUp]
+        public void NoSkin() => GameSkin.ForTests(GameSkin.Parse("{}", _ => null, _ => null));
+
+        [TearDown]
+        public void Clean() => GameSkin.ForTests(null);
+
         private static Palette Make(Color seed)
         {
             var palette = ScriptableObject.CreateInstance<Palette>();

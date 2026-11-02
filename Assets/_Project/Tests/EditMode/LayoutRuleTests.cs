@@ -2,8 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Kturker.UnityBase.App.Settings;
+// cmpose:multiLang
+using Kturker.UnityBase.Core.Language;
+// /cmpose:multiLang
 using Kturker.UnityBase.Core.Localization;
 using Kturker.UnityBase.Core.Presentation;
+// cmpose:purchases
+using Kturker.UnityBase.Core.Purchases;
+// /cmpose:purchases
 // cmpose:sample
 using Kturker.UnityBase.Features.Shell.GameShell;
 // /cmpose:sample
@@ -16,9 +22,11 @@ using Object = UnityEngine.Object;
 
 namespace Kturker.UnityBase.Tests.EditMode
 {
-    // The kit's layout rules on the built screens (spec §4.4), on every LayoutStage screen, without a skin and with a
-    // version 2 skin whose frames are thick: round icons centred on their face, settings in two columns, the settings
-    // card on the screen, HUD items apart, touch targets of 48 dp that never overlap, texts inside their boxes.
+    // The kit's layout rules on the built screens (spec §4.4), on every LayoutStage screen, without a skin, with a
+    // version 2 skin whose frames are thick and in the tallest font pair (LayoutStage.TallStyle): round icons centred on their
+    // face, the busiest settings card in every language (one-line texts, one control column, an equal button grid,
+    // touch-sized controls on the screen, one primary, Close top right, the language page), HUD items apart, touch
+    // targets of 48 dp that never overlap, texts inside their boxes.
     [Category("Layout")]
     public sealed class LayoutRuleTests
     {
@@ -32,8 +40,8 @@ namespace Kturker.UnityBase.Tests.EditMode
         // /cmpose:sample
         // The economy's windows, each a KitSheet under its own root on one canvas
         private const string EconomyPrefab = "Assets/_Project/Features/Economy/Resources/Economy/EconomyWindows.prefab";
-        // The settings rows: two columns each, the label left and the control right
-        private static readonly string[] SettingsRows = { "Music", "Sfx", "Vibration", "Section0", "Section1", "Section2", "Section3" };
+        // The language page over the settings card's content (it opens in Body's place)
+        private const string SettingsLanguages = SettingsCard + "/Languages";
         // Within this many units
         private const float Slack = 0.5f;
 
@@ -49,14 +57,19 @@ namespace Kturker.UnityBase.Tests.EditMode
             made.Clear();
         }
 
-        // Every screen without a skin and with the thick-frame skin; check gets the screen's name and a theme
+        // Every screen in the app's style without a skin and with the thick-frame skin, and in the tall font pair
+        // (LayoutStage.TallStyle) without a skin: the app's own style has the fonts of one family only, and a game may
+        // pick the pair the kit's sizes leave the least room for (the skin brings its own font); check gets the screen's
+        // name and a theme
         private void ForEachScreen(Action<string, Vector2, IThemeSource> check)
         {
-            foreach (var skinned in new[] { false, true })
+            var own = ThemeStyle.Load();
+            var tall = LayoutStage.TallStyle(made);
+            foreach (var (variant, skinned, style) in new[] { ("", false, own), (" (skin)", true, own), (" (Baloo 2)", false, tall) })
             {
                 GameSkin.ForTests(skinned ? ThickSkin() : GameSkin.Parse("{}", _ => null, _ => null));
                 foreach (var (name, screen) in LayoutStage.Screens)
-                    check(skinned ? $"{name} (skin)" : name, screen, Theme());
+                    check(name + variant, screen, Theme(style));
             }
         }
 
@@ -77,11 +90,11 @@ namespace Kturker.UnityBase.Tests.EditMode
             return GameSkin.Parse(json, path => sprites.TryGetValue(path, out var sprite) ? sprite : null, _ => null);
         }
 
-        private FakeThemeSource Theme()
+        private FakeThemeSource Theme(ThemeStyle style)
         {
             var palette = ScriptableObject.CreateInstance<Palette>();
             made.Add(palette);
-            return new FakeThemeSource { Current = palette, Style = ThemeStyle.Load() };
+            return new FakeThemeSource { Current = palette, Style = style };
         }
 
         // A scene staged for check, closed afterwards
@@ -127,8 +140,12 @@ namespace Kturker.UnityBase.Tests.EditMode
             {
                 var kit = button.GetComponent<KitButton>();
                 var space = (RectTransform)button;
-                var glyph = kit.Icon != null && kit.Icon.isActiveAndEnabled && kit.Icon.sprite != null ? kit.Icon.rectTransform : kit.Label.rectTransform;
-                var off = In(space, glyph).center - (In(space, kit.Body.rectTransform).center + kit.ContentOffset);
+                var isIcon = kit.Icon != null && kit.Icon.isActiveAndEnabled && kit.Icon.sprite != null;
+                var glyph = isIcon ? kit.Icon.rectTransform : kit.Label.rectTransform;
+                // A text glyph (the pause button's "II") also sits its font's cap offset off so that its capitals are on
+                // the face's middle (KitButton.CapOffset, as KitLayoutTests measures it): only the face's offset is measured
+                var cap = isIcon ? Vector2.zero : new Vector2(0f, KitButton.CapOffset(kit.Label));
+                var off = In(space, glyph).center - cap - (In(space, kit.Body.rectTransform).center + kit.ContentOffset);
                 if (off.magnitude > 1f) problems.Add($"{where}: {LayoutStage.PathOf(button)} icon {off} off its face's centre");
             }
             ForEachScreen((name, screen, theme) =>
@@ -145,61 +162,358 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(problems, Is.Empty, string.Join("\n", problems));
         }
 
+        // The languages the texts are checked in
+        private static List<string> Languages()
+        {
+            var languages = new List<string> { "en" };
+            // cmpose:multiLang
+            languages.AddRange(new[] { "tr", "fr", "es", "it" });
+            // /cmpose:multiLang
+            return languages;
+        }
+
+        // What the card's footer can show in the place of its links (the settings actions' results)
+        private static List<string> MessageKeys()
+        {
+            var keys = new List<string>();
+            // cmpose:purchases
+            keys.AddRange(new[]
+            {
+                PurchasesKeys.Restored, PurchasesKeys.ErrorUnavailable, PurchasesKeys.ErrorPackageUnavailable, PurchasesKeys.ErrorNothingToRestore
+            });
+            foreach (StoreErrorKind kind in Enum.GetValues(typeof(StoreErrorKind))) keys.Add(PurchasesKeys.Error(kind));
+            // /cmpose:purchases
+            return keys;
+        }
+
+        // The settings card at its busiest on every screen in every language: every row, Primary, the six grid buttons, both
+        // links and the version shown (LayoutStage shows every child), the texts in the language, the footer's message
+        // the widest one there is, the language page's rows copied for the supported languages; check gets the
+        // screen's and the language's name, the staged root and the card. Each staged copy is gone after its check.
+        private void ForEachBusyCard(Action<string, Transform, Transform> check)
+        {
+            var localizer = new TableLocalizer(new ResourcesStringSource(), new FakeLog(), false);
+            foreach (var language in Languages())
+            {
+                Assert.That(localizer.SetLanguage(language), Is.True, language);
+                ForEachScreen((name, screen, theme) =>
+                {
+                    var root = LayoutStage.Prefab(SettingsPrefab, screen, theme, made);
+                    var card = Require(root.transform, SettingsCard);
+                    Busy(card, localizer);
+                    LayoutStage.Layout(root);
+                    check($"{name} {language}", root.transform, card);
+                    Object.DestroyImmediate(root);
+                });
+            }
+        }
+
+        private static void Busy(Transform card, TableLocalizer localizer)
+        {
+            foreach (var localized in card.GetComponentsInChildren<LocalizedText>())
+            {
+                if (string.IsNullOrEmpty(localized.Key)) continue;
+                var text = localizer.Get(localized.Key);
+                localized.GetComponent<TMP_Text>().text = text.Contains("{0}") ? localizer.Get(localized.Key, "English") : text;
+            }
+            var message = Require(card, "Footer/Message").GetComponent<TMP_Text>();
+            message.text = MessageKeys().Select(key => localizer.Get(key)).OrderByDescending(text => message.GetPreferredValues(text).x)
+                .FirstOrDefault() ?? string.Empty;
+            var content = Require(card, "Languages/List/Viewport/Content");
+            Require(content, "Device/Now").GetComponent<TMP_Text>().text = localizer.Get(SettingsView.DeviceLanguageNowKey, "English");
+            var template = Require(content, "Language");
+            foreach (var name in LanguageNames())
+            {
+                var row = Object.Instantiate(template.gameObject, content, false);
+                row.name = name;
+                row.GetComponent<KitButton>().Label.text = name;
+            }
+            template.gameObject.SetActive(false);
+        }
+
+        // The language page's rows (one without the language choice: the template's own)
+        private static List<string> LanguageNames()
+        {
+            var names = new List<string> { "English" };
+            // cmpose:multiLang
+            names = LanguageSelector.Supported.Select(language => language.Name).ToList();
+            // /cmpose:multiLang
+            return names;
+        }
+
+        // The members a text group fits and the most lines they may take (KitTextGroup keeps them private)
+        private static List<TMP_Text> Members(KitTextGroup group, out int lines)
+        {
+            var serialized = new UnityEditor.SerializedObject(group);
+            lines = serialized.FindProperty("lines").intValue;
+            var property = serialized.FindProperty("members");
+            var members = new List<TMP_Text>();
+            for (var i = 0; i < property.arraySize; i++)
+                if (property.GetArrayElementAtIndex(i).objectReferenceValue is TMP_Text member) members.Add(member);
+            return members;
+        }
+
+        // The rect a text's letters take, in world units
+        private static Rect Letters(TMP_Text text)
+        {
+            var bounds = text.textBounds;
+            var min = text.rectTransform.TransformPoint(bounds.min);
+            var max = text.rectTransform.TransformPoint(bounds.max);
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        // A transform and its children's rects together (a button and its touch area), in world units
+        private static Rect WorldWithChildren(Transform t)
+        {
+            var all = t.GetComponentsInChildren<RectTransform>().Select(LayoutStage.World).ToList();
+            return Rect.MinMaxRect(all.Min(r => r.xMin), all.Min(r => r.yMin), all.Max(r => r.xMax), all.Max(r => r.yMax));
+        }
+
+        // A text's string key, or the text itself when it has none
+        private static string KeyOf(TMP_Text text)
+        {
+            var localized = text.GetComponent<LocalizedText>();
+            return localized != null && !string.IsNullOrEmpty(localized.Key) ? localized.Key : $"\"{text.text}\"";
+        }
+
+        private static bool Overflows(TMP_Text text)
+        {
+            var room = text.rectTransform.rect.width - text.margin.x - text.margin.z;
+            return text.isTextOverflowing || text.textBounds.size.x > room + 1f;
+        }
+
+        private static bool Overlap(Rect a, Rect b) =>
+            Mathf.Min(a.xMax, b.xMax) - Mathf.Max(a.xMin, b.xMin) > Slack && Mathf.Min(a.yMax, b.yMax) - Mathf.Max(a.yMin, b.yMin) > Slack;
+
+        // A selectable's touch area as the screen shows it: after the card's fit scale, in canvas units
+        private static Vector2 ShownTouch(Selectable selectable, Transform root)
+        {
+            var hit = HitRect(selectable, out _);
+            return hit.HasValue ? hit.Value.size / root.lossyScale.x : Vector2.zero;
+        }
+
+        private static readonly string[] RowNames = { "Music", "Sfx", "Vibration", "Language" };
+
+        // Every group (Title, Rows, Buttons, Footer) on one line and the footer's message on at most two, inside their
+        // boxes, each at its group's one size, not under its minimum
         [Test]
-        public void Settings_rows_share_two_columns()
+        public void Settings_texts_fit_one_line_in_every_language()
         {
             var problems = new List<string>();
-            ForEachScreen((name, screen, theme) =>
+            ForEachBusyCard((where, root, card) =>
             {
-                var card = (RectTransform)Require(LayoutStage.Prefab(SettingsPrefab, screen, theme, made).transform, SettingsCard);
-                var padding = card.GetComponent<KitCard>().ContentPadding;
-                var box = card.rect;
-                var content = Rect.MinMaxRect(box.xMin + padding.left, box.yMin + padding.bottom, box.xMax - padding.right, box.yMax - padding.top);
-                float? labelStart = null, controlEnd = null, sliderWidth = null;
-                foreach (var rowName in SettingsRows)
+                var groups = card.GetComponentsInChildren<KitTextGroup>();
+                if (groups.Length != 5) problems.Add($"{where}: {groups.Length} text groups, not 5 (Title, Rows, Buttons, Footer, Message)");
+                var message = Require(card, "Footer/Message");
+                foreach (var group in groups)
                 {
-                    var row = (RectTransform)Require(card, rowName);
-                    var label = (RectTransform)(row.Find("Label") ?? row.Find("Title"));
-                    var control = (RectTransform)(row.GetComponentInChildren<Selectable>(true).transform);
-                    if (label == null)
+                    var name = LayoutStage.PathOf(group.transform);
+                    var members = Members(group, out var lines);
+                    var expected = group.transform == message ? 2 : 1;
+                    if (lines != expected) problems.Add($"{where}: {name} on {lines} lines, not {expected}");
+                    if (!group.Fits) problems.Add($"{where}: {name} goes down to {group.Size}, under its minimum");
+                    foreach (var member in members)
                     {
-                        problems.Add($"{name}: {rowName} has no label");
-                        continue;
+                        if (!member.isActiveAndEnabled || string.IsNullOrEmpty(member.text)) continue;
+                        var line = $"{where}: {KeyOf(member)} ({LayoutStage.PathOf(member.transform)})";
+                        if (member.textInfo.lineCount > expected) problems.Add($"{line} on {member.textInfo.lineCount} lines");
+                        if (Overflows(member) || member.textBounds.size.y > member.rectTransform.rect.height + 1f)
+                            problems.Add($"{line} overflows its box ({member.textBounds.size} in {member.rectTransform.rect.size})");
+                        if (!Mathf.Approximately(member.fontSize, group.Size)) problems.Add($"{line} at {member.fontSize}, its group at {group.Size}");
                     }
-                    var rowRect = In(card, row);
-                    var l = In(card, label);
-                    var c = In(card, control);
-                    labelStart = labelStart ?? l.xMin;
-                    controlEnd = controlEnd ?? c.xMax;
-                    if (Mathf.Abs(l.xMin - labelStart.Value) > Slack) problems.Add($"{name}: {rowName} label starts at {l.xMin}, not {labelStart}");
-                    if (Mathf.Abs(c.xMax - controlEnd.Value) > Slack) problems.Add($"{name}: {rowName} control ends at {c.xMax}, not {controlEnd}");
-                    var start = rowRect.xMin + SettingsView.ControlStart * rowRect.width;
-                    var isSwitch = control.GetComponent<Toggle>() != null;
-                    if (isSwitch ? c.xMin < start - Slack : Mathf.Abs(c.xMin - start) > Slack)
-                        problems.Add($"{name}: {rowName} control starts at {c.xMin}, not at the control column ({start})");
-                    if (l.xMax > rowRect.xMin + SettingsView.LabelShare * rowRect.width + Slack) problems.Add($"{name}: {rowName} label crosses its column");
-                    if (control.GetComponent<Slider>() != null)
-                    {
-                        sliderWidth = sliderWidth ?? c.width;
-                        if (Mathf.Abs(c.width - sliderWidth.Value) > Slack) problems.Add($"{name}: {rowName} is {c.width} wide, not {sliderWidth}");
-                    }
-                    if (!Inside(content, l)) problems.Add($"{name}: {rowName} label {l} outside the card's content {content}");
-                    if (!Inside(content, c)) problems.Add($"{name}: {rowName} control {c} outside the card's content {content}");
                 }
             });
             Assert.That(problems, Is.Empty, string.Join("\n", problems));
         }
 
+        // The three switches and the language button "EN ›" in one column at the rows' right end
         [Test]
-        public void Settings_card_fits_the_screen_height()
+        public void Settings_controls_share_one_column()
         {
             var problems = new List<string>();
-            ForEachScreen((name, screen, theme) =>
+            ForEachBusyCard((where, root, card) =>
             {
-                var root = LayoutStage.Prefab(SettingsPrefab, screen, theme, made).transform;
-                var card = LayoutStage.World((RectTransform)Require(root, SettingsCard));
+                var rows = Require(card, "Body/Rows");
+                var controls = RowNames.Select(row => (row, LayoutStage.World((RectTransform)Require(rows, $"{row}/Control")))).ToList();
+                var (first, column) = controls[0];
+                foreach (var (row, rect) in controls.Skip(1))
+                {
+                    if (Mathf.Abs(rect.width - column.width) > Slack) problems.Add($"{where}: {row}'s control {rect.width} wide, {first}'s {column.width}");
+                    if (Mathf.Abs(rect.xMin - column.xMin) > Slack || Mathf.Abs(rect.xMax - column.xMax) > Slack)
+                        problems.Add($"{where}: {row}'s control {rect} out of {first}'s column {column}");
+                }
+            });
+            Assert.That(problems, Is.Empty, string.Join("\n", problems));
+        }
+
+        // Two columns of equal cells; with Credits hidden the odd last one (Rate) spans both
+        [Test]
+        public void Settings_grid_buttons_are_equal_and_an_odd_last_one_spans()
+        {
+            var problems = new List<string>();
+            ForEachBusyCard((where, root, card) =>
+            {
+                var grid = Require(card, "Body/Actions/Grid");
+                Rect Cell(string name) => LayoutStage.World((RectTransform)Require(grid, name));
+                var cells = new[] { "Restore", "SignIn", "AdPrivacy", "Support", "Rate", "Credits" };
+                var size = Cell("Restore").size;
+                var left = Cell("Restore");
+                var right = Cell("SignIn");
+                // World units over the card's fit scale: the grid's own units
+                var scale = card.lossyScale.x / root.lossyScale.x;
+                if ((right.xMin - left.xMax) / scale < KitLayout.Gap - Slack) problems.Add($"{where}: the grid's columns {left} and {right} not apart");
+                for (var i = 0; i < cells.Length; i++)
+                {
+                    var rect = Cell(cells[i]);
+                    var column = i % 2 == 0 ? left : right;
+                    if (Vector2.Distance(rect.size, size) > Slack) problems.Add($"{where}: {cells[i]} {rect.size}, Restore {size}");
+                    if (Mathf.Abs(rect.xMin - column.xMin) > Slack) problems.Add($"{where}: {cells[i]} {rect} out of its column");
+                }
+                Require(grid, "Credits").gameObject.SetActive(false);
+                LayoutStage.Layout(root.gameObject);
+                var rate = Cell("Rate");
+                if (Mathf.Abs(rate.xMin - left.xMin) > Slack || Mathf.Abs(rate.xMax - right.xMax) > Slack)
+                    problems.Add($"{where}: the odd last button {rate} does not span both columns ({left.xMin} to {right.xMax})");
+                if (Mathf.Abs(rate.height - size.y) > Slack) problems.Add($"{where}: the odd last button {rate.height} high, the others {size.y}");
+                foreach (var name in cells.Take(4))
+                    if (Vector2.Distance(Cell(name).size, size) > Slack) problems.Add($"{where}: {name} {Cell(name).size} with Credits hidden, {size} before");
+            });
+            Assert.That(problems, Is.Empty, string.Join("\n", problems));
+        }
+
+        // The busiest card inside the safe area, every control still 48 dp after the card's fit scale; on a landscape
+        // screen Rows and Actions side by side, on a portrait one Rows over Actions
+        [Test]
+        public void Settings_busiest_card_fits_with_touch_sized_controls()
+        {
+            var problems = new List<string>();
+            ForEachBusyCard((where, root, card) =>
+            {
+                var cardRect = LayoutStage.World((RectTransform)card);
                 var safe = LayoutStage.World((RectTransform)Require(root, "Panel/SafeArea"));
-                if (!Inside(safe, card)) problems.Add($"{name}: card {card} outside the safe area {safe}");
+                if (!Inside(safe, cardRect)) problems.Add($"{where}: card {cardRect} outside the safe area {safe}");
+                var body = Require(card, "Body/Rows").parent;
+                var touched = RowNames.Select(row => Require(body, $"Rows/{row}/Control")).ToList();
+                touched.Add(Require(body, "Actions/Primary"));
+                touched.AddRange(Require(body, "Actions/Grid").Cast<Transform>());
+                touched.Add(Require(card, "Close"));
+                foreach (var t in touched)
+                {
+                    var selectable = t.GetComponent<Selectable>();
+                    if (selectable == null)
+                    {
+                        problems.Add($"{where}: {LayoutStage.PathOf(t)} takes no touches");
+                        continue;
+                    }
+                    var size = ShownTouch(selectable, root);
+                    if (size.x < KitLayout.MinTouch - Slack || size.y < KitLayout.MinTouch - Slack)
+                        problems.Add($"{where}: {LayoutStage.PathOf(t)} {size} on the screen, under {KitLayout.MinTouch}");
+                }
+                var rows = LayoutStage.World((RectTransform)Require(body, "Rows"));
+                var actions = LayoutStage.World((RectTransform)Require(body, "Actions"));
+                var landscape = where.Contains("landscape");
+                if (landscape && !(rows.xMax < actions.xMin)) problems.Add($"{where}: Rows {rows} and Actions {actions} not side by side");
+                if (!landscape && !(rows.yMin > actions.yMax)) problems.Add($"{where}: Rows {rows} not over Actions {actions}");
+                // The footer: under Body in portrait; in landscape in the title's row, clear of the title's letters and of
+                // Close with its touch area, the title still shown
+                var footer = Require(card, "Footer");
+                var bodyRect = LayoutStage.World((RectTransform)body);
+                var footerRect = LayoutStage.World((RectTransform)footer);
+                var title = Require(card, "Title").GetComponent<TMP_Text>();
+                if (!Inside(cardRect, footerRect)) problems.Add($"{where}: the footer {footerRect} off the card {cardRect}");
+                if (!landscape && !(footerRect.yMax <= bodyRect.yMin + Slack)) problems.Add($"{where}: the footer {footerRect} not under Body {bodyRect}");
+                // Under Body in landscape the card's bottom padding is its side padding, not the portrait footer's
+                var padding = card.GetComponent<VerticalLayoutGroup>().padding;
+                if (landscape && padding.bottom != padding.left) problems.Add($"{where}: the card's bottom padding {padding.bottom}, its sides {padding.left}");
+                if (!landscape) return;
+                var titleRow = LayoutStage.World(title.rectTransform);
+                if (footerRect.yMin < titleRow.yMin - Slack || footerRect.yMax > titleRow.yMax + Slack)
+                    problems.Add($"{where}: the footer {footerRect} not in the title's row {titleRow}");
+                var letters = Letters(title);
+                var closeRect = WorldWithChildren(Require(card, "Close"));
+                foreach (var part in new[] { "Privacy", "Dot", "Terms", "Version", "Message" })
+                {
+                    var text = Require(footer, part).GetComponent<TMP_Text>();
+                    var rect = part == "Message" ? LayoutStage.World(text.rectTransform) : WorldWithChildren(text.transform);
+                    if (Overlap(rect, closeRect)) problems.Add($"{where}: Footer/{part} {rect} overlaps Close {closeRect}");
+                    if (Overlap(part == "Message" ? rect : Letters(text), letters)) problems.Add($"{where}: Footer/{part} overlaps the title's letters {letters}");
+                }
+            });
+            Assert.That(problems, Is.Empty, string.Join("\n", problems));
+        }
+
+        // RemoveAds is the card's one primary button; Close's centre in the card's top right quarter
+        [Test]
+        public void Settings_has_one_primary_and_close_top_right()
+        {
+            var problems = new List<string>();
+            ForEachBusyCard((where, root, card) =>
+            {
+                var primaries = card.GetComponentsInChildren<KitButton>().Where(b => b.Variant == KitButtonVariant.Primary)
+                    .Select(b => LayoutStage.PathOf(b.transform)).ToList();
+                var expected = LayoutStage.PathOf(Require(card, "Body/Actions/Primary"));
+                if (primaries.Count != 1 || primaries[0] != expected)
+                    problems.Add($"{where}: primary buttons {string.Join(", ", primaries)}, not {expected} alone");
+                var cardRect = LayoutStage.World((RectTransform)card);
+                var close = LayoutStage.World((RectTransform)Require(card, "Close")).center;
+                if (!cardRect.Contains(close) || close.x <= cardRect.center.x || close.y <= cardRect.center.y)
+                    problems.Add($"{where}: Close's centre {close} not in the top right quarter of the card {cardRect}");
+            });
+            Assert.That(problems, Is.Empty, string.Join("\n", problems));
+        }
+
+        // The language page opens in the card's place: the card keeps its size, the page stays on it, its title clear of
+        // Back and Close and on one line, its list the card's only scrolling part (vertically), each row as wide as the
+        // list, 48 dp on the screen and its texts inside it
+        [Test]
+        public void Settings_language_page_fits_and_scrolls_only_its_list()
+        {
+            var problems = new List<string>();
+            ForEachBusyCard((where, root, card) =>
+            {
+                var page = Require(card, "Languages");
+                var cardRect = LayoutStage.World((RectTransform)card);
+                page.gameObject.SetActive(false);
+                LayoutStage.Layout(root.gameObject);
+                var closed = LayoutStage.World((RectTransform)card);
+                page.gameObject.SetActive(true);
+                LayoutStage.Layout(root.gameObject);
+                if (Vector2.Distance(cardRect.size, closed.size) > Slack) problems.Add($"{where}: the card {cardRect.size} with the page, {closed.size} without");
+                var pageRect = LayoutStage.World((RectTransform)page);
+                if (!Inside(cardRect, pageRect)) problems.Add($"{where}: the page {pageRect} off the card {cardRect}");
+                var title = Require(page, "Title").GetComponent<TMP_Text>();
+                var titleRect = LayoutStage.World(title.rectTransform);
+                foreach (var (name, other) in new[] { ("Back", Require(page, "Back")), ("Close", Require(card, "Close")) })
+                    if (Overlap(titleRect, LayoutStage.World((RectTransform)other))) problems.Add($"{where}: the page's title overlaps {name}");
+                if (title.textInfo.lineCount != 1 || Overflows(title)) problems.Add($"{where}: the page's title \"{title.text}\" not on one line in its box");
+                var scrolls = card.GetComponentsInChildren<ScrollRect>();
+                var list = Require(page, "List").GetComponent<ScrollRect>();
+                if (scrolls.Length != 1 || scrolls[0] != list)
+                    problems.Add($"{where}: scrolling parts {string.Join(", ", scrolls.Select(x => x.name))}, not the list alone");
+                if (list == null) return;
+                if (!list.vertical || list.horizontal) problems.Add($"{where}: the list does not scroll vertically only");
+                var listRect = LayoutStage.World((RectTransform)list.transform);
+                if (!Inside(pageRect, listRect)) problems.Add($"{where}: the list {listRect} off the page {pageRect}");
+                var viewport = LayoutStage.World(list.viewport);
+                var shown = 0;
+                foreach (Transform row in list.content)
+                {
+                    if (!row.gameObject.activeSelf) continue;
+                    shown++;
+                    var rect = LayoutStage.World((RectTransform)row);
+                    if (Mathf.Abs(rect.xMin - viewport.xMin) > Slack || Mathf.Abs(rect.xMax - viewport.xMax) > Slack)
+                        problems.Add($"{where}: language row {row.name} {rect} not as wide as the list {viewport}");
+                    var size = ShownTouch(row.GetComponent<Selectable>(), root);
+                    if (size.y < KitLayout.MinTouch - Slack) problems.Add($"{where}: language row {row.name} {size} on the screen, under {KitLayout.MinTouch}");
+                    foreach (var text in row.GetComponentsInChildren<TMP_Text>())
+                    {
+                        if (string.IsNullOrEmpty(text.text)) continue;
+                        if (Overflows(text) || text.textInfo.lineCount != 1) problems.Add($"{where}: language row {row.name}: \"{text.text}\" not on one line in its box");
+                        if (text.enableAutoSizing && text.fontSize < text.fontSizeMin - 0.01f)
+                            problems.Add($"{where}: language row {row.name}: \"{text.text}\" at {text.fontSize}, under {text.fontSizeMin}");
+                    }
+                }
+                if (shown != LanguageNames().Count + 1) problems.Add($"{where}: {shown} language rows, not Device and {LanguageNames().Count}");
             });
             Assert.That(problems, Is.Empty, string.Join("\n", problems));
         }
@@ -261,6 +575,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         {
             var settings = LayoutStage.Prefab(SettingsPrefab, screen, theme, made).transform;
             check($"{name} Settings", Require(settings, SettingsCard));
+            check($"{name} Languages", Require(settings, SettingsLanguages));
             check($"{name} Credits", Require(settings, CreditsArea));
             InScene(MenuScene, screen, theme, canvas => check($"{name} Menu", Require(canvas, "SafeArea/Menu")));
             // cmpose:sample
@@ -292,6 +607,13 @@ namespace Kturker.UnityBase.Tests.EditMode
             return hit;
         }
 
+        private static bool Below(Transform t, Transform ancestor)
+        {
+            for (; t != null; t = t.parent)
+                if (t == ancestor) return true;
+            return false;
+        }
+
         [Test]
         public void Touch_targets_reach_48dp()
         {
@@ -303,6 +625,8 @@ namespace Kturker.UnityBase.Tests.EditMode
                 {
                     // The menu's side button is a template code copies into the side columns
                     if (selectable.GetComponentsInParent<Transform>(true).Any(t => t.name == "SideButton")) continue;
+                    // The settings card's language page is a group of its own: it opens in the place of the card's body
+                    if (root.name == "Card" && Below(selectable.transform, Require(root, "Languages"))) continue;
                     var path = LayoutStage.PathOf(selectable.transform);
                     var hit = HitRect(selectable, out var fit);
                     if (!hit.HasValue)
@@ -331,11 +655,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         {
             var problems = new List<string>();
             var localizer = new TableLocalizer(new ResourcesStringSource(), new FakeLog(), false);
-            var languages = new List<string> { "en" };
-            // cmpose:multiLang
-            languages.AddRange(new[] { "tr", "fr" });
-            // /cmpose:multiLang
-            foreach (var language in languages)
+            foreach (var language in Languages())
             {
                 Assert.That(localizer.SetLanguage(language), Is.True, language);
                 void Check(string where, GameObject root)

@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Generic;
-using Kturker.UnityBase.App.About;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Kturker.UnityBase.Core.About;
 using Kturker.UnityBase.Core.Audio;
+using Kturker.UnityBase.Core.Domain;
 using Kturker.UnityBase.Core.Haptics;
 using Kturker.UnityBase.Core.Preferences;
 using Kturker.UnityBase.Core.Presentation;
@@ -9,119 +12,237 @@ using Kturker.UnityBase.Core.Review;
 
 namespace Kturker.UnityBase.App.Settings
 {
-    // Sliders and the toggle write through at once; Close saves the preferences once. Opening an open panel or
-    // closing a closed one does nothing. "Rate the app" opens the store page (hidden on iOS without an App Store ID).
-    // Feature flags add section rows (ISettingsSection; one without options is hidden); pressing a row selects its next option.
-    // Credits shows when the game has credits (Resources/Credits.txt): it opens them over this panel, Close comes back.
-    // The last row, About, shows once the scene offers its About panel (the menu): it closes this panel, then opens About.
+    // The settings card. The switches write through at once; Close saves the preferences once. Opening an open card or
+    // closing a closed one does nothing. The buttons keep the SettingsButton order and only the visible ones show: the
+    // flags' actions (ISettingsAction), Support (AppConfig.SupportUrl), Rate (a store page) and Credits (the game's
+    // credits, then the third-party notices). An action runs once at a time; its message shows for MessageSeconds, and
+    // a card closed meanwhile gets none. The language row shows with a language choice of two or more languages; its
+    // list opens inside the card. Privacy and Terms show when their URL is set.
     public sealed class SettingsPresenter : Presenter<ISettingsView>, ISettingsPanel
     {
+        public const int MessageSeconds = 3;
+
+        private static readonly SettingsButton[] Order = (SettingsButton[])Enum.GetValues(typeof(SettingsButton));
+
         private readonly AudioPreferences audio;
         private readonly HapticsService haptics;
         private readonly IPreferences preferences;
         private readonly IUiFeedback feedback;
         private readonly ReviewPrompter review;
-        private readonly IReadOnlyList<ISettingsSection> sections;
-        private readonly GameCredits credits;
-        // The sections that have options, in order: the rows the view shows
-        private readonly List<ISettingsSection> shown = new List<ISettingsSection>();
-        private IAboutPanel about;
+        private readonly IReadOnlyList<ISettingsAction> actions;
+        private readonly ISettingsLanguage language;
+        private readonly IUrlOpener urls;
+        private readonly string creditsText;
+        private readonly string supportUrl;
+        private readonly string privacyUrl;
+        private readonly string termsUrl;
+        private readonly string versionLabel;
+        private readonly HashSet<SettingsButton> running = new HashSet<SettingsButton>();
+        private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
+        // Counts the openings, so an action that ends after its card closed (and maybe opened again) shows nothing
+        private int session;
+        // Counts the messages, so a message's timer clears only that message
+        private int message;
+        private bool languagesOpen;
         private bool creditsOpen;
 
         public SettingsPresenter(ISettingsView view, AudioPreferences audio, HapticsService haptics, IPreferences preferences,
-            IUiFeedback feedback, ReviewPrompter review, IReadOnlyList<ISettingsSection> sections, GameCredits credits) : base(view)
+            IUiFeedback feedback, ReviewPrompter review, IReadOnlyList<ISettingsAction> actions,
+            IReadOnlyList<ISettingsLanguage> languages, GameCredits credits, AppConfig config, AppInfo app, IUrlOpener urls)
+            : base(view)
         {
             this.audio = audio;
             this.haptics = haptics;
             this.preferences = preferences;
             this.feedback = feedback;
             this.review = review;
-            this.sections = sections;
-            this.credits = credits;
+            this.actions = actions;
+            language = languages.Count > 0 ? languages[0] : null;
+            this.urls = urls;
+            creditsText = CreditsText(credits, config);
+            supportUrl = Openable(config != null ? config.SupportUrl : null);
+            privacyUrl = Openable(config != null ? config.PrivacyUrl : null);
+            termsUrl = Openable(config != null ? config.TermsUrl : null);
+            versionLabel = $"v{app.Version}";
         }
 
         public bool IsOpen { get; private set; }
 
+        private bool HasLanguageRow => language != null && language.Languages.Count >= 2;
+
         public override void Start()
         {
-            View.SetRateVisible(review.CanOpenStorePage);
-            View.SetAboutVisible(about != null);
-            View.SetCreditsVisible(credits.HasText);
-            View.MusicChanged += OnMusic;
-            View.SfxChanged += OnSfx;
-            View.VibrationChanged += OnVibration;
-            View.RateClicked += OnRate;
-            View.AboutClicked += OnAbout;
-            View.CreditsClicked += OnCredits;
-            View.CreditsCloseClicked += OnCreditsClose;
+            View.MusicToggled += OnMusic;
+            View.SfxToggled += OnSfx;
+            View.VibrationToggled += OnVibration;
+            View.ButtonClicked += OnButton;
+            View.LanguageClicked += OnLanguage;
+            View.LanguagesBackClicked += OnLanguagesBack;
+            View.LanguageChosen += OnLanguageChosen;
+            View.PrivacyClicked += OnPrivacy;
+            View.TermsClicked += OnTerms;
             View.CloseClicked += OnClose;
-            foreach (var section in sections) section.Changed += RenderSections;
-            View.SectionClicked += OnSection;
-            RenderSections();
+            View.CreditsCloseClicked += OnCreditsClose;
+            foreach (var action in actions) action.Changed += RenderButtons;
+            if (language != null) language.Changed += OnLanguageChanged;
+            RenderButtons();
+            RenderLanguageRow();
+            View.ShowLinks(privacyUrl != null, termsUrl != null);
+            View.ShowVersion(versionLabel);
         }
 
         public override void Dispose()
         {
-            View.MusicChanged -= OnMusic;
-            View.SfxChanged -= OnSfx;
-            View.VibrationChanged -= OnVibration;
-            View.RateClicked -= OnRate;
-            View.AboutClicked -= OnAbout;
-            View.CreditsClicked -= OnCredits;
-            View.CreditsCloseClicked -= OnCreditsClose;
+            View.MusicToggled -= OnMusic;
+            View.SfxToggled -= OnSfx;
+            View.VibrationToggled -= OnVibration;
+            View.ButtonClicked -= OnButton;
+            View.LanguageClicked -= OnLanguage;
+            View.LanguagesBackClicked -= OnLanguagesBack;
+            View.LanguageChosen -= OnLanguageChosen;
+            View.PrivacyClicked -= OnPrivacy;
+            View.TermsClicked -= OnTerms;
             View.CloseClicked -= OnClose;
-            foreach (var section in sections) section.Changed -= RenderSections;
-            View.SectionClicked -= OnSection;
+            View.CreditsCloseClicked -= OnCreditsClose;
+            foreach (var action in actions) action.Changed -= RenderButtons;
+            if (language != null) language.Changed -= OnLanguageChanged;
+            lifetime.Cancel();
         }
 
         public void Open()
         {
             if (IsOpen) return;
             IsOpen = true;
-            View.Show(audio.Music, audio.Sfx, haptics.Enabled);
+            session++;
+            View.Show(audio.MusicOn, audio.SfxOn, haptics.Enabled);
         }
 
-        public void OfferAbout(IAboutPanel panel)
+        private void OnMusic(bool on) => audio.MusicOn = on;
+
+        private void OnSfx(bool on) => audio.SfxOn = on;
+
+        private void OnVibration(bool on) => haptics.Enabled = on;
+
+        private void OnButton(SettingsButton button)
         {
-            about = panel;
-            View.SetAboutVisible(about != null);
+            if (!IsOpen || !Visible(button)) return;
+            switch (button)
+            {
+                case SettingsButton.Support:
+                    feedback.Click();
+                    urls.Open(supportUrl);
+                    break;
+                case SettingsButton.Rate:
+                    feedback.Click();
+                    review.OpenStorePage();
+                    break;
+                case SettingsButton.Credits:
+                    OnCredits();
+                    break;
+                default:
+                    var action = VisibleAction(button);
+                    if (action == null || !running.Add(button)) return;
+                    feedback.Click();
+                    RunAsync(action, session).Forget();
+                    break;
+            }
         }
 
-        private void OnMusic(float value) => audio.Music = value;
-
-        private void OnSfx(float value) => audio.Sfx = value;
-
-        private void OnVibration(bool value) => haptics.Enabled = value;
-
-        private void OnRate()
+        private async UniTaskVoid RunAsync(ISettingsAction action, int opened)
         {
+            string key;
+            try
+            {
+                key = await action.PressAsync(lifetime.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            finally
+            {
+                running.Remove(action.Button);
+            }
+            if (key == null || lifetime.IsCancellationRequested || !IsOpen || session != opened) return;
+            ShowMessage(key);
+        }
+
+        private void ShowMessage(string key)
+        {
+            var shown = ++message;
+            View.ShowMessage(key);
+            ClearLaterAsync(shown).Forget();
+        }
+
+        // Unscaled: the Game's pause panel opens this card at time scale 0
+        private async UniTaskVoid ClearLaterAsync(int shown)
+        {
+            var cancelled = await UniTask.Delay(TimeSpan.FromSeconds(MessageSeconds), ignoreTimeScale: true,
+                cancellationToken: lifetime.Token).SuppressCancellationThrow();
+            if (cancelled || shown != message) return;
+            ClearMessage();
+        }
+
+        private void ClearMessage()
+        {
+            message++;
+            View.ShowMessage(null);
+        }
+
+        private void OnLanguage()
+        {
+            if (!IsOpen || !HasLanguageRow || languagesOpen) return;
             feedback.Click();
-            review.OpenStorePage();
+            languagesOpen = true;
+            RenderLanguages();
         }
 
-        private void OnClose()
+        private void OnLanguagesBack()
         {
-            if (!IsOpen) return;
+            if (!languagesOpen) return;
             feedback.Click();
-            Close();
+            HideLanguages();
         }
 
-        // About draws under this panel's canvas, so the panel closes (and saves) first
-        private void OnAbout()
+        // Applies at once; the list stays open
+        private void OnLanguageChosen(string code)
         {
-            if (!IsOpen || about == null) return;
+            if (!languagesOpen) return;
             feedback.Click();
-            Close();
-            about.Open();
+            if (code == null) language.FollowDevice();
+            else language.Choose(code);
         }
 
-        // The credits draw over this panel, which stays open under them
+        private void OnLanguageChanged()
+        {
+            RenderLanguageRow();
+            if (languagesOpen) RenderLanguages();
+        }
+
+        private void HideLanguages()
+        {
+            languagesOpen = false;
+            View.HideLanguages();
+        }
+
+        private void OnPrivacy() => OpenLink(privacyUrl);
+
+        private void OnTerms() => OpenLink(termsUrl);
+
+        private void OpenLink(string url)
+        {
+            if (!IsOpen || url == null) return;
+            feedback.Click();
+            urls.Open(url);
+        }
+
+        // The credits draw over this card, which stays open under them
         private void OnCredits()
         {
-            if (!IsOpen || creditsOpen || !credits.HasText) return;
+            if (creditsOpen) return;
             feedback.Click();
             creditsOpen = true;
-            View.ShowCredits(credits.Text);
+            View.ShowCredits(creditsText);
         }
 
         private void OnCreditsClose()
@@ -137,37 +258,81 @@ namespace Kturker.UnityBase.App.Settings
             View.HideCredits();
         }
 
-        private void Close()
+        private void OnClose()
         {
+            if (!IsOpen) return;
+            feedback.Click();
             if (creditsOpen) HideCredits();
+            if (languagesOpen) HideLanguages();
+            ClearMessage();
             IsOpen = false;
             preferences.Save();
             View.Hide();
         }
 
-        private void RenderSections()
+        private void RenderButtons()
         {
-            shown.Clear();
-            var rows = new List<SettingsRow>(sections.Count);
-            foreach (var section in sections)
+            var shown = new List<SettingsButton>(Order.Length);
+            foreach (var button in Order)
             {
-                var options = section.Options;
-                if (options.Count == 0) continue;
-                var selected = section.Selected >= 0 && section.Selected < options.Count ? section.Selected : 0;
-                shown.Add(section);
-                rows.Add(new SettingsRow(section.TitleKey, options[selected]));
+                if (Visible(button)) shown.Add(button);
             }
-            View.ShowSections(rows);
+            View.ShowButtons(shown);
         }
 
-        private void OnSection(int index)
+        private void RenderLanguageRow() =>
+            View.ShowLanguageRow(HasLanguageRow ? (language.Current ?? string.Empty).ToUpperInvariant() : null);
+
+        private void RenderLanguages() =>
+            View.ShowLanguages(language.Languages, language.FollowsDevice ? null : language.Current, NameOf(language.Device));
+
+        private bool Visible(SettingsButton button)
         {
-            if (index < 0 || index >= shown.Count) return;
-            var section = shown[index];
-            if (section.Options.Count == 0) return;
-            feedback.Click();
-            var current = section.Selected >= 0 ? section.Selected : -1;
-            section.Select((current + 1) % section.Options.Count);
+            switch (button)
+            {
+                case SettingsButton.Support: return supportUrl != null;
+                case SettingsButton.Rate: return review.CanOpenStorePage;
+                case SettingsButton.Credits: return creditsText.Length > 0;
+                default: return VisibleAction(button) != null;
+            }
+        }
+
+        private ISettingsAction VisibleAction(SettingsButton button)
+        {
+            foreach (var action in actions)
+            {
+                if (action.Button == button && action.Visible) return action;
+            }
+            return null;
+        }
+
+        private string NameOf(string code)
+        {
+            foreach (var entry in language.Languages)
+            {
+                if (entry.Code == code) return entry.Name;
+            }
+            return code;
+        }
+
+        // The game's credits, then the third-party notices after a blank line; empty when there are neither
+        private static string CreditsText(GameCredits credits, AppConfig config)
+        {
+            var own = credits != null ? credits.Text : string.Empty;
+            var notices = config != null && config.ThirdPartyNotices != null ? config.ThirdPartyNotices.text.Trim() : string.Empty;
+            if (own.Length == 0) return notices;
+            return notices.Length == 0 ? own : $"{own}\n\n{notices}";
+        }
+
+        // A configured link opens only as https, http or mailto; anything else (blank included) hides its button
+        private static string Openable(string url)
+        {
+            var trimmed = (url ?? string.Empty).Trim();
+            foreach (var scheme in new[] { "https://", "http://", "mailto:" })
+            {
+                if (trimmed.Length > scheme.Length && trimmed.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) return trimmed;
+            }
+            return null;
         }
     }
 }

@@ -24,6 +24,9 @@ namespace Kturker.UnityBase.Tests.EditMode
         [SetUp]
         public void Open()
         {
+            // A game Compass dressed ships a skin, whose coin icon would stand in for a currency's own disc: these tests
+            // start without one either way
+            GameSkin.ForTests(GameSkin.Parse("{}", _ => null, _ => null));
             scene = EditorSceneManager.OpenScene("Assets/_Project/Scenes/Menu.unity", OpenSceneMode.Additive);
             canvas = scene.GetRootGameObjects().Single(r => r.name == "Canvas").transform;
             view = canvas.GetComponentInChildren<MenuView>(true);
@@ -33,6 +36,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         [TearDown]
         public void Close()
         {
+            GameSkin.ForTests(null);
             if (scene.IsValid()) EditorSceneManager.CloseScene(scene, true);
             foreach (var o in made)
                 if (o != null) Object.DestroyImmediate(o);

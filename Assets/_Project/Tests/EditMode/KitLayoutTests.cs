@@ -332,6 +332,79 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(laidOut, Is.EqualTo(0));
         }
 
+        private static TMP_FontAsset FamilyFont(string path)
+        {
+            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>($"Assets/_Project/Core/Presentation/Fonts/{path}.asset");
+            Assert.That(font, Is.Not.Null, path);
+            return font;
+        }
+
+        // A display text sized 60, autosized or not between 30 and 72
+        private TMP_Text DisplayText(string name, bool autoSize)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(canvas.transform, false);
+            var text = go.AddComponent<TextMeshProUGUI>();
+            text.fontSize = 60f;
+            text.enableAutoSizing = autoSize;
+            text.fontSizeMin = 30f;
+            text.fontSizeMax = 72f;
+            go.AddComponent<ThemedText>().SetRole(TextRole.Display);
+            return text;
+        }
+
+        // A tall font (Baloo 2: 1.6 em) lets a text shrink to fit down to the size at which its line box is
+        // ThemedText.KitLine, from its own sizes; bound again (keeping what code sized since), or a bound copy bound
+        // (MenuView's game buttons), it shrinks no further, and a font that is not tall gives the text its own sizing back
+        [Test]
+        public void A_tall_font_lets_a_text_shrink_to_the_kit_line_box()
+        {
+            var baloo = FamilyFont("Baloo2/Baloo2-Bold SDF");
+            var nunito = FamilyFont("Nunito/Nunito-Bold SDF");
+            Assert.That(ThemedText.LineBox(baloo), Is.EqualTo(1.6f).Within(0.01f));
+            Assert.That(ThemedText.IsTall(baloo), Is.True);
+            Assert.That(ThemedText.IsTall(nunito), Is.False, "Nunito's 1.36 em, the tallest of the others");
+            var share = ThemedText.KitLine / ThemedText.LineBox(baloo);
+            var fixedSize = DisplayText("Fixed", false);
+            var autoSized = DisplayText("Auto", true);
+            var tall = Theme(baloo);
+
+            fixedSize.GetComponent<ThemedText>().Bind(tall);
+            autoSized.GetComponent<ThemedText>().Bind(tall);
+            Assert.That(fixedSize.font, Is.SameAs(baloo));
+            Assert.That(fixedSize.enableAutoSizing, Is.True, "a fixed size may shrink");
+            Assert.That(fixedSize.fontSizeMax, Is.EqualTo(60f), "never above its own size");
+            Assert.That(fixedSize.fontSizeMin, Is.EqualTo(60f * share).Within(0.001f));
+            Assert.That(autoSized.fontSizeMax, Is.EqualTo(72f));
+            Assert.That(autoSized.fontSizeMin, Is.EqualTo(30f * share).Within(0.001f), "below its own minimum by the share");
+
+            fixedSize.GetComponent<ThemedText>().Bind(tall);
+            Assert.That(fixedSize.fontSizeMin, Is.EqualTo(60f * share).Within(0.001f), "bound twice");
+            // Code sized it after binding: the next scene's binding keeps that
+            autoSized.fontSizeMax = 80f;
+            autoSized.GetComponent<ThemedText>().Bind(tall);
+            Assert.That(autoSized.fontSizeMax, Is.EqualTo(80f), "sized by code, bound again");
+            var copy = Object.Instantiate(fixedSize.gameObject, canvas.transform, false).GetComponent<TMP_Text>();
+            copy.GetComponent<ThemedText>().Bind(tall);
+            Assert.That(copy.fontSizeMax, Is.EqualTo(60f), "a bound copy");
+            Assert.That(copy.fontSizeMin, Is.EqualTo(60f * share).Within(0.001f), "a bound copy");
+
+            var normal = Theme(nunito);
+            foreach (var text in new[] { fixedSize, copy, autoSized }) text.GetComponent<ThemedText>().Bind(normal);
+            foreach (var text in new[] { fixedSize, copy })
+            {
+                Assert.That(text.enableAutoSizing, Is.False, text.name);
+                Assert.That(text.fontSize, Is.EqualTo(60f), text.name);
+            }
+            Assert.That(autoSized.enableAutoSizing, Is.True);
+            foreach (var text in new[] { fixedSize, copy, autoSized })
+            {
+                Assert.That(text.font, Is.SameAs(nunito), text.name);
+                Assert.That(text.fontSizeMin, Is.EqualTo(30f), text.name);
+                Assert.That(text.fontSizeMax, Is.EqualTo(72f), text.name);
+            }
+        }
+
         [Test]
         public void Touch_area_reaches_the_minimum()
         {

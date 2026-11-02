@@ -29,6 +29,8 @@ namespace Kturker.UnityBase.Core.Preferences
 
         public void SetString(string key, string value) => PlayerPrefs.SetString(key, value);
 
+        public void Delete(string key) => PlayerPrefs.DeleteKey(key);
+
         public void Save() => PlayerPrefs.Save();
     }
 }

@@ -23,6 +23,7 @@
         "VContainer",
         "Unity.TextMeshPro",
         "UnityEngine.UI",
+        "Unity.InputSystem",
         "Unity.RenderPipelines.Universal.Runtime"
     ],
     "autoReferenced": true

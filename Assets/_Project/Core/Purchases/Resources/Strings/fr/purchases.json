@@ -1,8 +1,4 @@
 {
-  "settings.premium": "Sans pub",
-  "purchases.state.get": "Obtenir",
-  "purchases.state.active": "Actif",
-  "purchases.state.unavailable": "Indisponible",
   "purchases.shop.title": "Boutique",
   "purchases.shop.noAds": "Sans pub",
   "purchases.shop.tag": "-{0} %",

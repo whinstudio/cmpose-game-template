@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Kturker.UnityBase.App.Settings;
 using Kturker.UnityBase.Core.Localization;
 using Kturker.UnityBase.Core.Presentation;
 using NUnit.Framework;
@@ -128,6 +129,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         private const string EconomyPrefab = "Assets/_Project/Features/Economy/Resources/Economy/EconomyWindows.prefab";
         // The settings modal's card: a column that grows with the rows the presenter shows
         private const string SettingsColumn = "Panel/SafeArea/Card";
+        private const string SettingsRows = SettingsColumn + "/Body/Rows";
         // cmpose:networkInspector
         private const string InspectorPrefab = "Assets/_Project/Core/NetworkInspector/Resources/NetworkInspector/InspectorOverlay.prefab";
         // /cmpose:networkInspector
@@ -246,7 +248,6 @@ namespace Kturker.UnityBase.Tests.EditMode
                 ("Settings", stage.Add(Load(SettingsPrefab)), SideMargin),
                 ("Boot", stage.AddFromScene("Assets/_Project/Scenes/Boot.unity", "Canvas/SafeArea"), SideMargin),
                 ("Menu", StageMenu(stage), SideMargin),
-                ("Menu/About", stage.AddFromScene(menu, "Canvas/About"), SideMargin),
                 ("Menu/Update", stage.AddFromScene(menu, "UpdatePanel"), SideMargin),
                 ("Economy", stage.Add(Load(EconomyPrefab)), SideMargin)
             };
@@ -363,7 +364,7 @@ namespace Kturker.UnityBase.Tests.EditMode
 
         // cmpose:networkInspector
         // The debug NET button sits in the top right corner and covers no other screen's button or text box (the
-        // shop's buttons and title, the Game scene's bottom controls and pause button, the menu's and About's titles)
+        // shop's buttons and title, the Game scene's bottom controls and pause button, the menu's title)
         [Test]
         public void The_net_button_sits_top_right_clear_of_every_other_button_and_text()
         {
@@ -419,37 +420,150 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
         // /cmpose:purchases
 
-        // Slider rails take the Control role (the Primary fill reads on it in both palettes); the vibration row is a kit
-        // switch, whose track turns Control when off (KitTests)
+        // The settings card's rows: an icon box (Primary under an OnPrimary glyph), the label, and the control: a kit switch,
+        // whose track turns Control when off (KitTests), or the language's Secondary button with its Control outline
         [Test]
         public void Settings_controls_use_the_control_role()
         {
-            var column = Load(SettingsPrefab).transform.Find(SettingsColumn);
-            foreach (var path in new[] { "Music/Slider/Rail", "Sfx/Slider/Rail" })
-                Assert.That(column.Find(path).GetComponent<ThemedGraphic>().Role, Is.EqualTo(ThemeRole.Control), path);
-            Assert.That(column.Find("Vibration/Switch").GetComponent<KitSwitch>(), Is.Not.Null, "vibration switch");
+            var rows = Load(SettingsPrefab).transform.Find(SettingsRows);
+            Assert.That(rows, Is.Not.Null, SettingsRows);
+            foreach (var name in new[] { "Music", "Sfx", "Vibration", "Language" })
+            {
+                var row = rows.Find(name);
+                Assert.That(row, Is.Not.Null, name);
+                Assert.That(row.Find("Icon").GetComponent<ThemedGraphic>().Role, Is.EqualTo(ThemeRole.Primary), $"{name} icon box");
+                Assert.That(row.Find("Icon/Glyph").GetComponent<ThemedGraphic>().Role, Is.EqualTo(ThemeRole.OnPrimary), $"{name} glyph");
+                Assert.That(row.Find("Label").GetComponent<TMP_Text>(), Is.Not.Null, $"{name} label");
+                var control = row.Find("Control");
+                Assert.That(control, Is.Not.Null, $"{name} control");
+                if (name == "Language")
+                    Assert.That(control.GetComponent<KitButton>().Variant, Is.EqualTo(KitButtonVariant.Secondary), "language button");
+                else
+                    Assert.That(control.GetComponent<KitSwitch>(), Is.Not.Null, $"{name} switch");
+            }
         }
 
-        // The vibration row reads like the other settings rows: its label left-aligned where their titles start, its
-        // switch ending where their value buttons end (LayoutRuleTests checks every row's columns on every screen)
+        // The settings rows read as one table: every label starts where the others do, every control is as wide as the
+        // others and ends where they do (LayoutRuleTests checks the card on every screen)
         [Test]
-        public void The_vibration_row_lines_up_with_the_other_settings_rows()
+        public void The_settings_rows_line_up()
         {
             foreach (var phone in Phones)
             {
                 using (var stage = new Stage(phone))
                 {
-                    var column = stage.Add(Load(SettingsPrefab)).transform.Find(SettingsColumn);
-                    var label = column.Find("Vibration/Label").GetComponent<TMP_Text>();
-                    var title = column.Find("Section0/Title").GetComponent<TMP_Text>();
-                    var labelRect = stage.RectOf(label.rectTransform);
-                    var titleRect = stage.RectOf(title.rectTransform);
-                    Assert.That(label.alignment, Is.EqualTo(title.alignment), $"{phone}: alignment");
-                    Assert.That(labelRect.xMin, Is.EqualTo(titleRect.xMin).Within(1f), $"{phone}: label start");
-                    var box = stage.RectOf((RectTransform)column.Find("Vibration/Switch"));
-                    var value = stage.RectOf((RectTransform)column.Find("Section0/Value"));
-                    Assert.That(box.xMax, Is.EqualTo(value.xMax).Within(1f), $"{phone}: switch at the control column's end");
+                    var rows = stage.Add(Load(SettingsPrefab)).transform.Find(SettingsRows);
+                    Rect? label = null, control = null;
+                    foreach (var name in new[] { "Music", "Sfx", "Vibration", "Language" })
+                    {
+                        var l = stage.RectOf((RectTransform)rows.Find($"{name}/Label"));
+                        var c = stage.RectOf((RectTransform)rows.Find($"{name}/Control"));
+                        label = label ?? l;
+                        control = control ?? c;
+                        Assert.That(l.xMin, Is.EqualTo(label.Value.xMin).Within(1f), $"{phone} {name}: label start");
+                        Assert.That(c.xMax, Is.EqualTo(control.Value.xMax).Within(1f), $"{phone} {name}: control end");
+                        Assert.That(c.width, Is.EqualTo(control.Value.width).Within(1f), $"{phone} {name}: control width");
+                        Assert.That(l.xMax, Is.LessThanOrEqualTo(c.xMin), $"{phone} {name}: label runs into the control");
+                    }
                 }
+            }
+        }
+
+        // The settings panel is the one prefab in the Menu and the Game scenes, every field of its view is wired, its
+        // Close is the round X at the card's top right and nothing of the old About panel is left (no About object, no
+        // missing script where its view was)
+        [Test]
+        public void Settings_panel_builds_in_menu_and_game()
+        {
+            var problems = new List<string>();
+            // The scenes SceneBuilder places the panel in: the Menu and every game scene
+            var scenes = new List<string> { "Assets/_Project/Scenes/Menu.unity" };
+            // cmpose:sample
+            scenes.Add("Assets/_Project/Scenes/Game.unity");
+            // /cmpose:sample
+            // cmpose:runner2D
+            scenes.Add("Assets/_Project/Features/Showcase/Runner2D/Scenes/Runner2D.unity");
+            // /cmpose:runner2D
+            // cmpose:track3D
+            scenes.Add("Assets/_Project/Features/Showcase/Track3D/Scenes/Track3D.unity");
+            // /cmpose:track3D
+            foreach (var path in scenes)
+            {
+                var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+                try
+                {
+                    var roots = scene.GetRootGameObjects();
+                    var views = roots.SelectMany(r => r.GetComponentsInChildren<SettingsView>(true)).ToList();
+                    if (views.Count != 1)
+                    {
+                        problems.Add($"{path}: {views.Count} settings views, not 1");
+                        continue;
+                    }
+                    var source = PrefabUtility.GetCorrespondingObjectFromSource(views[0].gameObject);
+                    if (source == null || AssetDatabase.GetAssetPath(source) != SettingsPrefab)
+                        problems.Add($"{path}: the settings view is not an instance of {SettingsPrefab}");
+                    problems.AddRange(Unwired(views[0]).Select(field => $"{path}: SettingsView.{field} is not wired"));
+                    foreach (var root in roots)
+                    {
+                        foreach (var t in root.GetComponentsInChildren<Transform>(true))
+                        {
+                            if (t.name.IndexOf("About", StringComparison.Ordinal) >= 0) problems.Add($"{path}: {PathOf(t)}");
+                            if (GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(t.gameObject) > 0)
+                                problems.Add($"{path}: {PathOf(t)} has a missing script");
+                        }
+                    }
+                }
+                finally
+                {
+                    EditorSceneManager.CloseScene(scene, true);
+                }
+            }
+            var prefab = Load(SettingsPrefab);
+            foreach (var t in prefab.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name.IndexOf("About", StringComparison.Ordinal) >= 0) problems.Add($"{SettingsPrefab}: {PathOf(t)}");
+                if (GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(t.gameObject) > 0)
+                    problems.Add($"{SettingsPrefab}: {PathOf(t)} has a missing script");
+            }
+            var view = prefab.GetComponent<SettingsView>();
+            var grid = new SerializedObject(view).FindProperty("gridButtons");
+            var names = Enumerable.Range(0, grid.arraySize).Select(i =>
+            {
+                var button = grid.GetArrayElementAtIndex(i).objectReferenceValue;
+                return button != null ? button.name : null;
+            });
+            Assert.That(names, Is.EqualTo(new[] { "Restore", "SignIn", "AdPrivacy", "Support", "Rate", "Credits" }), "grid order");
+            Assert.That(new SerializedObject(view).FindProperty("page").arraySize, Is.EqualTo(3), "what the language page covers");
+            var card = prefab.transform.Find(SettingsColumn);
+            var close = card.Find("Close").GetComponent<KitButton>();
+            Assert.That(view.CloseButton, Is.SameAs(close.Button), "Close is the X");
+            Assert.That(close.Variant, Is.EqualTo(KitButtonVariant.Icon), "X variant");
+            Assert.That(close.Icon != null ? close.Icon.sprite : null, Is.SameAs(KitSprites.Close), "X glyph");
+            var x = (RectTransform)close.transform;
+            Assert.That(x.anchorMin, Is.EqualTo(Vector2.one), "X at the card's top right");
+            Assert.That(x.rect.width, Is.GreaterThanOrEqualTo(KitLayout.MinTouch), "X width");
+            Assert.That(x.rect.height, Is.GreaterThanOrEqualTo(KitLayout.MinTouch), "X height");
+            foreach (var path in new[]
+                     {
+                         "Title", "Body/Rows", "Body/Actions/Primary", "Body/Actions/Grid", "Footer/Message", "Footer/Privacy", "Footer/Terms",
+                         "Footer/Version", "Languages/Back", "Languages/Title", "Languages/List"
+                     })
+                if (card.Find(path) == null) problems.Add($"{SettingsPrefab}: no {SettingsColumn}/{path}");
+            // The card's own background layer is also named Body (KitCard): reach the content's Body through its Rows
+            Assert.That(card.Find("Body/Rows").parent.GetComponent<SettingsCardLayout>(), Is.Not.Null, "Body's layout");
+            Assert.That(problems, Is.Empty);
+        }
+
+        // The view's object fields (arrays: each element) that point nowhere
+        private static IEnumerable<string> Unwired(UnityEngine.Object target)
+        {
+            var property = new SerializedObject(target).GetIterator();
+            var enter = true;
+            while (property.NextVisible(enter))
+            {
+                enter = property.propertyType != SerializedPropertyType.String;
+                if (property.propertyType != SerializedPropertyType.ObjectReference || property.propertyPath == "m_Script") continue;
+                if (property.objectReferenceValue == null) yield return property.propertyPath;
             }
         }
 
@@ -466,34 +580,24 @@ namespace Kturker.UnityBase.Tests.EditMode
         // /cmpose:network
 
         // Labels code writes at runtime, by button name: the keys (measured in every language) and the literal texts
-        // the settings rows' value buttons, the menu's game buttons (also "Level n") and the end cards' Continue buttons can
-        // show
+        // the settings card's language button and language rows, the menu's game buttons (also "Level n") and the end
+        // cards' Continue buttons can show
         private static (Dictionary<string, List<string>> Keys, Dictionary<string, List<string>> Texts) RuntimeLabels()
         {
             var keys = new Dictionary<string, List<string>>
             {
-                ["Value"] = new List<string>(),
                 ["Play"] = new List<string> { "menu.play", "shell.level" },
                 ["ContinueButton"] = new List<string> { "shell.continue", "shell.continueAd" },
                 // The booster offer's price next to the currency's icon
                 ["OfferBuy"] = new List<string> { "economy.price" }
             };
             var texts = new Dictionary<string, List<string>>();
-            // cmpose:uiTheme
-            keys["Value"].AddRange(new[] { "theme.system", "theme.light", "theme.dark" });
-            // /cmpose:uiTheme
             // cmpose:multiLang
-            texts["Value"] = Kturker.UnityBase.Core.Language.LanguageSelector.Supported.Select(l => l.Name).ToList();
+            // The settings card's language button (the short code) and the language page's rows (the languages' names)
+            var supported = Kturker.UnityBase.Core.Language.LanguageSelector.Supported;
+            texts["Control"] = supported.Select(l => $"{l.Code.ToUpperInvariant()} ›").ToList();
+            texts["Language"] = supported.Select(l => l.Name).ToList();
             // /cmpose:multiLang
-            // cmpose:purchases
-            keys["Value"].AddRange(new[] { "purchases.state.get", "purchases.state.active", "purchases.state.unavailable" });
-            // /cmpose:purchases
-            // cmpose:leaderboards
-            keys["Value"].AddRange(new[] { "leaderboards.signIn", "leaderboards.signedIn", "leaderboards.notSetUp" });
-            // /cmpose:leaderboards
-            // cmpose:ads
-            keys["Value"].Add("ads.privacy.manage");
-            // /cmpose:ads
             // cmpose:runner2D
             keys["Play"].Add("runner2d.play");
             // /cmpose:runner2D
@@ -570,7 +674,7 @@ namespace Kturker.UnityBase.Tests.EditMode
                                 if (labelTransform == null) continue;
                                 var label = labelTransform.GetComponent<TMP_Text>();
                                 var localized = labelTransform.GetComponent<LocalizedText>();
-                                if (label == null || localized == null) continue;
+                                if (label == null || localized == null || GroupOwned(label)) continue;
                                 var keys = new List<string>();
                                 if (!string.IsNullOrEmpty(localized.Key)) keys.Add(localized.Key);
                                 if (runtimeKeys.TryGetValue(button.name, out var more)) keys.AddRange(more);
@@ -644,6 +748,13 @@ namespace Kturker.UnityBase.Tests.EditMode
                 : null;
         }
 
+        // A label in a KitTextGroup keeps one line at its group's size (LayoutRuleTests checks it fits in every language)
+        private static bool GroupOwned(TMP_Text label)
+        {
+            var themed = label.GetComponent<ThemedText>();
+            return themed != null && themed.GroupOwned;
+        }
+
         [Test]
         public void Button_labels_shrink_to_fit_their_button()
         {
@@ -655,6 +766,7 @@ namespace Kturker.UnityBase.Tests.EditMode
                     var label = button.transform.Find("Label");
                     if (label == null) continue;
                     var text = label.GetComponent<TMP_Text>();
+                    if (text != null && GroupOwned(text)) continue;
                     if (text == null || !text.enableAutoSizing || text.fontSizeMin > text.fontSizeMax ||
                         text.textWrappingMode == TextWrappingModes.NoWrap || text.overflowMode == TextOverflowModes.Overflow)
                     {
@@ -786,14 +898,11 @@ namespace Kturker.UnityBase.Tests.EditMode
                 var play = menu.Find("Play").GetComponent<KitButton>();
                 Assert.That(play.Variant, Is.EqualTo(KitButtonVariant.Play), "play variant");
                 Assert.That(play.GetComponent<IdlePulse>(), Is.Not.Null, "play breathes");
-                // The settings gear in the top bar's right corner; About moved into the settings panel
+                // The settings gear in the top bar's right corner
                 var gear = menu.Find("TopBar/Settings").GetComponent<KitButton>();
                 Assert.That(gear.Variant, Is.EqualTo(KitButtonVariant.Icon), "gear variant");
                 Assert.That(gear.Icon != null ? gear.Icon.sprite : null, Is.SameAs(KitSprites.Gear), "gear icon");
                 Assert.That(menu.Find("About"), Is.Null, "no About button on the menu");
-                var about = Load(SettingsPrefab).transform.Find("Panel/SafeArea/Card/About").GetComponent<KitButton>();
-                Assert.That(about.Variant, Is.EqualTo(KitButtonVariant.Secondary), "settings About");
-                Assert.That(about.Icon != null ? about.Icon.sprite : null, Is.SameAs(KitSprites.Info), "About icon");
                 // Soft shapes over the background, behind the safe area's content, so a game without a logo still has a
                 // dressed title screen
                 var decor = canvas.Find("Decor");

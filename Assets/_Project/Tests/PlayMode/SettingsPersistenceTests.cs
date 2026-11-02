@@ -10,39 +10,41 @@ using UnityEngine.TestTools;
 
 namespace Kturker.UnityBase.Tests.PlayMode
 {
-    // Writes the editor's real PlayerPrefs; the previous SFX value is put back afterwards
+    // Writes the editor's real PlayerPrefs; the previous SFX switch is put back afterwards
     public sealed class SettingsPersistenceTests
     {
         private bool hadSfx;
-        private float previousSfx;
+        private int previousSfx;
 
         [SetUp]
         public void Remember()
         {
-            hadSfx = PlayerPrefs.HasKey(AudioPreferences.SfxKey);
-            previousSfx = PlayerPrefs.GetFloat(AudioPreferences.SfxKey);
+            hadSfx = PlayerPrefs.HasKey(AudioPreferences.SfxOnKey);
+            previousSfx = PlayerPrefs.GetInt(AudioPreferences.SfxOnKey);
         }
 
         [TearDown]
         public void Restore()
         {
-            if (hadSfx) PlayerPrefs.SetFloat(AudioPreferences.SfxKey, previousSfx);
-            else PlayerPrefs.DeleteKey(AudioPreferences.SfxKey);
+            if (hadSfx) PlayerPrefs.SetInt(AudioPreferences.SfxOnKey, previousSfx);
+            else PlayerPrefs.DeleteKey(AudioPreferences.SfxOnKey);
             PlayerPrefs.Save();
         }
 
         [UnityTest]
-        public IEnumerator Sfx_level_survives_reloading_the_menu() => UniTask.ToCoroutine(async () =>
+        public IEnumerator Sfx_switch_survives_reloading_the_menu() => UniTask.ToCoroutine(async () =>
         {
             await SceneManager.LoadSceneAsync("Boot").ToUniTask();
             var menu = await WaitFor<MenuView>(10f);
             Assert.That(menu, Is.Not.Null, "Menu did not open within 10 s");
             await Frames(2);
 
+            PlayerPrefs.SetInt(AudioPreferences.SfxOnKey, 1);
             menu.SettingsButton.onClick.Invoke();
             var settings = Object.FindFirstObjectByType<SettingsView>();
             Assert.That(settings.IsOpen, Is.True);
-            settings.SfxSlider.value = 0.3f;
+            Assert.That(settings.SfxSwitch.isOn, Is.True);
+            settings.SfxSwitch.isOn = false;
             settings.CloseButton.onClick.Invoke();
             Assert.That(settings.IsOpen, Is.False);
 
@@ -55,8 +57,8 @@ namespace Kturker.UnityBase.Tests.PlayMode
             var reopened = Object.FindFirstObjectByType<SettingsView>();
             Assert.That(reopened, Is.Not.SameAs(settings));
             Assert.That(reopened.IsOpen, Is.True);
-            Assert.That(reopened.SfxSlider.value, Is.EqualTo(0.3f).Within(0.001f));
-            Assert.That(PlayerPrefs.GetFloat(AudioPreferences.SfxKey), Is.EqualTo(0.3f).Within(0.001f));
+            Assert.That(reopened.SfxSwitch.isOn, Is.False);
+            Assert.That(PlayerPrefs.GetInt(AudioPreferences.SfxOnKey), Is.EqualTo(0));
         });
 
         // Presenters start in the player loop after the scene's Awake; give them a frame or two

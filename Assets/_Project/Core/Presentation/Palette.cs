@@ -3,8 +3,7 @@ using UnityEngine;
 
 namespace Kturker.UnityBase.Core.Presentation
 {
-    // One colour per ThemeRole. The light palette is Resources/Theme/Light.asset (always there); the uiTheme flag
-    // adds a dark one. SceneBuilder writes both.
+    // One colour per ThemeRole. The palette is Resources/Theme/Light.asset; SceneBuilder writes it.
     [CreateAssetMenu(menuName = "UnityBase/Palette", fileName = "Palette")]
     public sealed class Palette : ScriptableObject
     {

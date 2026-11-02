@@ -9,7 +9,9 @@ namespace Kturker.UnityBase.Tests.EditMode
 {
     // A game skin's card frame is drawn over the card's edges (9-slice border × sliceScale units): the device check found
     // the settings rows on a pixel skin's frame, the column's padding (40) thinner than the frame (about 60). Every
-    // card keeps its content FrameGap inside the frame's inner edge, and a frame without a border changes nothing.
+    // card keeps its content FrameGap inside the frame's inner edge, and a frame without a border changes nothing. The
+    // settings card reaches over a frame thicker than SettingsFrameLimit (its controls stay touch-sized on a landscape
+    // phone): its content stays FrameGap inside that limit.
     public sealed class CardInsetTests
     {
         // The thick frame these tests draw: 30 source pixels at sliceScale 3, 90 card units
@@ -17,6 +19,8 @@ namespace Kturker.UnityBase.Tests.EditMode
         private const float Frame = 90f;
         // KitCard keeps content this far inside the frame's inner edge
         private const float Gap = 12f;
+        // The frame thickness the settings card makes room for at most (SceneBuilder's Pad call)
+        private const float SettingsFrameLimit = 48f;
         private const string SettingsPrefab = "Assets/_Project/App/Settings/SettingsPanel.prefab";
         private const string SettingsColumn = "Panel/SafeArea/Card";
         private const string EconomyPrefab = "Assets/_Project/Features/Economy/Resources/Economy/EconomyWindows.prefab";
@@ -99,18 +103,21 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
 
         [Test]
-        public void Settings_rows_stay_inside_a_thick_skin_frame()
+        public void Settings_rows_stay_inside_a_thick_skin_frame_up_to_its_limit()
         {
             Skin(Thick);
             var card = (RectTransform)Stage(SettingsPrefab).transform.Find(SettingsColumn);
 
+            var padding = card.GetComponent<VerticalLayoutGroup>().padding;
+            var inset = (int)(SettingsFrameLimit + Gap);
+            Assert.That((padding.left, padding.right, padding.top, padding.bottom), Is.EqualTo((inset, inset, inset, inset)), "capped");
             var items = 0;
             foreach (var item in ColumnItems(card))
             {
-                AssertInside(card, item, Frame + Gap, item.name);
+                AssertInside(card, item, SettingsFrameLimit + Gap, item.name);
                 items++;
             }
-            Assert.That(items, Is.GreaterThan(8), "the column's rows");
+            Assert.That(items, Is.EqualTo(3), "the column's parts: title, body, footer");
         }
 
         [Test]
@@ -120,7 +127,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var card = Stage(SettingsPrefab).transform.Find(SettingsColumn);
 
             var padding = card.GetComponent<VerticalLayoutGroup>().padding;
-            Assert.That((padding.left, padding.right, padding.top, padding.bottom), Is.EqualTo((40, 40, 56, 56)));
+            Assert.That((padding.left, padding.right, padding.top, padding.bottom), Is.EqualTo((40, 40, 40, 16)));
         }
 
         [Test]
@@ -154,6 +161,27 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That((inset.left, inset.bottom, inset.right, inset.top), Is.EqualTo((42, 72, 102, 132)));
             Assert.That(content.offsetMin, Is.EqualTo(new Vector2(42f, 72f)));
             Assert.That(content.offsetMax, Is.EqualTo(new Vector2(-102f, -132f)));
+        }
+
+        // A frame limit caps each side's frame, thinner sides keep their own; without one (other cards) nothing changes
+        [Test]
+        public void A_frame_limit_caps_each_side()
+        {
+            var json = SkinSprites.Json.Replace("\"sliceScale\":4", "\"sliceScale\":3");
+            var panel = Panel("panel", new Vector4(10f, 20f, 30f, 40f));
+            GameSkin.ForTests(GameSkin.Parse(json, _ => panel, _ => null));
+            var canvas = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas));
+            made.Add(canvas);
+            var card = KitFactory.Card(canvas.transform, "Card");
+
+            card.Pad(new RectOffset(40, 40, 56, 56), null, SettingsFrameLimit);
+
+            var inset = card.ContentPadding;
+            Assert.That((inset.left, inset.bottom, inset.right, inset.top), Is.EqualTo((42, 60, 60, 60)));
+            card.Pad(new RectOffset(40, 40, 56, 56));
+            inset = card.ContentPadding;
+            Assert.That((inset.left, inset.bottom, inset.right, inset.top), Is.EqualTo((42, 72, 102, 132)), "no limit");
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => card.Pad(new RectOffset(), null, -1f));
         }
 
         [Test]

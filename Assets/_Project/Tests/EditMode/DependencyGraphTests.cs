@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Kturker.UnityBase.App.About;
 using Kturker.UnityBase.App.Boot;
 using Kturker.UnityBase.App.Game;
 using Kturker.UnityBase.App.Menu;
@@ -34,9 +33,6 @@ using Kturker.UnityBase.Core.Save;
 using Kturker.UnityBase.Features.Showcase.Common.Save;
 // /cmpose:showcase
 // /cmpose:saveSystem
-// cmpose:uiTheme
-using Kturker.UnityBase.Core.Theme;
-// /cmpose:uiTheme
 // cmpose:multiLang
 using Kturker.UnityBase.Core.Language;
 // /cmpose:multiLang
@@ -125,12 +121,12 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(root.Resolve<ILocalizer>(), Is.SameAs(root.Resolve<TableLocalizer>()));
             Assert.That(root.Resolve<ILocalizer>().Get("menu.play"), Is.EqualTo("Play"));
             Assert.That(root.Resolve<UiBinder>(), Is.SameAs(root.Resolve<UiBinder>()));
+            Assert.That(root.Resolve<IThemeSource>(), Is.InstanceOf<FixedThemeSource>());
             Assert.That(root.Resolve<IThemeSource>().Current, Is.Not.Null);
             Assert.That(root.Resolve<IThemeSource>().Style, Is.Not.Null);
             Assert.That(root.Resolve<PauseService>(), Is.SameAs(root.Resolve<PauseService>()));
             Assert.That(root.Resolve<DeepLinkRouter>(), Is.SameAs(root.Resolve<DeepLinkRouter>()));
             Assert.That(root.Resolve<DeepLinkQueue>(), Is.SameAs(root.Resolve<DeepLinkQueue>()));
-            Assert.That(root.Resolve<AboutInfo>().VersionLabel, Does.StartWith("v"));
             Assert.That(root.Resolve<GameCredits>(), Is.SameAs(root.Resolve<GameCredits>()));
             Assert.That(root.Resolve<IUrlOpener>(), Is.Not.Null);
             Assert.That(root.Resolve<ReviewPrompter>(), Is.SameAs(root.Resolve<ReviewPrompter>()));
@@ -174,9 +170,6 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(root.Resolve<ILevelProgress>(), Is.InstanceOf<LevelProgress>());
             Assert.That(root.Resolve<IEconomyStore>(), Is.InstanceOf<SavedEconomyStore>());
             // /cmpose:saveSystem
-            // cmpose:uiTheme
-            Assert.That(root.Resolve<IThemeSource>(), Is.SameAs(root.Resolve<SwitchableThemeSource>()));
-            // /cmpose:uiTheme
             // cmpose:multiLang
             Assert.That(root.Resolve<LanguageSelector>(), Is.SameAs(root.Resolve<LanguageSelector>()));
             // /cmpose:multiLang
@@ -254,7 +247,6 @@ namespace Kturker.UnityBase.Tests.EditMode
             {
                 builder.RegisterInstance<IMenuView>(new FakeMenuView());
                 builder.RegisterInstance<ISettingsView>(new FakeSettingsView());
-                builder.RegisterInstance<IAboutView>(new FakeAboutView());
                 builder.RegisterInstance<IUpdateView>(new FakeUpdateView());
                 var sides = new FakeMenuSideButtons();
                 builder.RegisterInstance<IMenuSideButtons>(sides);
@@ -279,7 +271,6 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(startables.OfType<UpdatePresenter>().Count(), Is.EqualTo(1));
             Assert.That(startables.OfType<EconomyMenu>().Count(), Is.EqualTo(1));
             Assert.That(scope.Resolve<ISettingsPanel>(), Is.SameAs(startables.OfType<SettingsPresenter>().Single()));
-            Assert.That(scope.Resolve<IAboutPanel>(), Is.SameAs(startables.OfType<AboutPresenter>().Single()));
             // cmpose:showcase
             Assert.That(startables.OfType<ShowcaseMenuPresenter>().Count(), Is.EqualTo(1));
             // cmpose:purchases
@@ -292,25 +283,23 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(startables.OfType<RunStatsPresenter>().Count(), Is.EqualTo(1));
             // /cmpose:saveSystem
             // /cmpose:showcase
-            // cmpose:uiTheme
-            Assert.That(scope.Resolve<IReadOnlyList<ISettingsSection>>().OfType<ThemeSection>().Count(), Is.EqualTo(1));
-            // /cmpose:uiTheme
             // cmpose:multiLang
-            Assert.That(scope.Resolve<IReadOnlyList<ISettingsSection>>().OfType<LanguageSelector>().Count(), Is.EqualTo(1));
+            Assert.That(scope.Resolve<IReadOnlyList<ISettingsLanguage>>().OfType<LanguageSelector>().Count(), Is.EqualTo(1));
             // /cmpose:multiLang
             // cmpose:purchases
-            // The Remove Ads row only in a game with ads
-            var removeAdsRows = 0;
+            // The Remove Ads button only in a game with ads
+            var removeAdsButtons = 0;
             // cmpose:ads
-            removeAdsRows = 1;
+            removeAdsButtons = 1;
             // /cmpose:ads
-            Assert.That(scope.Resolve<IReadOnlyList<ISettingsSection>>().OfType<PremiumSection>().Count(), Is.EqualTo(removeAdsRows));
+            Assert.That(scope.Resolve<IReadOnlyList<ISettingsAction>>().OfType<RemoveAdsAction>().Count(), Is.EqualTo(removeAdsButtons));
+            Assert.That(scope.Resolve<IReadOnlyList<ISettingsAction>>().OfType<RestoreAction>().Count(), Is.EqualTo(1));
             // /cmpose:purchases
             // cmpose:ads
-            Assert.That(scope.Resolve<IReadOnlyList<ISettingsSection>>().OfType<PrivacySection>().Count(), Is.EqualTo(1));
+            Assert.That(scope.Resolve<IReadOnlyList<ISettingsAction>>().OfType<AdPrivacyAction>().Count(), Is.EqualTo(1));
             // /cmpose:ads
             // cmpose:leaderboards
-            Assert.That(scope.Resolve<IReadOnlyList<ISettingsSection>>().OfType<GameServicesSection>().Count(), Is.EqualTo(1));
+            Assert.That(scope.Resolve<IReadOnlyList<ISettingsAction>>().OfType<SignInAction>().Count(), Is.EqualTo(1));
             // /cmpose:leaderboards
         }
 

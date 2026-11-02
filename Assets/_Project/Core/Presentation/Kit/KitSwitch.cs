@@ -42,6 +42,14 @@ namespace Kturker.UnityBase.Core.Presentation
 
         private void OnEnable() => Place(Toggle.isOn, false);
 
+        // Sets isOn without the toggle's event and puts the knob and the track's colour there at once (a view showing
+        // saved values: no slide, and right even before the switch was enabled or updated)
+        public void SetWithoutNotify(bool on)
+        {
+            Toggle.SetIsOnWithoutNotify(on);
+            Place(on, false);
+        }
+
         private void Update()
         {
             if (Toggle.isOn != shown) Place(Toggle.isOn, true);

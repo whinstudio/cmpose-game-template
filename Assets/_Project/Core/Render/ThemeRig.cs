@@ -7,8 +7,8 @@ namespace Kturker.UnityBase.Core.Render
     // GameRig's link to the theme (UiBinder binds it, a KitElement): the global Volume gets the style's post profile
     // (none: the volume is off), so the family the generator applies to Style.asset reaches the rig without touching
     // the prefab. 3D rig: tints the key (warm, soft shadows), fill (towards Primary) and rim (towards Accent) lights and
-    // sets a three-colour ambient in the palette Background's hue at fixed levels, so dark palettes never make a murky world
-    // and light ones never wash the shading out.
+    // sets a three-colour ambient in the palette Background's hue at fixed levels, so a dark Background (neon, a dark skin)
+    // never makes a murky world and a light one never washes the shading out.
     // The 2D rig has no lights here (its Global Light 2D stays white).
     public sealed class ThemeRig : KitElement
     {

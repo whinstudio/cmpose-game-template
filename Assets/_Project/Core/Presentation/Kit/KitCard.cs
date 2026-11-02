@@ -19,6 +19,8 @@ namespace Kturker.UnityBase.Core.Presentation
         // Pad's padding (without a skin's frame) and the content it pads besides the card's own LayoutGroup
         [SerializeField] private bool padded;
         [SerializeField] private RectOffset padding = new RectOffset();
+        // Pad's cap on the frame thickness the padding makes room for (0: none)
+        [SerializeField] private float frameLimit;
         [SerializeField] private RectTransform content;
 
         public Image Body => body;
@@ -35,16 +37,18 @@ namespace Kturker.UnityBase.Core.Presentation
 
         // The padding Pad was given (zeros for an unpadded card)
         public RectOffset Padding => new RectOffset(padding.left, padding.right, padding.top, padding.bottom);
+        // The frame thickness Pad was told to make room for at most (0: no limit)
+        public float FrameLimit => frameLimit;
 
-        // The padding the content gets: Padding, or on each side the skin frame's thickness plus FrameGap where that is
-        // more. A frame without a border (or no skin) leaves Padding as it is.
+        // The padding the content gets: Padding, or on each side the skin frame's thickness (at most Pad's frameLimit) plus
+        // FrameGap where that is more. A frame without a border (or no skin) leaves Padding as it is.
         public RectOffset ContentPadding
         {
             get
             {
                 var frame = Frame;
-                return new RectOffset(Side(padding.left, frame.x), Side(padding.right, frame.z), Side(padding.top, frame.w),
-                    Side(padding.bottom, frame.y));
+                return new RectOffset(Side(padding.left, frame.x, frameLimit), Side(padding.right, frame.z, frameLimit),
+                    Side(padding.top, frame.w, frameLimit), Side(padding.bottom, frame.y, frameLimit));
             }
         }
 
@@ -66,18 +70,24 @@ namespace Kturker.UnityBase.Core.Presentation
         // Pads the card's content: the LayoutGroup on the card (a column card) and content (a sheet's Content), if any.
         // Applied at once and again whenever the card is painted. A later call replaces the padding and keeps the content
         // an earlier one gave unless it passes another (the settings column re-pads its sheet's card: the unused Content
-        // then follows the column's padding too).
-        public void Pad(RectOffset value, RectTransform contentRect = null)
+        // then follows the column's padding too). A frameLimit over 0 lets the content reach over a frame thicker than that
+        // (the settings card keeps its controls touch-sized on a landscape phone inside a thick frame).
+        public void Pad(RectOffset value, RectTransform contentRect = null, float frameLimit = 0f)
         {
+            if (frameLimit < 0f) throw new System.ArgumentOutOfRangeException(nameof(frameLimit));
             padded = true;
             padding = new RectOffset(value.left, value.right, value.top, value.bottom);
+            this.frameLimit = frameLimit;
             if (contentRect != null) content = contentRect;
             Inset();
         }
 
         // Whole units, rounded up (a hair over a whole number is float noise, not another unit)
-        private static int Side(int padding, float frame) =>
-            frame > 0f ? Mathf.Max(padding, Mathf.CeilToInt(frame + FrameGap - 0.01f)) : padding;
+        private static int Side(int padding, float frame, float limit)
+        {
+            if (limit > 0f) frame = Mathf.Min(frame, limit);
+            return frame > 0f ? Mathf.Max(padding, Mathf.CeilToInt(frame + FrameGap - 0.01f)) : padding;
+        }
 
         private void Inset()
         {

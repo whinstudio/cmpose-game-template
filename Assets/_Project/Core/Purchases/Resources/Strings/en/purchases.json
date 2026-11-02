@@ -1,8 +1,4 @@
 {
-  "settings.premium": "Remove Ads",
-  "purchases.state.get": "Get",
-  "purchases.state.active": "Active",
-  "purchases.state.unavailable": "Unavailable",
   "purchases.shop.title": "Shop",
   "purchases.shop.noAds": "No ads",
   "purchases.shop.tag": "-{0}%",

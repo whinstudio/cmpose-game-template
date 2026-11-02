@@ -2,10 +2,6 @@ using System.Collections.Generic;
 using Kturker.UnityBase.Core.Presentation;
 using NUnit.Framework;
 using UnityEngine;
-// cmpose:uiTheme
-using Kturker.UnityBase.Core.Lifecycle;
-using Kturker.UnityBase.Core.Theme;
-// /cmpose:uiTheme
 using Object = UnityEngine.Object;
 
 namespace Kturker.UnityBase.Tests.EditMode
@@ -102,34 +98,6 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(asset.Get(ThemeRole.Primary), Is.EqualTo(before), "the asset");
         }
 
-        // cmpose:uiTheme
-        private sealed class FakeSystemDarkMode : ISystemDarkMode
-        {
-            public bool IsDark { get; set; }
-        }
-
-        [Test]
-        public void Dark_palette_is_dressed_too()
-        {
-            GameSkin.ForTests(V2());
-            Assert.That(Load(ThemeInstaller.DarkPalette).Get(ThemeRole.Primary), Is.EqualTo(Amber));
-
-            var theme = new SwitchableThemeSource(new FakePreferences(), new FakeSystemDarkMode(), new PauseService(), new FakeLog(),
-                Load(Palettes.Light), Load(ThemeInstaller.DarkPalette), ThemeStyle.Load());
-            try
-            {
-                theme.Start();
-                theme.SetMode(ThemeMode.Light);
-                Assert.That(theme.Current.Get(ThemeRole.Primary), Is.EqualTo(Amber), "light");
-                theme.SetMode(ThemeMode.Dark);
-                Assert.That(theme.Current.Get(ThemeRole.Primary), Is.EqualTo(Amber), "dark");
-            }
-            finally
-            {
-                theme.Dispose();
-            }
-        }
-        // /cmpose:uiTheme
 
         [Test]
         public void Kit_parts_repaint_with_the_skin_palette()

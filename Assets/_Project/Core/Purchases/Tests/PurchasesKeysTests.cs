@@ -13,7 +13,6 @@ namespace Kturker.UnityBase.Core.Purchases.Tests
             var english = new TableLocalizer(new ResourcesStringSource(), new FakeLog(), false);
             var keys = new[]
             {
-                PurchasesKeys.SettingsTitle, PurchasesKeys.StateGet, PurchasesKeys.StateActive, PurchasesKeys.StateUnavailable,
                 PurchasesKeys.Title, PurchasesKeys.Restore, PurchasesKeys.Restored, PurchasesKeys.Retry, PurchasesKeys.NoAds,
                 PurchasesKeys.Tag, PurchasesKeys.Unavailable, PurchasesKeys.ErrorUnavailable, PurchasesKeys.ErrorPackageUnavailable,
                 PurchasesKeys.ErrorNothingToRestore

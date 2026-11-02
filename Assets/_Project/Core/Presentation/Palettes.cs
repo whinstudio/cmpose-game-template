@@ -16,7 +16,7 @@ namespace Kturker.UnityBase.Core.Presentation
             return Dress(palette, GameSkin.Current);
         }
 
-        // The skin's role colours over the palette's, light and dark alike: a runtime copy, the asset is never changed.
+        // The skin's role colours over the palette's: a runtime copy, the asset is never changed.
         // The palette itself without a skin or a skin palette.
         public static Palette Dress(Palette palette, GameSkin skin)
         {

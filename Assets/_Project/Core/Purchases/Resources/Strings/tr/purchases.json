@@ -1,8 +1,4 @@
 {
-  "settings.premium": "Reklam Yok",
-  "purchases.state.get": "Al",
-  "purchases.state.active": "Etkin",
-  "purchases.state.unavailable": "Kullanılamıyor",
   "purchases.shop.title": "Mağaza",
   "purchases.shop.noAds": "Reklam yok",
   "purchases.shop.tag": "-%{0}",

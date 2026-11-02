@@ -3,10 +3,6 @@ namespace Kturker.UnityBase.Core.Purchases
     // Keys of Resources/Strings/<language>/purchases.json
     public static class PurchasesKeys
     {
-        public const string SettingsTitle = "settings.premium";
-        public const string StateGet = "purchases.state.get";
-        public const string StateActive = "purchases.state.active";
-        public const string StateUnavailable = "purchases.state.unavailable";
         public const string Title = "purchases.shop.title";
         public const string Restore = "purchases.restore";
         public const string Restored = "purchases.restored";

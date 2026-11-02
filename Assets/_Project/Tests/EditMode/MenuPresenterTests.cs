@@ -12,10 +12,10 @@ namespace Kturker.UnityBase.Tests.EditMode
 
         // The fake view ignores the binder, so tests pass none
         private static MenuPresenter Create(FakeMenuView view, FakeSceneLoader loader, FakeLog log,
-            FakeSettingsPanel settings = null, FakeAboutPanel about = null, FakeUiFeedback feedback = null,
+            FakeSettingsPanel settings = null, FakeUiFeedback feedback = null,
             IReadOnlyList<GameScene> games = null, ILevelProgress levels = null) =>
             new MenuPresenter(view, loader, games ?? TwoGames, null, new AppInfo("UnityBase", "1.0.0", "Android"),
-                settings ?? new FakeSettingsPanel(), about ?? new FakeAboutPanel(), feedback ?? new FakeUiFeedback(), log,
+                settings ?? new FakeSettingsPanel(), feedback ?? new FakeUiFeedback(), log,
                 levels ?? new NoLevelProgress());
 
         [Test]
@@ -90,18 +90,6 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(settings.Opened, Is.EqualTo(1));
             Assert.That(feedback.Clicks, Is.EqualTo(1));
             Assert.That(loader.Requested, Is.Empty);
-        }
-
-        // About left the menu: the settings panel's last row opens it
-        [Test]
-        public void Start_offers_about_to_the_settings_panel()
-        {
-            var settings = new FakeSettingsPanel();
-            var about = new FakeAboutPanel();
-            Create(new FakeMenuView(), new FakeSceneLoader(), new FakeLog(), settings, about).Start();
-
-            Assert.That(settings.Offered, Is.SameAs(about));
-            Assert.That(about.Opened, Is.EqualTo(0), "not opened by itself");
         }
     }
 }

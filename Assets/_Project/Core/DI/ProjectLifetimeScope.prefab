@@ -402,6 +402,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
   role: 1
+  fitted: 0
+  ownAutoSize: 0
+  ownSize: 0
+  ownMin: 0
+  ownMax: 0
+  groupOwned: 0
 --- !u!1 &6146002792625427023
 GameObject:
   m_ObjectHideFlags: 0

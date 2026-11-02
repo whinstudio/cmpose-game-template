@@ -12,15 +12,6 @@
       "asmdefs": ["Kturker.UnityBase.Core.Save", "Kturker.UnityBase.Features.Showcase.Common.Save"],
       "packages": []
     },
-    "uiTheme": {
-      "define": "CMPOSE_UITHEME",
-      "paths": [
-        "Assets/_Project/Core/Theme",
-        "Assets/Plugins/iOS/CmposeTheme.mm"
-      ],
-      "asmdefs": ["Kturker.UnityBase.Core.Theme"],
-      "packages": []
-    },
     "multiLang": {
       "define": "CMPOSE_MULTILANG",
       "paths": [

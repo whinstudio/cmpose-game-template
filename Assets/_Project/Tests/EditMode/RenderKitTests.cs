@@ -20,6 +20,10 @@ namespace Kturker.UnityBase.Tests.EditMode
         private const string RendererPath = "Assets/Settings/Mobile_Renderer.asset";
         private readonly List<Object> made = new List<Object>();
 
+        // A game Compass dressed ships a skin (its game background, its fonts): these tests start without one either way
+        [SetUp]
+        public void NoSkin() => GameSkin.ForTests(GameSkin.Parse("{}", _ => null, _ => null));
+
         [TearDown]
         public void Clean()
         {
@@ -222,7 +226,8 @@ namespace Kturker.UnityBase.Tests.EditMode
             var style = ThemeStyle.Load();
             var (_, top, bottom, _) = KitBackground.Colors(palette, style);
             var linear = QualitySettings.activeColorSpace == ColorSpace.Linear;
-            foreach (var (what, skin) in new[] { ("no skin", (GameSkin)null), ("v1 skin", GameSkin.Parse(SkinSprites.Json, _ => null, _ => null)) })
+            // "no skin": an empty one, since ForTests(null) reads the project's own GameSkin.json, which may have a game background
+            foreach (var (what, skin) in new[] { ("no skin", GameSkin.Parse("{}", _ => null, _ => null)), ("v1 skin", GameSkin.Parse(SkinSprites.Json, _ => null, _ => null)) })
             {
                 GameSkin.ForTests(skin);
                 var camera = Make("Camera").AddComponent<Camera>();

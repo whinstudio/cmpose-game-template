@@ -31,7 +31,7 @@ namespace Kturker.UnityBase.Core.Ads
                     debugEea: development && AdsConfig.DebugGeographyEea, automation: AutomationRun.Active),
                 Lifetime.Singleton)
                 .As<IAnalyticsConsent>().AsSelf();
-            builder.Register<ISettingsSection, PrivacySection>(Lifetime.Singleton);
+            builder.Register<ISettingsAction, AdPrivacyAction>(Lifetime.Singleton);
         }
 
         private static IPremiumStatus Premium(IObjectResolver resolver) =>

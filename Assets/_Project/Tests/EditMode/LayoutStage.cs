@@ -15,7 +15,9 @@ namespace Kturker.UnityBase.Tests.EditMode
     // Screens laid out the way a device lays them out, without a device: every canvas becomes a world-space canvas the
     // size its CanvasScaler (match 0.5) gives the screen, every child shown (rows the presenter shows count), safe areas
     // as SafeArea anchors them (ReservedTop and ReservedBottom included), bound to a theme the way UiBinder binds it,
-    // layouts rebuilt twice, fit scales and touch areas fitted and every text's mesh updated. Rects read in canvas units.
+    // layouts rebuilt twice, fit scales and touch areas fitted and every text's mesh updated, all of it twice: a text
+    // group (KitTextGroup) refits when its members' meshes update, and a device draws them again at the new size before
+    // the frame ends. Rects read in canvas units.
     internal static class LayoutStage
     {
         // Portrait phones (the 1080 x 1920 reference, a 20:9 phone), a tablet, and the same turned to landscape
@@ -28,6 +30,28 @@ namespace Kturker.UnityBase.Tests.EditMode
             ("20:9 landscape", new Vector2(2400f, 1080f)),
             ("tablet landscape", new Vector2(2048f, 1536f))
         };
+
+        // The families' tallest font pair (.cmpose/themes.json: bright's default, pastel's second): Baloo 2 display, its
+        // line box 1.6 em where the kit's sizes count on 1.2 to 1.36 (ThemedText.IsTall), over Nunito body
+        public const string TallDisplay = "Assets/_Project/Core/Presentation/Fonts/Baloo2/Baloo2-Bold SDF.asset";
+        public const string TallBody = "Assets/_Project/Core/Presentation/Fonts/Nunito/Nunito-Regular SDF.asset";
+
+        // The app's style with the tall pair in place of its fonts: a game may pick it, so the layout rules run in it
+        // too; made collects it for the caller's TearDown
+        public static ThemeStyle TallStyle(List<Object> made)
+        {
+            var display = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TallDisplay);
+            var body = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TallBody);
+            Assert.That(display, Is.Not.Null, TallDisplay);
+            Assert.That(body, Is.Not.Null, TallBody);
+            var style = Object.Instantiate(ThemeStyle.Load());
+            made.Add(style);
+            var serialized = new SerializedObject(style);
+            serialized.FindProperty("displayFont").objectReferenceValue = display;
+            serialized.FindProperty("bodyFont").objectReferenceValue = body;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return style;
+        }
 
         // A copy of a prefab laid out on screen; made collects it for the caller's TearDown
         public static GameObject Prefab(string path, Vector2 screen, IThemeSource theme, List<Object> made)
@@ -59,16 +83,19 @@ namespace Kturker.UnityBase.Tests.EditMode
         // Lays a staged root out again after a test changed it (children added, shown or hidden)
         public static void Layout(GameObject root)
         {
-            for (var pass = 0; pass < 2; pass++)
+            for (var frame = 0; frame < 2; frame++)
             {
-                foreach (var group in root.GetComponentsInChildren<LayoutGroup>())
-                    LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)group.transform);
-                foreach (var fitter in root.GetComponentsInChildren<ContentSizeFitter>())
-                    LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)fitter.transform);
+                for (var pass = 0; pass < 2; pass++)
+                {
+                    foreach (var group in root.GetComponentsInChildren<LayoutGroup>())
+                        LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)group.transform);
+                    foreach (var fitter in root.GetComponentsInChildren<ContentSizeFitter>())
+                        LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)fitter.transform);
+                }
+                foreach (var fit in root.GetComponentsInChildren<KitFitScale>()) fit.Fit();
+                foreach (var area in root.GetComponentsInChildren<KitTouchArea>()) area.Fit();
+                foreach (var text in root.GetComponentsInChildren<TMP_Text>()) text.ForceMeshUpdate(true);
             }
-            foreach (var fit in root.GetComponentsInChildren<KitFitScale>()) fit.Fit();
-            foreach (var area in root.GetComponentsInChildren<KitTouchArea>()) area.Fit();
-            foreach (var text in root.GetComponentsInChildren<TMP_Text>()) text.ForceMeshUpdate(true);
         }
 
         // Per staged root, the objects it was built hidden (IndexPath): Lay shows them all
