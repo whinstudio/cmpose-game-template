@@ -52,6 +52,29 @@ namespace Kturker.UnityBase.Editor.Build
             }
         }
 
+        // Sets android:enableOnBackInvokedCallback="false" on every launcher activity. Targeting API 36, Android 16
+        // turns predictive back on and stops sending KEYCODE_BACK, so Unity never sees Escape and the back key or
+        // gesture does nothing in the game. Applying it twice changes nothing.
+        public static void UseKeyBack(XmlDocument manifest)
+        {
+            var root = manifest.DocumentElement;
+            if (root == null || root.Name != "manifest")
+                throw new BuildFailedException("AndroidManifest.xml has no <manifest> root");
+            var launchers = Elements(root, "application").SelectMany(a => Elements(a, "activity")).Where(IsLauncher).ToList();
+            if (launchers.Count == 0)
+                throw new BuildFailedException("AndroidManifest.xml has no launcher activity to set the back handling on");
+            foreach (var activity in launchers)
+            {
+                var attr = activity.GetAttributeNode("enableOnBackInvokedCallback", AndroidNs);
+                if (attr == null)
+                {
+                    attr = manifest.CreateAttribute("android", "enableOnBackInvokedCallback", AndroidNs);
+                    activity.Attributes.Append(attr);
+                }
+                attr.Value = "false";
+            }
+        }
+
         private static IEnumerable<XmlElement> Elements(XmlElement parent, string name) =>
             parent.ChildNodes.OfType<XmlElement>().Where(e => e.Name == name);
 

@@ -94,6 +94,33 @@ namespace Kturker.UnityBase.Tests.EditMode
         }
 
         [Test]
+        public void UseKeyBack_turns_predictive_back_off_on_the_launcher_and_twice_is_the_same()
+        {
+            var doc = Load(Manifest.Replace("</application>",
+                "<activity android:name=\"com.example.Other\" /></application>"));
+
+            DeepLinkManifest.UseKeyBack(doc);
+            var once = doc.OuterXml;
+            DeepLinkManifest.UseKeyBack(doc);
+
+            var activities = All(doc, "activity");
+            Assert.That(activities.Single(a => a.GetAttribute("name", Ns) == "com.unity3d.player.UnityPlayerGameActivity")
+                .GetAttribute("enableOnBackInvokedCallback", Ns), Is.EqualTo("false"));
+            Assert.That(activities.Single(a => a.GetAttribute("name", Ns) == "com.example.Other")
+                .HasAttribute("enableOnBackInvokedCallback", Ns), Is.False);
+            Assert.That(doc.OuterXml, Is.EqualTo(once));
+            Assert.That(doc.OuterXml, Does.Contain("android:enableOnBackInvokedCallback=\"false\""));
+        }
+
+        [Test]
+        public void UseKeyBack_without_a_launcher_fails_the_build()
+        {
+            var noLauncher = Load(Manifest.Replace("android.intent.category.LAUNCHER", "android.intent.category.INFO"));
+
+            Assert.Throws<BuildFailedException>(() => DeepLinkManifest.UseKeyBack(noLauncher));
+        }
+
+        [Test]
         public void SetLaunchMode_without_a_launcher_fails_the_build()
         {
             var noLauncher = Load(Manifest.Replace("android.intent.category.LAUNCHER", "android.intent.category.INFO"));

@@ -24,6 +24,7 @@ namespace Kturker.UnityBase.Editor.Build
             var doc = new XmlDocument();
             doc.Load(manifestPath);
             DeepLinkManifest.Apply(doc, scheme);
+            DeepLinkManifest.UseKeyBack(doc);
             // cmpose:purchases
             DeepLinkManifest.SetLaunchMode(doc, "singleTop");
             // /cmpose:purchases
