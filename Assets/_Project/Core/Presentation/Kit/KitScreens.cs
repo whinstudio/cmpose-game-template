@@ -23,8 +23,10 @@ namespace Kturker.UnityBase.Core.Presentation
             panel.SetActive(true);
         }
 
+        // A destroyed panel (its scene is unloading while the scope disposes a view that closes it) is left alone
         public static void Hide(GameObject panel)
         {
+            if (panel == null) return;
             var sheet = panel.GetComponent<KitSheet>();
             if (sheet != null)
             {

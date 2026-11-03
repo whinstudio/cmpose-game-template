@@ -531,7 +531,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -3581,7 +3581,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -3859,7 +3859,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -4623,7 +4623,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -4995,8 +4995,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d23f5bee164d4d6db8e59663c772fce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.KitTextGroup
-  max: 40
-  min: 32
+  max: 44
+  min: 34
   floor: 18
   sidePadding: 32
   members:
@@ -7838,8 +7838,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d23f5bee164d4d6db8e59663c772fce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.KitTextGroup
-  max: 30
-  min: 24
+  max: 34
+  min: 28
   floor: 18
   sidePadding: 0
   members:
@@ -8119,7 +8119,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -8943,8 +8943,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 30
-  m_fontSizeBase: 30
+  m_fontSize: 34
+  m_fontSizeBase: 34
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 0
@@ -9644,8 +9644,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 30
-  m_fontSizeBase: 30
+  m_fontSize: 34
+  m_fontSizeBase: 34
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 0
@@ -10178,8 +10178,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 30
-  m_fontSizeBase: 30
+  m_fontSize: 34
+  m_fontSizeBase: 34
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 0
@@ -10437,7 +10437,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -11045,7 +11045,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -11942,8 +11942,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 30
-  m_fontSizeBase: 30
+  m_fontSize: 34
+  m_fontSizeBase: 34
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 0
@@ -13451,7 +13451,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -14222,7 +14222,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -14519,12 +14519,12 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
+  m_fontSize: 44
   m_fontSizeBase: 56
   m_fontWeight: 400
   m_enableAutoSizing: 1
-  m_fontSizeMin: 24
-  m_fontSizeMax: 36
+  m_fontSizeMin: 34
+  m_fontSizeMax: 44
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
@@ -14591,7 +14591,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -16577,7 +16577,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0
@@ -17595,7 +17595,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8964a2989b82454585a40e1edbf9c924, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.ThemedText
-  role: 1
+  role: 2
   fitted: 0
   ownAutoSize: 0
   ownSize: 0

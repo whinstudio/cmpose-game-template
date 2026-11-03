@@ -225,5 +225,19 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(sheet.gameObject.activeSelf, Is.False);
             Assert.That(closed, Is.Zero);
         }
+
+        // A scene unloading with a card open destroys the panel before the scope disposes the shell, which then
+        // closes the card: hiding a destroyed panel does nothing instead of throwing MissingReferenceException
+        [Test]
+        public void Hiding_a_destroyed_panel_is_harmless()
+        {
+            var sheet = KitFactory.Sheet(canvas.transform, "Sheet", SheetPlacement.Center, 600f).gameObject;
+            var plain = Node("Plain", Vector2.one);
+            Object.DestroyImmediate(sheet);
+            Object.DestroyImmediate(plain);
+
+            Assert.DoesNotThrow(() => KitScreens.Hide(sheet));
+            Assert.DoesNotThrow(() => KitScreens.Hide(plain));
+        }
     }
 }

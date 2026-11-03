@@ -442,6 +442,25 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(problems, Is.Empty, string.Join("\n", problems));
         }
 
+        // One font on the card: only its titles (the card's and the language page's) take the display font; the rows, the
+        // buttons, the language code and the footer take the body font
+        [Test]
+        public void Settings_uses_the_display_font_for_its_titles_only()
+        {
+            var root = LayoutStage.Prefab(SettingsPrefab, LayoutStage.Screens[0].Screen, Theme(ThemeStyle.Load()), made);
+            var card = Require(root.transform, SettingsCard);
+            var titles = new[] { Require(card, "Title"), Require(card, "Languages/Title") };
+            var problems = new List<string>();
+            foreach (var text in card.GetComponentsInChildren<ThemedText>(true))
+            {
+                var title = titles.Contains(text.transform);
+                var display = text.Role == TextRole.Display || text.Role == TextRole.Title;
+                if (title != display) problems.Add($"{LayoutStage.PathOf(text.transform)}: {text.Role}");
+            }
+            Object.DestroyImmediate(root);
+            Assert.That(problems, Is.Empty, string.Join("\n", problems));
+        }
+
         // RemoveAds is the card's one primary button; Close's centre in the card's top right quarter
         [Test]
         public void Settings_has_one_primary_and_close_top_right()
