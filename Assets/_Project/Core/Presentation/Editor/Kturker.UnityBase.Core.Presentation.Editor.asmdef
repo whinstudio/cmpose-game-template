@@ -1,0 +1,7 @@
+{
+    "name": "Kturker.UnityBase.Core.Presentation.Editor",
+    "rootNamespace": "Kturker.UnityBase.Core.Presentation.Editor",
+    "references": ["Kturker.UnityBase.Core.Presentation"],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": false
+}

@@ -8,8 +8,8 @@ namespace Kturker.UnityBase.Features.Economy
 {
     // SceneBuilder builds it into the economy windows (Resources/Economy/EconomyWindows): a centred modal with the
     // booster's icon, name and effect, the currency the player has, the price with the currency's icon and "Watch ad"
-    // side by side (one fills the row when the other hides), a message line, Shop (while the coins do not reach the
-    // price) and Close
+    // side by side (one fills the row when the other hides), a message line, Shop in its row under it (while the coins
+    // do not reach the price; the row's band stays empty while it hides) and the round Close X at the card's top right
     public sealed class BoosterOfferView : MonoBehaviour, IBoosterOfferView
     {
         [SerializeField] private GameObject panel;

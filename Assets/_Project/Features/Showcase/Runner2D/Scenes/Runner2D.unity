@@ -1346,7 +1346,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51227b565d414442292fa0e684a6222a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.KitButton
-  variant: 1
+  variant: 4
   shadow: {fileID: 2082563817}
   edge: {fileID: 2146928744}
   body: {fileID: 1290078607}

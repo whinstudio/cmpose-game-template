@@ -6,6 +6,7 @@
         "Kturker.UnityBase.Core.Logging",
         "Kturker.UnityBase.Core.Navigation",
         "Kturker.UnityBase.Core.Presentation",
+        "Kturker.UnityBase.Core.Presentation.Editor",
         "Kturker.UnityBase.Core.Render",
         "Unity.RenderPipelines.Core.Runtime",
         "Kturker.UnityBase.Core.Preferences",

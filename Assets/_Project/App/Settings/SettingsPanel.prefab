@@ -7192,6 +7192,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.KitFitScale
   margin: 49
   baseHeight: 0
+  bounded: 0
 --- !u!114 &8445844539622212376
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8727,7 +8728,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51227b565d414442292fa0e684a6222a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kturker.UnityBase.Core.Presentation::Kturker.UnityBase.Core.Presentation.KitButton
-  variant: 2
+  variant: 5
   shadow: {fileID: 7789527148832766915}
   edge: {fileID: 8742805596915671808}
   body: {fileID: 3950242626720800431}

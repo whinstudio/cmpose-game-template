@@ -4,9 +4,25 @@ using UnityEngine.UI;
 namespace Kturker.UnityBase.Core.Presentation
 {
     // The layers of a kit box, back to front: Shadow (Soft: a blurred drop shadow), Edge (Raised: the darker base the
-    // box stands on; or an outline), Body (the box), Shine (Raised: a faint gloss on the upper half)
+    // box stands on; or an outline), Body (the box), Shine (Raised: a faint gloss, a thin strip along the top edge)
     public static class KitShape
     {
+        // The side inset of a raised box's shine: this share of the box's height, at least ShineMinInset units
+        public const float ShineInset = 0.12f;
+        public const float ShineMinInset = 12f;
+        // Where the shine starts (a share of the box's height from the bottom): above a centred label
+        public const float ShineBottom = 0.72f;
+
+        // The chunky store look (raised pill buttons, framed modal cards): every family but clean. A null style is plain,
+        // and so is a game whose skin dresses the kit (GameSkin.DressesKit): its buttons and panels are the skin's
+        // sprites, and one the pack has no sprite for (an icon button) keeps the family's plain shape among them
+        public static bool Chunky(ThemeStyle style)
+        {
+            if (style == null || style.FamilyId == "clean") return false;
+            var skin = GameSkin.Current;
+            return skin == null || !skin.DressesKit;
+        }
+
         // Corners of radius units (0: square; KitSprites.Pill: a pill or circle)
         public static void Round(Image image, float radius)
         {
@@ -88,17 +104,22 @@ namespace Kturker.UnityBase.Core.Presentation
             if (colour.HasValue) graphic.color = colour.Value;
         }
 
+        // How far a raised box's base shows below it (units): 6 + 10 x the style's shadow strength, times depthScale
+        public static float RaisedDepth(ThemeStyle style, float depthScale = 1f) =>
+            (6f + 10f * (style != null ? style.ShadowStrength : 0f)) * depthScale;
+
+        // surface: drawn on it instead of the style's (null: the style's)
         public static void Layers(Image shadow, Image edge, Image body, Image shine, float radius, ThemeStyle style,
-            ThemeRole bodyRole, ThemeRole? outline = null, float depthScale = 1f)
+            ThemeRole bodyRole, ThemeRole? outline = null, float depthScale = 1f, SurfaceStyle? surface = null)
         {
-            var surface = style != null ? style.Surface : SurfaceStyle.Flat;
+            var drawn = surface ?? (style != null ? style.Surface : SurfaceStyle.Flat);
             var strength = style != null ? style.ShadowStrength : 0f;
-            var raised = surface == SurfaceStyle.Raised;
+            var raised = drawn == SurfaceStyle.Raised;
             Round(body, radius);
             SetRole(body, bodyRole, 0f, 1f);
             if (shadow != null)
             {
-                var soft = surface == SurfaceStyle.Soft && strength > 0f;
+                var soft = drawn == SurfaceStyle.Soft && strength > 0f;
                 shadow.gameObject.SetActive(soft);
                 if (soft) SoftShadow(shadow, radius, strength);
             }
@@ -106,7 +127,7 @@ namespace Kturker.UnityBase.Core.Presentation
             {
                 var outlined = outline.HasValue;
                 edge.gameObject.SetActive(raised || outlined);
-                var depth = raised ? (6f + 10f * strength) * depthScale : 0f;
+                var depth = raised ? RaisedDepth(style, depthScale) : 0f;
                 var grow = outlined ? 4f : 0f;
                 Round(edge, radius + grow);
                 // An outline also rims the top (a light body on a light card would read as cut off); a raised base
@@ -120,12 +141,16 @@ namespace Kturker.UnityBase.Core.Presentation
                 shine.gameObject.SetActive(raised);
                 if (raised)
                 {
-                    Round(shine, Mathf.Max(radius - 6f, 0f));
+                    // A thin strip along the top edge, clear of the label on the middle (a bright strip over a dark
+                    // label reads poorly); a pill's gloss is a pill too (radius - 6 falls below KitSprites.Pill and
+                    // would lose the pill fit). The inset follows the box's height when the gloss is drawn
+                    Round(shine, radius >= KitSprites.Pill ? KitSprites.Pill : Mathf.Max(radius - 6f, 0f));
+                    var inset = Mathf.Max(ShineMinInset, ShineInset * body.rectTransform.rect.height);
                     var rect = shine.rectTransform;
-                    rect.anchorMin = new Vector2(0f, 0.52f);
+                    rect.anchorMin = new Vector2(0f, ShineBottom);
                     rect.anchorMax = Vector2.one;
-                    rect.offsetMin = new Vector2(8f, 0f);
-                    rect.offsetMax = new Vector2(-8f, -6f);
+                    rect.offsetMin = new Vector2(inset, 0f);
+                    rect.offsetMax = new Vector2(-inset, -6f);
                     SetRole(shine, ThemeRole.Picture, 0f, 0.16f);
                 }
             }
@@ -157,7 +182,8 @@ namespace Kturker.UnityBase.Core.Presentation
             rect.offsetMax = new Vector2(right, top);
         }
 
-        private static void SetRole(Graphic graphic, ThemeRole role, float shade, float opacity)
+        // The graphic's role and tone, its fixed colour (a skin's) cleared
+        internal static void SetRole(Graphic graphic, ThemeRole role, float shade, float opacity)
         {
             var themed = graphic.GetComponent<ThemedGraphic>();
             if (themed == null) themed = graphic.gameObject.AddComponent<ThemedGraphic>();

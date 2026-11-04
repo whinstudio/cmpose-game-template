@@ -5,14 +5,17 @@ using UnityEngine.UI;
 namespace Kturker.UnityBase.Core.Presentation
 {
     // Lays its children out left to right, gap apart, at their preferred sizes: a row too narrow for them all scales them
-    // down alike (localScale, never below MinScale), and those that still do not fit wrap to further lines, gap between
-    // lines. Its preferred height is the lines' total, so a parent layout makes room for a wrapped row.
+    // down alike (localScale, never below its Minimum, MinScale unless the row sets its own), and those that still do not
+    // fit wrap to further lines, gap between lines. Its preferred height is the lines' total, so a parent layout makes
+    // room for a wrapped row.
     public sealed class KitFlowRow : LayoutGroup
     {
-        // The smallest scale before items wrap: smaller would make their text too small to read
+        // The kit's smallest scale before items wrap: smaller would make their text too small to read
         public const float MinScale = 0.75f;
 
         [SerializeField] private float gap = KitLayout.Gap;
+        // This row's smallest scale before its items wrap (the menu's round buttons: no smaller than the touch size)
+        [SerializeField] private float minimum = MinScale;
 
         private readonly List<int> lineStarts = new List<int>();
         private readonly List<float> lineWidths = new List<float>();
@@ -20,8 +23,17 @@ namespace Kturker.UnityBase.Core.Presentation
         private float scale = 1f;
 
         public float Gap => gap;
+        public float Minimum => minimum;
         // The children's scale at the last layout
         public float Scale => scale;
+
+        // 0 < value <= 1; laid out again
+        public void SetMinimum(float value)
+        {
+            if (!(value > 0f && value <= 1f)) throw new System.ArgumentOutOfRangeException(nameof(value), "0 < minimum <= 1");
+            minimum = value;
+            SetDirty();
+        }
 
         public override void CalculateLayoutInputHorizontal()
         {
@@ -35,7 +47,7 @@ namespace Kturker.UnityBase.Core.Presentation
                 total += width;
             }
             if (rectChildren.Count > 1) total += gap * (rectChildren.Count - 1);
-            SetLayoutInputForAxis(padding.horizontal + widest * MinScale, padding.horizontal + total, -1f, 0);
+            SetLayoutInputForAxis(padding.horizontal + widest * minimum, padding.horizontal + total, -1f, 0);
         }
 
         public override void CalculateLayoutInputVertical()
@@ -60,7 +72,7 @@ namespace Kturker.UnityBase.Core.Presentation
             var available = rectTransform.rect.width - padding.horizontal;
             var total = 0f;
             foreach (var child in rectChildren) total += LayoutUtility.GetPreferredWidth(child);
-            scale = total > 0f ? Mathf.Clamp((available - gap * (count - 1)) / total, MinScale, 1f) : 1f;
+            scale = total > 0f ? Mathf.Clamp((available - gap * (count - 1)) / total, minimum, 1f) : 1f;
             var width = 0f;
             for (var i = 0; i < count; i++)
             {

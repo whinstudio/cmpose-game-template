@@ -213,6 +213,61 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.That(scrim.GetComponent<Image>().color, Is.EqualTo(new Color(0f, 0f, 0f, 0.6f * 0.35f)), "two arguments");
         }
 
+        // Compass's still of the game sits under the full Scrim (the role's own alpha): blurred, it is a backdrop, not a
+        // picture to look at
+        [Test]
+        public void Still_gets_the_full_scrim()
+        {
+            var view = OpenMenu(out var canvas);
+            var still = MakeSprite("still", 32, 64);
+
+            view.ShowBranding(null, still, null, still: true);
+
+            var scrim = Child(canvas, "BrandScrim");
+            Assert.That(scrim.activeSelf, Is.True, "scrim shown");
+            Assert.That(scrim.GetComponent<ThemedGraphic>().Opacity, Is.EqualTo(MenuView.StillScrimOpacity).Within(1e-4f));
+            Assert.That(scrim.GetComponent<Image>().color.a, Is.EqualTo(0.6f).Within(1e-4f), "the Scrim role's alpha");
+        }
+
+        // A skin's scrim colour is tuned for its own designed background (often a light veil): the still ignores it and
+        // keeps the Scrim role at full tone, while a designed background still takes it
+        [Test]
+        public void Still_ignores_the_skin_scrim_colour()
+        {
+            var view = OpenMenu(out var canvas);
+            var still = MakeSprite("still", 32, 64);
+            var designed = MakeSprite("designed", 32, 64);
+            Color skinScrim = new Color32(0xF0, 0xF0, 0xFF, 0x40);
+            var scrim = Child(canvas, "BrandScrim");
+
+            view.ShowBranding(null, still, skinScrim, still: true);
+
+            Assert.That(scrim.GetComponent<Image>().color, Is.EqualTo(new Color(0f, 0f, 0f, 0.6f)), "the role's colour at full tone");
+
+            view.ShowBranding(null, designed, skinScrim);
+
+            Assert.That(scrim.GetComponent<Image>().color, Is.EqualTo(skinScrim), "a designed background takes the skin's scrim");
+
+            view.ShowBranding(null, still, skinScrim, still: true);
+
+            Assert.That(scrim.GetComponent<Image>().color, Is.EqualTo(new Color(0f, 0f, 0f, 0.6f)), "and the still drops it again");
+        }
+
+        // A skin's designed background keeps the light Scrim, also after the still was shown
+        [Test]
+        public void Designed_background_keeps_the_light_scrim()
+        {
+            var view = OpenMenu(out var canvas);
+            var designed = MakeSprite("designed", 32, 64);
+            view.ShowBranding(null, MakeSprite("still", 32, 64), null, still: true);
+
+            view.ShowBranding(null, designed, null);
+
+            var scrim = Child(canvas, "BrandScrim");
+            Assert.That(scrim.GetComponent<ThemedGraphic>().Opacity, Is.EqualTo(MenuView.PictureScrimOpacity).Within(1e-4f));
+            Assert.That(scrim.GetComponent<Image>().color.a, Is.EqualTo(0.6f * 0.35f).Within(1e-4f), "35 % of the role's alpha");
+        }
+
         [Test]
         public void Boot_uses_brand_background()
         {

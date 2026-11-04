@@ -191,6 +191,7 @@ namespace Kturker.UnityBase.App.Settings
             if (LanguagesOpen) return;
             foreach (var covered in page) Veil(covered, true);
             languages.SetActive(true);
+            RefreshBand();
             languageList.StopMovement();
             languageList.verticalNormalizedPosition = 1f;
         }
@@ -199,6 +200,16 @@ namespace Kturker.UnityBase.App.Settings
         {
             languages.SetActive(false);
             foreach (var covered in page) Veil(covered, false);
+            RefreshBand();
+        }
+
+        // The card's title band (KitCard) goes under the language page (its veiled title is no header, and Back and the
+        // page's title would sit on the band) and comes back with the card's page: the card does not resize for either
+        private void RefreshBand()
+        {
+            var sheet = panel != null ? panel.GetComponent<KitSheet>() : null;
+            var card = sheet != null && sheet.Panel != null ? sheet.Panel.GetComponent<KitCard>() : null;
+            if (card != null) card.RefreshBand();
         }
 
         public void ShowCredits(string text) => credits.Show(text);

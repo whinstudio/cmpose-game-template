@@ -10,15 +10,15 @@ namespace Kturker.UnityBase.Features.Economy
     {
         // A round button captioned economy.extra.<id>.name that plays the click feedback and calls onClick (open the
         // extra with IEconomyWindows.OpenExtra); set its badge with the returned button. It goes after the ready
-        // extras' buttons: in the left column while that has room, else in the right one. Null with the economy off or
+        // extras' buttons: on the Left side while that has room, else on the Right one. Null with the economy off or
         // when the game's file has no custom extra with this id.
         IMenuSideButton AddExtraButton(string extraId, Sprite icon, Action onClick);
     }
 
-    // The economy on the menu: the currency at the top bar's left (its mark, in its own colour; a tap opens the shop
-    // while it can show, IEconomyShop), and a side button for
-    // each ready extra the game has, in the file's extras order: the supply and the login bonus in the left column, the
-    // wheel in the right one (whose other two slots are the leaderboard's and the achievements'). Custom extras add
+    // The economy on the menu: the currency at the top bar's left (its mark, in its own colour; while the shop can show,
+    // IEconomyShop, the counter carries the shop's "+" mark and a tap opens the shop), and a round button in the menu's
+    // row for each ready extra the game has, in the file's extras order: the supply and the login bonus on the Left side,
+    // the wheel on the Right one (whose other two slots are the leaderboard's and the achievements'). Custom extras add
     // theirs with IEconomyExtraButtons. A game with no extra shows only the counter. The badges follow the timers
     // (refreshed every second, unscaled): a red dot when something can be taken, the video mark when only an ad can,
     // the countdown while waiting. Nothing shows with the economy off.
@@ -108,6 +108,7 @@ namespace Kturker.UnityBase.Features.Economy
         {
             if (!started) return;
             coins.SetCoins(economy.Coins, currency.Mark);
+            coins.ShowBuy(shop.CanShow);
             if (supplyButton != null)
             {
                 if (supply.FreeReady) supplyButton.SetBadge(MenuBadge.Dot);
@@ -127,7 +128,7 @@ namespace Kturker.UnityBase.Features.Economy
             }
         }
 
-        // The side columns' slots (MenuView.SideSlots)
+        // The slots per side (MenuView.SideSlots)
         private const int MenuSlots = 3;
 
         // The ready extras' buttons once, in the file's order

@@ -10,5 +10,9 @@ namespace Kturker.UnityBase.Core.Presentation
         // null count hides the counter (no economy); mark: the currency's glyph or fallback disc in its own colour with a
         // darker rim (FallbackIcon.ShowCurrency; null: the plain disc)
         void SetCoins(int? count, CurrencyMark mark);
+
+        // The shop's round "+" mark at the counter's right end: shown while a shop can show (IEconomyShop.CanShow); a
+        // hidden counter hides it too
+        void ShowBuy(bool shown);
     }
 }

@@ -578,6 +578,8 @@ namespace Kturker.UnityBase.Tests.EditMode
         public int? Coins;
         public CurrencyMark CoinMark;
         public int CoinWrites;
+        // The shop's mark on the counter as last shown (null: never set)
+        public bool? BuyShown;
         public event Action CoinsClicked;
 
         public IMenuSideButton AddSideButton(MenuSide side, UnityEngine.Sprite icon, string labelKey, Action onClick)
@@ -593,6 +595,8 @@ namespace Kturker.UnityBase.Tests.EditMode
             CoinMark = mark;
             CoinWrites++;
         }
+
+        public void ShowBuy(bool shown) => BuyShown = shown;
 
         public FakeMenuSideButton Find(string labelKey) => Buttons.Find(b => b.LabelKey == labelKey);
 

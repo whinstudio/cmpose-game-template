@@ -15,7 +15,7 @@ namespace Kturker.UnityBase.Tests.EditMode
     // Screens laid out the way a device lays them out, without a device: every canvas becomes a world-space canvas the
     // size its CanvasScaler (match 0.5) gives the screen, every child shown (rows the presenter shows count), safe areas
     // as SafeArea anchors them (ReservedTop and ReservedBottom included), bound to a theme the way UiBinder binds it,
-    // layouts rebuilt twice, fit scales and touch areas fitted and every text's mesh updated, all of it twice: a text
+    // layouts rebuilt twice, fit scales and touch areas fitted, the canvas update run (framed cards' title bands) and every text's mesh updated, all of it twice: a text
     // group (KitTextGroup) refits when its members' meshes update, and a device draws them again at the new size before
     // the frame ends. Rects read in canvas units.
     internal static class LayoutStage
@@ -35,9 +35,13 @@ namespace Kturker.UnityBase.Tests.EditMode
         // line box 1.6 em where the kit's sizes count on 1.2 to 1.36 (ThemedText.IsTall), over Nunito body
         public const string TallDisplay = "Assets/_Project/Core/Presentation/Fonts/Baloo2/Baloo2-Bold SDF.asset";
         public const string TallBody = "Assets/_Project/Core/Presentation/Fonts/Nunito/Nunito-Regular SDF.asset";
+        // The family TallStyle draws in: bright ships the tall pair, and it is chunky
+        public const string TallFamily = "bright";
 
-        // The app's style with the tall pair in place of its fonts: a game may pick it, so the layout rules run in it
-        // too; made collects it for the caller's TearDown
+        // The app's style with the tall pair in place of its fonts and bright's family id (the family that ships the
+        // pair): a game may pick it, so the layout rules run in it too, and in the chunky look (KitShape.Chunky: framed
+        // modal cards, raised pill buttons) that only a family other than clean draws; made collects it for the
+        // caller's TearDown
         public static ThemeStyle TallStyle(List<Object> made)
         {
             var display = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TallDisplay);
@@ -49,6 +53,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var serialized = new SerializedObject(style);
             serialized.FindProperty("displayFont").objectReferenceValue = display;
             serialized.FindProperty("bodyFont").objectReferenceValue = body;
+            serialized.FindProperty("familyId").stringValue = TallFamily;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return style;
         }
@@ -93,6 +98,9 @@ namespace Kturker.UnityBase.Tests.EditMode
                         LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)fitter.transform);
                 }
                 foreach (var fit in root.GetComponentsInChildren<KitFitScale>()) fit.Fit();
+                // The canvas update a device runs each frame: what registered for it (a framed card's title band, placed
+                // after layout) runs on the rects laid out above
+                Canvas.ForceUpdateCanvases();
                 foreach (var area in root.GetComponentsInChildren<KitTouchArea>()) area.Fit();
                 foreach (var text in root.GetComponentsInChildren<TMP_Text>()) text.ForceMeshUpdate(true);
             }
@@ -120,7 +128,8 @@ namespace Kturker.UnityBase.Tests.EditMode
             Layout(root);
         }
 
-        private static void Lay(GameObject root, Vector2 screen, IThemeSource theme)
+        // Lays a root that is open already (a scene a test opened) out on screen, the way Scene and Prefab lay theirs
+        public static void Lay(GameObject root, Vector2 screen, IThemeSource theme)
         {
             foreach (var gone in builtHidden.Keys.Where(k => k == null).ToList()) builtHidden.Remove(gone);
             builtHidden[root] = new HashSet<string>(root.GetComponentsInChildren<Transform>(true).Where(t => !t.gameObject.activeSelf)

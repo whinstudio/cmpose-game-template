@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Kturker.UnityBase.Features.Showcase.Common.Leaderboards
 {
-    // Leaderboard and Achievements as round buttons of the menu's right column, and a hint line in the menu's extra slot
+    // Leaderboard and Achievements as the menu's Right round buttons, and a hint line in the menu's extra slot
     // that shows only with a hint (SceneBuilder builds the line)
     public sealed class ShowcaseScoresView : MonoBehaviour, IShowcaseScoresView
     {

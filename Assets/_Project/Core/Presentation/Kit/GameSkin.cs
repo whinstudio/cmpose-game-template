@@ -53,6 +53,9 @@ namespace Kturker.UnityBase.Core.Presentation
         public Sprite Card { get; private set; }
         public Sprite Sheet { get; private set; }
         public Sprite Dialog { get; private set; }
+        // The ui section loaded: the kit's buttons (but maybe the icon button), cards, sheets and dialogs are drawn with
+        // its sprites (all or nothing, ReadUi). A skin of colours, backgrounds or fonts alone leaves the kit's shapes
+        public bool DressesKit => Card != null;
         // Source pixels per reference unit: a 48 px sprite drawn at SliceScale 4 has 4-unit pixels
         public float SliceScale { get; private set; } = 1f;
         // A pixel pack: drawn tiled so its edge patterns repeat instead of stretching (a soft pack is sliced)
@@ -99,8 +102,14 @@ namespace Kturker.UnityBase.Core.Presentation
             return display != null ? display : DisplayFont;
         }
 
-        // The sprites and label colour of a button variant; null without a ui section
-        public SkinButton Button(KitButtonVariant variant) => buttons.TryGetValue(variant, out var button) ? button : null;
+        // The sprites and label colour of a button variant; null without a ui section. A skin has no Danger or Close
+        // entry: Danger wears the Primary sprite, Close the Icon sprite (none without an icon entry: the kit's red circle)
+        public SkinButton Button(KitButtonVariant variant)
+        {
+            if (variant == KitButtonVariant.Danger) variant = KitButtonVariant.Primary;
+            else if (variant == KitButtonVariant.Close) variant = KitButtonVariant.Icon;
+            return buttons.TryGetValue(variant, out var button) ? button : null;
+        }
 
         // The sprite of an icon role ("coin", "heart", "gem", "key"); null when the skin has none
         public Sprite Icon(string role) => role != null && icons.TryGetValue(role, out var icon) ? icon : null;

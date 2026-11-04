@@ -26,8 +26,12 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
 
 ## What is in the box
 
-- **Menu:** a top bar (the currency on the left, shown by the economy, see "Economy"; the settings gear in the right corner), the title
-  or your logo in the middle, round feature buttons in a column at each side and a big Play at the bottom.
+- **Menu:** a top bar (the currency's pill on the left, shown by the economy, see "Economy", with a round "+" at its
+  right end while the shop can show; the settings gear in the right corner, as tall as the pill), the title or your
+  logo in the top third (at most 80 % of the width), and at the bottom one centred row of round feature buttons, each
+  with a one-line label under it, right above a big breathing Play (70 % of the width). Further games' smaller Play
+  buttons sit side by side above the row, the features' rows (best score, shop) above them. Turned to landscape, the
+  title or logo stands on the left with the features' rows and the further games under it, the row and Play bottom right.
   **Settings** is one card, in the menu and from the pause menu: switches for music, sound effects and vibration, a
   Language row when the game has more than one language (its list opens in the card, "Device language" first), Remove
   ads as the one main button while it can be bought, then a grid of equal buttons (Restore, Sign in, Ad choices,
@@ -38,12 +42,17 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
   them) are in [MAINTAINING.md, "Mobile UI rules"](MAINTAINING.md#mobile-ui-rules). Settings are saved with
   PlayerPrefs. While room is kept for the ads banner at the top of the menu (from before the ad loads, so nothing
   moves when it arrives), the top bar moves down one button height more, so no button sits next to the ad. Add a
-  feature's button to a side column (up to three per side) with `IMenuSideButtons` (the menu's `MenuView`):
+  feature's button to the row (up to three per side; the `MenuSide.Left` ones come first, then the `Right` ones, each
+  side in the order added; a button you hide with `SetActive(false)` leaves no gap) with `IMenuSideButtons` (the
+  menu's `MenuView`):
 
   ```csharp
   var gift = sides.AddSideButton(MenuSide.Left, giftIcon, "mygame.gift", OpenGift);  // a white glyph sprite, a caption key
   gift.SetBadge(MenuBadge.Timer, "2:59:41");  // or MenuBadge.Dot (ready), MenuBadge.Ad (a rewarded ad), MenuBadge.None
   ```
+
+  The currency's pill is `IMenuCoins` (the economy writes it): `SetCoins(count, mark)` (null hides it) and
+  `ShowBuy(shown)`, the shop's "+" mark (the economy shows it while the shop can show).
 - **Game:** a pause button at the top right opens Resume / Settings / Menu; the game also pauses (without the
   panel) when the app goes to the background. The "Start here" panel shows only in the Unity Editor (never in a
   player build) until you press "Got it". The sample's Complete button is a positive moment for review requests. The sample also counts how many times Complete was
@@ -54,26 +63,46 @@ Open the folder with Unity Hub using editor **6000.3.25f1** (Android Build Suppo
 
 ## Look: style family, fonts and the UI kit
 
-Every screen is drawn in one **style family**: a palette, a pair of fonts (a display font for titles and buttons, a
-body font for text), a corner radius, a surface (Flat, Soft shadows or Raised), a motion profile (Calm, Snappy or
-Bouncy), a background (Solid, Gradient or Pattern), post-processing and the game world's colours. The applied family
-lives in `Core/Presentation/Resources/Theme/Style.asset` and `Light.asset`; the six families (`bright`, `neon`,
-`pastel`, `bold`, `nature`, `clean`) are described in `.cmpose/themes.json`. The bundled fonts (SIL Open Font Licence,
-in `Core/Presentation/Fonts`) carry every letter of the five languages; only the applied family's two fonts enter a
-build.
+Every screen is drawn in one **style family**: a palette, a pair of fonts (a display font for titles and the Play
+button, a body font for text and, in bold, the other buttons' labels), a corner radius, a surface (Flat, Soft shadows
+or Raised), a motion profile (Calm, Snappy or Bouncy), a background (Solid, Gradient or Pattern), post-processing
+and the game world's colours. The applied family lives in `Core/Presentation/Resources/Theme/Style.asset` and
+`Light.asset`; the six families (`bright`, `neon`, `pastel`, `bold`, `nature`, `clean`) are described in
+`.cmpose/themes.json`. The bundled fonts (SIL Open Font Licence, in `Core/Presentation/Fonts`) carry every letter of
+the five languages; only the applied family's two fonts enter a build.
 
 Build your own screens with the kit in `Core/Presentation/Kit` instead of plain uGUI parts, so they follow the family:
 ```csharp
-var play = KitFactory.Button(parent, "Start", KitButtonVariant.Play);          // Primary, Secondary, Icon, Play
+// variants: Primary, Secondary, Icon, Play, Danger, Close
+var play = KitFactory.Button(parent, "Start", KitButtonVariant.Play);
 var shop = KitFactory.Button(parent, "Shop", KitButtonVariant.Secondary, sprite); // a glyph at its left
-var card = KitFactory.Card(parent, "Card");                                     // also Sheet, Switch, Slider,
-uiBinder.BindTree(card.gameObject);                                             // Segmented, Badge, CountUp, Decor
+var quit = KitFactory.Button(parent, "Menu", KitButtonVariant.Danger);     // red: an action that loses progress
+var card = KitFactory.Card(parent, "Card");      // also Sheet, Switch, Slider, Segmented, Badge, CountUp, Decor
+var close = KitFactory.Button(card.transform, "Close", KitButtonVariant.Close, KitSprites.Close); // a round red X
+uiBinder.BindTree(card.gameObject);
 ```
 Buttons spring when pressed, panels slide and fade in (`KitScreens.Show`), and all of it runs on unscaled time, so it
 also plays while the game is paused. Every text needs a `ThemedText` (its font role) and every image a
 `ThemedGraphic` (its colour role); the EditMode `UiCoverageTests` check the template's screens for both. A tall display
 font (Baloo 2, in `bright` and `pastel`) may shrink a text a little to fit its box, so code that sizes a text after
 binding it sets `fontSizeMax` as well as `fontSize`.
+
+On a modal's or a bottom sheet's panel (`KitSheet`) only texts named `Title` or `Subtitle` and big numbers (the
+`Display` role) keep the display font; its other `Title`-role texts become bold body text, so name a card's heading
+`Title` to keep it in the display font. Outside the `clean` family modals are framed in the Primary colour and buttons
+are raised pills, like a store casual game's; `clean`, and a skin that dresses the buttons and panels in sprites, keep
+their own shapes.
+
+Use `Danger` for a button that loses or deletes something (leaving a run from Pause, a reset); a Menu that loses
+nothing stays `Secondary`. Both `Danger` and `Close` are red in every family. In those framed (chunky) families a
+`Title` placed directly under a framed sheet's `Content` (or directly under a column card such as settings) sits on a
+Primary band at the top of the frame, in OnPrimary with a dark outline, and the Surface panel starts below it: keep the
+first row under the title at least `KitLayout.Gap` lower than the band. Any other text, control or picture on the band
+(the card's own Close X aside) leaves the card unbanded, as in `clean`. When code shows or hides something near the
+title without the card resizing, call `KitCard.RefreshBand()`. A card's way out is the round X (`KitButtonVariant.Close`)
+at its top right corner: a `KitLayout.MinTouch` square anchored to that corner, its centre 30 units inside it, kept out
+of the card's layout (`LayoutElement.ignoreLayout`), so it overhangs the card by about 33 units; give the card's
+`KitFitScale` a margin of at least that overhang plus `KitLayout.Gap` so the X stays clear of the screen's edges.
 
 Screens follow the template's mobile UI rules: controls touched over at least 48 dp (126 units on the 1080-wide
 reference canvas), content in the safe area, at most one main button per screen, Close as an X at the top right,
@@ -84,7 +113,10 @@ shortened, the layout stays. The full list, with the tests that check each rule,
 
 Your game's own look goes on top of the family. Put a title logo at `Assets/_Project/Resources/Branding/title-logo.png`
 (imported as a Sprite, transparent) and the menu and the boot screen show it instead of the title text; a picture at
-`Branding/menu-background.png` covers the menu's background (under a light dim, in place of the drifting shapes).
+`Branding/menu-background.png` (Compass puts a still of your game there) covers the menu's background in place of the
+drifting shapes. Unity scales it down and blurs it when it imports the file, and the menu always darkens it, skin or
+not, so the logo and the buttons stand out over it. A designed menu background from `GameSkin.json`
+(`backgrounds.menu`) is shown as drawn, under the skin's `scrim` colour or a light dim.
 `Resources/GameSkin.json` can give the boot screen a brand colour behind the logo
 (`{"version":1,"brand":{"background":"#RRGGBB"}}`) and dress the buttons and panels in sprites of your own. Leave the
 files out and the screens keep the family's look.
@@ -356,7 +388,7 @@ The template gives the infrastructure; the economy itself is designed for each g
   Game scene's counter pill with its icon, every price next to it. Texts take the name as an argument and never add a
   suffix to it ("80 acorns", "You have 100 acorns", "Acorns: not enough"; Turkish "Sende: 100 palamut").
 - **Extras**, 0 to 3 (`"extras":[{"id":"daily","kind":"supply"},{"id":"scratch","kind":"custom"}]`, absent: none). Three
-  are ready-made and only need their section of values in the file: **Supply** (`supply`, left column: free currency
+  are ready-made and only need their section of values in the file: **Supply** (`supply`, left side of the row: free currency
   every few hours, then a short ladder of ad rows that resets at local midnight), **Daily** (`login`, left: the 7-day
   login bonus; a missed day starts again at day 1) and **Spin** (`wheel`, right: the lucky wheel, free every few runs
   or won levels, a few more spins a day for an ad; "i" lists every slice's odds). A `custom` extra is the game's own
@@ -393,12 +425,12 @@ mid-purchase; a restore brings back Remove Ads but never pays a bundle again. Du
 A custom extra (`"kind":"custom"`) is plain C# over the template's parts, in the game's own code:
 
 ```csharp
-// The menu scope: its round button (after the ready extras', in the left column while it has room)
+// The menu scope: its round button (after the ready extras', on the left side while it has room)
 var button = extraButtons.AddExtraButton("scratch", icon, () => windows.OpenExtra(scratchContent));  // IEconomyExtraButtons
 button.SetBadge(MenuBadge.Dot);                                           // or Timer / Ad / None, kept up to date by you
 
-// Its window: IEconomyExtraContent fills the economy's frame (title economy.extra.<id>.name, Close, banner hidden,
-// never during an AutoPlay run)
+// Its window: IEconomyExtraContent fills the economy's frame (title economy.extra.<id>.name, the corner X, banner
+// hidden, never during an AutoPlay run)
 public void Show(RectTransform parent, IEconomyExtraFrame frame) { /* KitFactory parts under parent */ }
 
 // State that survives restarts (saved with the wallet): numbers and short JSON per extra

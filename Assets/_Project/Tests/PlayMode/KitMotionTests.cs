@@ -120,6 +120,48 @@ namespace Kturker.UnityBase.Tests.PlayMode
             Assert.That(picker.Indicator.rectTransform.anchorMin.x, Is.EqualTo(2f / 3f).Within(0.001f));
         });
 
+        // A chunky button pressed down (Pause's Menu, at timeScale 0) comes back at once when its object is disabled or it
+        // stops being interactable while the finger is still down
+        [UnityTest]
+        public IEnumerator Pressed_button_comes_back_when_disabled_or_made_uninteractable() => UniTask.ToCoroutine(async () =>
+        {
+            var style = ScriptableObject.CreateInstance<ThemeStyle>();
+            JsonUtility.FromJsonOverwrite("{\"familyId\":\"bright\",\"cornerRadius\":28,\"shadowStrength\":0.4}", style);
+            Assert.That(KitShape.Chunky(style), Is.True, "a chunky style (no skin dressing the kit)");
+            var chunky = new FixedThemeSource(palette, style);
+            var button = KitFactory.Button(canvas.transform, "Menu", KitButtonVariant.Danger);
+            button.Bind(chunky);
+            await UniTask.Yield();
+            var body = button.Body.rectTransform;
+            var label = button.Label.rectTransform;
+            var before = (body.offsetMin, body.offsetMax, label.anchoredPosition);
+            void AssertBack(string what)
+            {
+                Assert.That(button.Pressed, Is.False, $"{what}: up");
+                Assert.That(Vector2.Distance(body.offsetMin, before.Item1), Is.LessThan(1e-4f), $"{what}: body min");
+                Assert.That(Vector2.Distance(body.offsetMax, before.Item2), Is.LessThan(1e-4f), $"{what}: body max");
+                Assert.That(Vector2.Distance(label.anchoredPosition, before.Item3), Is.LessThan(1e-4f), $"{what}: label");
+            }
+
+            button.OnPointerDown(new PointerEventData(EventSystem.current));
+            Assert.That(button.Pressed, Is.True, "down");
+            button.gameObject.SetActive(false);
+            AssertBack("disabled");
+            button.gameObject.SetActive(true);
+            await UniTask.Yield();
+            AssertBack("enabled again");
+
+            button.OnPointerDown(new PointerEventData(EventSystem.current));
+            Assert.That(button.Pressed, Is.True, "down again");
+            button.Button.interactable = false;
+            await UniTask.Yield();
+            await UniTask.Yield();
+            AssertBack("made uninteractable");
+            button.OnPointerUp(new PointerEventData(EventSystem.current));
+            AssertBack("the finger's up after");
+            Object.Destroy(style);
+        });
+
         [UnityTest]
         public IEnumerator Decor_drifts_while_paused() => UniTask.ToCoroutine(async () =>
         {

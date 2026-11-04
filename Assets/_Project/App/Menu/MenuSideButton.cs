@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace Kturker.UnityBase.App.Menu
 {
-    // One round button of the menu's side columns with its caption under it and its badges over the circle: a red dot
+    // One round button of the menu's row above Play with its caption under it and its badges over the circle: a red dot
     // at the top right, a countdown pill across the bottom, a video mark at the top right (SceneBuilder builds the
     // hidden template, MenuView.AddSideButton copies it)
     public sealed class MenuSideButton : MonoBehaviour, IMenuSideButton

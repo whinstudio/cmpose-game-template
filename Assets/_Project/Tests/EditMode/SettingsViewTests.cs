@@ -4,6 +4,7 @@ using Kturker.UnityBase.Core.Presentation;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Kturker.UnityBase.Tests.EditMode
 {
@@ -19,9 +20,11 @@ namespace Kturker.UnityBase.Tests.EditMode
         [TearDown]
         public void Clean()
         {
+            GameSkin.ForTests(null);
             foreach (var o in made)
                 if (o != null) Object.DestroyImmediate(o);
             made.Clear();
+            KitTextOutline.DestroyMaterialsForTests();
         }
 
         private SettingsView View()
@@ -137,6 +140,106 @@ namespace Kturker.UnityBase.Tests.EditMode
 
             Assert.That(view.LanguagesOpen, Is.False, "page closed");
             Assert.That(Find(view, "Body/Rows").parent.GetComponent<CanvasGroup>().alpha, Is.EqualTo(1f), "body back");
+        }
+
+        // In a chunky family the card's title sits on a band; the language page veils it and puts Back and its own title
+        // where the band was, so the band goes while the page is open and comes back with the card's page
+        [Test]
+        public void Language_page_takes_the_band_off_and_back()
+        {
+            GameSkin.ForTests(GameSkin.Parse("{}", _ => null, _ => null));
+            var palette = ScriptableObject.CreateInstance<Palette>();
+            made.Add(palette);
+            var theme = new FakeThemeSource { Current = palette, Style = LayoutStage.TallStyle(made) };
+            var root = LayoutStage.Prefab(SettingsPrefab, LayoutStage.Screens[0].Screen, theme, made);
+            var view = root.GetComponent<SettingsView>();
+            var card = view.transform.Find(Card).GetComponent<KitCard>();
+            // The stage shows every part: the language page closes the way the view closes it
+            view.HideLanguages();
+            LayoutStage.Layout(root);
+            Assert.That(card.Header, Is.SameAs(Find(view, "Title")), "the card's title is its header");
+            Assert.That(card.Banded, Is.True, "the card's page: banded");
+
+            view.ShowLanguages(new List<(string, string)> { ("en", "English") }, "en", "English");
+            Assert.That(card.Banded, Is.False, "the language page: no band");
+            Assert.That(Find(view, "Title").GetComponent<ThemedGraphic>().Role, Is.EqualTo(ThemeRole.Text), "the language page: the title as built");
+
+            view.HideLanguages();
+            Assert.That(card.Banded, Is.True, "back on the card's page: banded");
+        }
+
+        // A canvas the size its CanvasScaler gives screen (match 0.5 of the 1080 x 1920 reference), drawn in world space
+        private static void Size(RectTransform canvas, Vector2 screen)
+        {
+            var reference = canvas.GetComponent<CanvasScaler>().referenceResolution;
+            var scale = Mathf.Pow(2f, Mathf.Lerp(Mathf.Log(screen.x / reference.x, 2f), Mathf.Log(screen.y / reference.y, 2f), 0.5f));
+            canvas.localScale = Vector3.one;
+            canvas.anchorMin = canvas.anchorMax = canvas.pivot = new Vector2(0.5f, 0.5f);
+            canvas.sizeDelta = screen / scale;
+        }
+
+        // One frame's UI update as a device runs it: the canvas laid out, then the canvas update (layout, post-layout,
+        // graphics)
+        private static void Frame(RectTransform canvas)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(canvas);
+            Canvas.ForceUpdateCanvases();
+        }
+
+        // The settings panel as a game opens it, nothing calling into the band: the prefab with its saved rects (its
+        // column not laid out), its panel hidden (Awake), bound to a chunky style while hidden (UiBinder binds at
+        // start), a frame drawn, then opened through the view and laid out by one frame
+        private (SettingsView View, KitCard Card, RectTransform Canvas) OpenedLikeAGame(Vector2 screen)
+        {
+            GameSkin.ForTests(GameSkin.Parse("{}", _ => null, _ => null));
+            var palette = ScriptableObject.CreateInstance<Palette>();
+            made.Add(palette);
+            var theme = new FakeThemeSource { Current = palette, Style = LayoutStage.TallStyle(made) };
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SettingsPrefab);
+            var root = Object.Instantiate(prefab);
+            made.Add(root);
+            root.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+            var canvas = (RectTransform)root.transform;
+            Size(canvas, screen);
+            var view = root.GetComponent<SettingsView>();
+            view.Hide();
+            foreach (var element in root.GetComponentsInChildren<KitElement>(true)) element.Bind(theme);
+            foreach (var graphic in root.GetComponentsInChildren<ThemedGraphic>(true)) graphic.Bind(theme);
+            foreach (var text in root.GetComponentsInChildren<ThemedText>(true)) text.Bind(theme);
+            Canvas.ForceUpdateCanvases();
+            view.Show(true, true, true);
+            Frame(canvas);
+            return (view, view.transform.Find(Card).GetComponent<KitCard>(), canvas);
+        }
+
+        // The first open is banded: the band is placed after the canvas lays the column out, not from the saved rects
+        [Test]
+        public void First_open_puts_the_title_on_its_band()
+        {
+            var (_, card, _) = OpenedLikeAGame(new Vector2(1080f, 1920f));
+            Assert.That(card.Header, Is.Not.Null, "the card's title is its header");
+            Assert.That(card.Banded, Is.True, "banded on the first open");
+        }
+
+        // Turned to landscape the footer moves into the title's row, so the band goes (the footer never sits on it);
+        // turned back to portrait it is there again
+        [Test]
+        public void Band_follows_the_card_through_a_turn()
+        {
+            var (view, card, canvas) = OpenedLikeAGame(new Vector2(1080f, 1920f));
+            Assert.That(card.Banded, Is.True, "portrait");
+
+            Size(canvas, new Vector2(1920f, 1080f));
+            for (var i = 0; i < 3; i++) Frame(canvas);
+            var title = LayoutStage.World((RectTransform)Find(view, "Title"));
+            var footer = LayoutStage.World((RectTransform)Find(view, "Footer"));
+            Assert.That(footer.yMax, Is.EqualTo(title.yMax).Within(1f), "landscape: the footer in the title's row");
+            Assert.That(card.Banded, Is.False, "landscape: no band under the footer");
+            Assert.That(card.Body.rectTransform.offsetMax.y, Is.EqualTo(-KitCard.PaletteFrame).Within(0.01f), "landscape: the plain frame");
+
+            Size(canvas, new Vector2(1080f, 1920f));
+            for (var i = 0; i < 3; i++) Frame(canvas);
+            Assert.That(card.Banded, Is.True, "portrait again");
         }
     }
 }

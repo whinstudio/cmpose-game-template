@@ -524,7 +524,7 @@ namespace Kturker.UnityBase.Features.Economy.Tests
             var supply = sides.Find(EconomyKeys.Supply);
             var wheel = sides.Find(EconomyKeys.Wheel);
             var login = sides.Find(EconomyKeys.Login);
-            // The right column keeps two slots for the leaderboard and the achievements
+            // The right side keeps two slots for the leaderboard and the achievements
             Assert.That((supply.Side, wheel.Side, login.Side), Is.EqualTo((MenuSide.Left, MenuSide.Right, MenuSide.Left)));
             Assert.That(supply.Icon, Is.SameAs(KitSprites.Gift));
             Assert.That(supply.Badge, Is.EqualTo(MenuBadge.Dot));
@@ -819,11 +819,14 @@ namespace Kturker.UnityBase.Features.Economy.Tests
                 rig.Feedback, rig.Shop);
             menu.Start();
 
+            Assert.That(sides.BuyShown, Is.True, "the counter's buy mark while the shop can show");
             sides.ClickCoins();
             Assert.That(rig.Shop.Shown, Is.EqualTo(new[] { false }), "from the counter, not the not-enough moment");
             Assert.That(rig.Feedback.Clicks, Is.EqualTo(1));
 
             rig.Shop.CanShow = false;
+            menu.Refresh();
+            Assert.That(sides.BuyShown, Is.False, "no buy mark while the shop cannot show");
             sides.ClickCoins();
             menu.Dispose();
             rig.Shop.CanShow = true;

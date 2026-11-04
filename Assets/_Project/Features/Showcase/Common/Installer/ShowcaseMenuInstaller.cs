@@ -18,7 +18,7 @@ using Kturker.UnityBase.Features.Showcase.Common.Save;
 namespace Kturker.UnityBase.Features.Showcase.Installer
 {
     // The showcase's rows in the menu: the best score, then each flag's part (leaderboards: round buttons of the menu's
-    // side columns, IMenuSideButtons). slot finds the menu's extra slot; it is null when a test registers fake views
+    // row above Play, IMenuSideButtons). slot finds the menu's extra slot; it is null when a test registers fake views
     // instead.
     public sealed class ShowcaseMenuInstaller : IInstaller
     {

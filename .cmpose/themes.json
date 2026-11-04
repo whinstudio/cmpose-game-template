@@ -117,7 +117,7 @@
         "Accent": "#67D8AC",
         "OnAccent": "#2A1625",
         "Success": "#0C8264",
-        "Danger": "#D81C45"
+        "Danger": "#D72525"
       },
       "style": {
         "cornerRadius": 32,
@@ -165,7 +165,7 @@
         "Accent": "#2346D8",
         "OnAccent": "#FFFFFF",
         "Success": "#12843C",
-        "Danger": "#D72525"
+        "Danger": "#D3194C"
       },
       "style": {
         "cornerRadius": 14,

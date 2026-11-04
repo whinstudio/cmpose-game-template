@@ -41,11 +41,23 @@ namespace Kturker.UnityBase.Core.Presentation
             set => groupOwned = value;
         }
 
-        // Fires after Bind set another font (KitButton re-centres its label's capitals on it)
+        // Fires after Bind set another font or SetBold made the text bold (KitButton re-centres its label's capitals on it,
+        // a KitTextGroup fits its members again)
         public event Action FontChanged;
 
         // Sets the role before binding (KitFactory); Bind applies it
         public void SetRole(TextRole value) => role = value;
+
+        // Makes the text bold (KitButton's labels, KitCard's former titles): a bold face is wider, so to what sizes the
+        // text by its font this is another font
+        public void SetBold()
+        {
+            if (!this) return;
+            var text = GetComponent<TMP_Text>();
+            if ((text.fontStyle & FontStyles.Bold) != 0) return;
+            text.fontStyle |= FontStyles.Bold;
+            FontChanged?.Invoke();
+        }
 
         public void Bind(IThemeSource source)
         {

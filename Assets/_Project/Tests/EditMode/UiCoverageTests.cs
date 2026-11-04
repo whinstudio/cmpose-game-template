@@ -279,7 +279,7 @@ namespace Kturker.UnityBase.Tests.EditMode
         private static GameObject StageMenu(Stage stage)
         {
             var menu = stage.AddFromScene("Assets/_Project/Scenes/Menu.unity", "Canvas/SafeArea/Menu");
-            var extras = menu.transform.Find("Extras");
+            var extras = menu.transform.Find("BottomBlock/Extras");
             // cmpose:showcase
             stage.Add(Load("Assets/_Project/Features/Showcase/Common/Resources/ShowcaseCommon/MenuBest.prefab"), extras);
             // cmpose:purchases
@@ -537,7 +537,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var card = prefab.transform.Find(SettingsColumn);
             var close = card.Find("Close").GetComponent<KitButton>();
             Assert.That(view.CloseButton, Is.SameAs(close.Button), "Close is the X");
-            Assert.That(close.Variant, Is.EqualTo(KitButtonVariant.Icon), "X variant");
+            Assert.That(close.Variant, Is.EqualTo(KitButtonVariant.Close), "X variant");
             Assert.That(close.Icon != null ? close.Icon.sprite : null, Is.SameAs(KitSprites.Close), "X glyph");
             var x = (RectTransform)close.transform;
             Assert.That(x.anchorMin, Is.EqualTo(Vector2.one), "X at the card's top right");
@@ -895,7 +895,7 @@ namespace Kturker.UnityBase.Tests.EditMode
                 var entrance = menu.GetComponent<ScreenTransition>();
                 Assert.That(entrance != null && entrance.EnterOnStart, Is.True, "menu enters on start");
                 Assert.That(menu.Find("Title").GetComponent<ThemedText>().Role, Is.EqualTo(TextRole.Display), "title");
-                var play = menu.Find("Play").GetComponent<KitButton>();
+                var play = menu.Find("BottomBlock/Play").GetComponent<KitButton>();
                 Assert.That(play.Variant, Is.EqualTo(KitButtonVariant.Play), "play variant");
                 Assert.That(play.GetComponent<IdlePulse>(), Is.Not.Null, "play breathes");
                 // The settings gear in the top bar's right corner

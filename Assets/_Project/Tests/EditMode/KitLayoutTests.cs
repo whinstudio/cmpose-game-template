@@ -14,7 +14,7 @@ namespace Kturker.UnityBase.Tests.EditMode
 {
     // The kit's layout rules: a round icon in the middle of its button (a dressed one on the sprite's visible face), a
     // touch area of at least KitLayout.MinTouch, a row of items KitLayout.Gap apart that shrinks before it wraps, and a
-    // card scaled down to fit its parent's height.
+    // modal card within a share of its parent's width and height, scaled down to fit.
     public sealed class KitLayoutTests
     {
         private readonly List<Object> made = new List<Object>();
@@ -74,6 +74,11 @@ namespace Kturker.UnityBase.Tests.EditMode
             rect.GetWorldCorners(corners);
             return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
         }
+
+        // The scale a card height units high takes on a landscape parent parentHeight units high: the parent's height less
+        // the default margin above and below, and at most KitFitScale.LandscapeHeight of it
+        private static float LandscapeFit(float parentHeight, float height) =>
+            Mathf.Min((parentHeight - 2f * KitLayout.Gap) / height, KitFitScale.LandscapeHeight * parentHeight / height);
 
         private RectTransform Box(string name, Transform parent, Vector2 size)
         {
@@ -224,13 +229,15 @@ namespace Kturker.UnityBase.Tests.EditMode
         // about 3 units low, Baloo 2's about 1.8 high
         private static readonly string[] OffCentreFonts = { "Exo2/Exo2-Regular SDF", "Baloo2/Baloo2-Bold SDF" };
 
-        // The app's style with display (the font of button labels) in place of its own
-        private FakeThemeSource Theme(TMP_FontAsset display)
+        // The app's style with font in place of both of its own (a button's label takes the body font, Play's the display
+        // font: KitButton.LabelFont)
+        private FakeThemeSource Theme(TMP_FontAsset font)
         {
             var style = Object.Instantiate(ThemeStyle.Load());
             made.Add(style);
             var serialized = new SerializedObject(style);
-            serialized.FindProperty("displayFont").objectReferenceValue = display;
+            serialized.FindProperty("displayFont").objectReferenceValue = font;
+            serialized.FindProperty("bodyFont").objectReferenceValue = font;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             var theme = Theme();
             theme.Style = style;
@@ -496,6 +503,28 @@ namespace Kturker.UnityBase.Tests.EditMode
                 Is.EqualTo(2f * 100f * KitFlowRow.MinScale + KitLayout.Gap).Within(0.01f), "preferred height: both lines");
         }
 
+        // A row's own minimum (the menu's round buttons: never under the touch size) wraps sooner than the kit's default
+        [Test]
+        public void Flow_row_keeps_its_own_minimum_scale()
+        {
+            var items = Row(1000f, 5, out var flow);
+            Assert.That(flow.Minimum, Is.EqualTo(KitFlowRow.MinScale), "the kit's default");
+            Assert.That(items[4].localScale.x, Is.LessThan(1f), "five fit one line scaled down by default");
+
+            flow.SetMinimum(0.97f);
+            LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)flow.transform);
+            var lines = new List<float>();
+            foreach (var item in items)
+            {
+                Assert.That(item.localScale.x, Is.EqualTo(0.97f).Within(0.0001f), $"{item.name} scale");
+                var top = Bounds(item).yMax;
+                if (!lines.Exists(t => Mathf.Abs(t - top) < 0.01f)) lines.Add(top);
+            }
+            Assert.That(lines.Count, Is.EqualTo(2), "wrapped instead of shrinking further");
+            Assert.That(() => flow.SetMinimum(0f), Throws.TypeOf<System.ArgumentOutOfRangeException>());
+            Assert.That(() => flow.SetMinimum(1.1f), Throws.TypeOf<System.ArgumentOutOfRangeException>());
+        }
+
         [Test]
         public void Fit_scale_shrinks_a_tall_card()
         {
@@ -504,7 +533,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             var fit = card.gameObject.AddComponent<KitFitScale>();
 
             Assert.That(fit.Margin, Is.EqualTo(KitLayout.Gap));
-            Assert.That(card.localScale.x, Is.EqualTo((1080f - 2f * KitLayout.Gap) / 1500f).Within(0.0001f));
+            Assert.That(card.localScale.x, Is.EqualTo(LandscapeFit(1080f, 1500f)).Within(0.0001f));
             Assert.That(card.localScale.y, Is.EqualTo(card.localScale.x));
 
             card.sizeDelta = new Vector2(900f, 900f);
@@ -513,7 +542,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             // A shorter parent shrinks it again
             parent.sizeDelta = new Vector2(1920f, 600f);
             fit.Fit();
-            Assert.That(card.localScale.x, Is.EqualTo((600f - 2f * KitLayout.Gap) / 900f).Within(0.0001f));
+            Assert.That(card.localScale.x, Is.EqualTo(LandscapeFit(600f, 900f)).Within(0.0001f));
         }
 
         // A card built before its parent is laid out (a prefab built off-screen) keeps its full size, then fits once the
@@ -531,7 +560,7 @@ namespace Kturker.UnityBase.Tests.EditMode
 
             parent.sizeDelta = new Vector2(1920f, 1080f);
             fit.Fit();
-            Assert.That(card.localScale.x, Is.EqualTo((1080f - 2f * KitLayout.Gap) / 1500f).Within(0.0001f));
+            Assert.That(card.localScale.x, Is.EqualTo(LandscapeFit(1080f, 1500f)).Within(0.0001f));
             Assert.That(fit.Scale, Is.LessThan(1f));
         }
 
@@ -570,7 +599,7 @@ namespace Kturker.UnityBase.Tests.EditMode
             fit.Fit();
 
             Assert.That(card.rect.height, Is.EqualTo(1400f).Within(0.01f));
-            Assert.That(card.localScale.y, Is.EqualTo((1080f - 2f * KitLayout.Gap) / 1400f).Within(0.0001f));
+            Assert.That(card.localScale.y, Is.EqualTo(LandscapeFit(1080f, 1400f)).Within(0.0001f));
 
             // On a tall parent again it grows from its authored height, and back on the reference it returns to it
             parent.sizeDelta = new Vector2(1080f, 2400f);
@@ -580,6 +609,29 @@ namespace Kturker.UnityBase.Tests.EditMode
             parent.sizeDelta = new Vector2(1080f, KitFitScale.ReferenceHeight);
             fit.Fit();
             Assert.That(card.rect.height, Is.EqualTo(1400f).Within(0.01f), "back on the reference");
+        }
+
+        // A bounded card stretched across its parent keeps its margin from the sides where its width share would come
+        // closer (a window whose Close X overhangs it), and takes its share where that leaves more
+        [Test]
+        public void Stretched_card_keeps_its_margin_from_the_sides()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1080f, 1920f));
+            var card = Box("Card", parent, new Vector2(0f, 1000f));
+            card.anchorMin = new Vector2(0f, 0.5f);
+            card.anchorMax = new Vector2(1f, 0.5f);
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+            Assert.That(card.rect.width, Is.EqualTo(1080f * KitFitScale.PortraitWidth).Within(0.01f), "its share");
+
+            var serialized = new SerializedObject(fit);
+            serialized.FindProperty("margin").floatValue = 93f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            fit.Fit();
+            Assert.That(card.rect.width, Is.EqualTo(1080f - 2f * 93f).Within(0.01f), "its margin");
+            parent.sizeDelta = new Vector2(1920f, 1080f);
+            fit.Fit();
+            Assert.That(card.rect.width, Is.EqualTo(1920f * KitFitScale.LandscapeWidth).Within(0.01f), "its share again");
         }
 
         // A card as tall as its content (the Settings card) keeps the height its ContentSizeFitter gives it
@@ -604,16 +656,16 @@ namespace Kturker.UnityBase.Tests.EditMode
         public void Aspect_fitted_card_does_not_grow()
         {
             var parent = Box("Screen", canvas.transform, new Vector2(1080f, 2400f));
-            // 2000 tall fits 2400 less the margins; grown to 2500 it would not, so a grow the fitter takes back would
-            // still shrink the card
-            var card = Box("Card", parent, new Vector2(900f, 2000f));
+            // 1800 tall fits 80 % of 2400 (1920); grown to 2250 it would not, so a grow the fitter takes back would still
+            // shrink the card
+            var card = Box("Card", parent, new Vector2(900f, 1800f));
             var aspect = card.gameObject.AddComponent<AspectRatioFitter>();
             aspect.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
-            aspect.aspectRatio = 900f / 2000f;
+            aspect.aspectRatio = 900f / 1800f;
             var fit = card.gameObject.AddComponent<KitFitScale>();
             fit.Fit();
 
-            Assert.That(card.rect.height, Is.EqualTo(2000f).Within(0.01f));
+            Assert.That(card.rect.height, Is.EqualTo(1800f).Within(0.01f));
             Assert.That(card.localScale, Is.EqualTo(Vector3.one));
         }
 
@@ -633,6 +685,155 @@ namespace Kturker.UnityBase.Tests.EditMode
 
             sheet.SetOpen(false, false);
             Assert.That(sheet.Panel.localScale.x, Is.EqualTo(0.85f * fit.Scale).Within(0.0001f), "closed");
+        }
+
+        // A modal card stretched across its parent ModalInset (60) units from the sides, height units high, centred
+        private RectTransform StretchedCard(RectTransform parent, float height)
+        {
+            var card = Box("Card", parent, Vector2.zero);
+            card.anchorMin = new Vector2(0f, 0.5f);
+            card.anchorMax = new Vector2(1f, 0.5f);
+            card.pivot = new Vector2(0.5f, 0.5f);
+            card.sizeDelta = new Vector2(-120f, height);
+            card.anchoredPosition = Vector2.zero;
+            return card;
+        }
+
+        private static void SetBounded(KitFitScale fit, bool bounded)
+        {
+            var serialized = new SerializedObject(fit);
+            serialized.FindProperty("bounded").boolValue = bounded;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        [Test]
+        public void Fitted_card_spans_86_percent_of_a_portrait_parent()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1080f, 1920f));
+            var card = StretchedCard(parent, 900f);
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+
+            Assert.That(card.rect.width, Is.EqualTo(KitFitScale.PortraitWidth * 1080f).Within(0.5f), "width");
+            Assert.That(card.rect.width * card.localScale.x, Is.LessThanOrEqualTo(KitFitScale.PortraitWidth * 1080f + 0.5f), "shown width");
+            Assert.That(fit.Scale, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(Centre(card).x, Is.EqualTo(Centre(parent).x).Within(0.5f), "centred");
+        }
+
+        [Test]
+        public void Fitted_card_spans_58_percent_of_a_landscape_parent()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(2147f, 966f));
+            var card = StretchedCard(parent, 883f);
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+
+            Assert.That(card.rect.width, Is.EqualTo(KitFitScale.LandscapeWidth * 2147f).Within(0.5f), "width");
+            Assert.That(card.rect.width * card.localScale.x, Is.LessThanOrEqualTo(KitFitScale.LandscapeWidth * 2147f + 0.5f), "shown width");
+            Assert.That(card.rect.height * card.localScale.y, Is.LessThanOrEqualTo(KitFitScale.LandscapeHeight * 966f + 0.01f), "shown height");
+            Assert.That(fit.Scale, Is.LessThan(1f), "the height bound scales it down");
+            Assert.That(Centre(card).x, Is.EqualTo(Centre(parent).x).Within(0.5f), "centred");
+        }
+
+        // The settings card opts out of the shares (its controls stay touch-sized): a self-sized card the 58 % share would
+        // shrink keeps the margin fit
+        [Test]
+        public void Unbounded_card_keeps_the_margin_fit()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(2147f, 966f));
+            var card = Box("Card", parent, new Vector2(1900f, 700f));
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+            Assert.That(fit.Bounded, Is.True, "bounded by default");
+            Assert.That(fit.Scale * 1900f, Is.EqualTo(KitFitScale.LandscapeWidth * 2147f).Within(0.5f), "bounded: 58 %");
+
+            SetBounded(fit, false);
+            fit.Fit();
+
+            Assert.That(fit.Bounded, Is.False);
+            Assert.That(fit.Scale, Is.EqualTo(Mathf.Clamp01((966f - 2f * KitLayout.Gap) / 700f)).Within(0.0001f), "the margin fit");
+            Assert.That(card.rect.width, Is.EqualTo(1900f).Within(0.01f), "keeps its own width");
+            Assert.That(card.localScale.x, Is.EqualTo(fit.Scale).Within(0.0001f));
+        }
+
+        // A game's own window built at run time may opt out of the shares: the card refits at once, to the margin fit and
+        // the sides it had before the shares set them, and opting in again bounds it again
+        [Test]
+        public void SetBounded_refits_the_card()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(2147f, 966f));
+            var card = StretchedCard(parent, 900f);
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+            Assert.That(card.rect.width, Is.EqualTo(KitFitScale.LandscapeWidth * 2147f).Within(0.5f), "bounded: 58 %");
+            var bounded = fit.Scale;
+            Assert.That(bounded, Is.EqualTo(KitFitScale.LandscapeHeight * 966f / 900f).Within(0.0001f), "bounded: 88 % high");
+
+            fit.SetBounded(false);
+            Assert.That(fit.Bounded, Is.False);
+            Assert.That(card.rect.width, Is.EqualTo(2147f - 120f).Within(0.5f), "its own sides again");
+            Assert.That(fit.Scale, Is.EqualTo(Mathf.Clamp01((966f - 2f * KitLayout.Gap) / 900f)).Within(0.0001f), "the margin fit");
+            Assert.That(card.localScale.x, Is.EqualTo(fit.Scale).Within(0.0001f));
+
+            fit.SetBounded(true);
+            Assert.That(fit.Bounded, Is.True);
+            Assert.That(card.rect.width, Is.EqualTo(KitFitScale.LandscapeWidth * 2147f).Within(0.5f), "bounded again");
+            Assert.That(fit.Scale, Is.EqualTo(bounded).Within(0.0001f));
+        }
+
+        [Test]
+        public void Tall_card_scales_to_80_percent_of_a_portrait_parent()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1080f, 1920f));
+            var card = Box("Card", parent, new Vector2(900f, 1700f));
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+
+            Assert.That(fit.Scale * 1700f, Is.EqualTo(KitFitScale.PortraitHeight * 1920f).Within(0.5f));
+            Assert.That(card.localScale.y, Is.EqualTo(fit.Scale).Within(0.0001f));
+        }
+
+        // Turned to landscape and back while shown, the card ends exactly where it started
+        [Test]
+        public void Card_refits_when_the_parent_turns()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(1080f, 1920f));
+            var card = StretchedCard(parent, 900f);
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+            var offsetMin = card.offsetMin;
+            var offsetMax = card.offsetMax;
+            var scale = card.localScale;
+
+            parent.sizeDelta = new Vector2(2147f, 966f);
+            fit.Fit();
+            Assert.That(card.rect.width, Is.EqualTo(KitFitScale.LandscapeWidth * 2147f).Within(0.5f), "landscape width");
+            Assert.That(card.rect.height * card.localScale.y, Is.LessThanOrEqualTo(KitFitScale.LandscapeHeight * 966f + 0.01f),
+                "landscape height");
+
+            parent.sizeDelta = new Vector2(1080f, 1920f);
+            fit.Fit();
+            Assert.That(Vector2.Distance(card.offsetMin, offsetMin), Is.LessThan(0.01f), $"offsetMin {card.offsetMin}, first {offsetMin}");
+            Assert.That(Vector2.Distance(card.offsetMax, offsetMax), Is.LessThan(0.01f), $"offsetMax {card.offsetMax}, first {offsetMax}");
+            Assert.That(Vector3.Distance(card.localScale, scale), Is.LessThan(0.0001f), $"scale {card.localScale}, first {scale}");
+        }
+
+        // A self-sized card's rect stays as it is when its parent only narrows: the fit before the canvas draws looks at
+        // the parent's width too, not only its height
+        [Test]
+        public void Fit_follows_a_parent_that_only_changes_width()
+        {
+            var parent = Box("Screen", canvas.transform, new Vector2(2147f, 966f));
+            var card = Box("Card", parent, new Vector2(1900f, 700f));
+            var fit = card.gameObject.AddComponent<KitFitScale>();
+            fit.Fit();
+            var before = fit.Scale;
+
+            parent.sizeDelta = new Vector2(1600f, 966f);
+            Canvas.ForceUpdateCanvases();
+
+            Assert.That(fit.Scale, Is.LessThan(before));
+            Assert.That(fit.Scale * 1900f, Is.EqualTo(KitFitScale.LandscapeWidth * 1600f).Within(0.5f));
         }
     }
 }

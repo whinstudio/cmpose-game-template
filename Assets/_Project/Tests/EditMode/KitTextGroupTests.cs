@@ -328,6 +328,38 @@ namespace Kturker.UnityBase.Tests.EditMode
             Assert.Throws<System.ArgumentException>(() => bare.ConfigureRow(Max, Min, Floor, label), "not a child of the row");
         }
 
+        // A button turns its label bold (KitButton.LabelFont) when it is bound, after its group fitted the regular label:
+        // the group fits the bold label again, though the label's role and font stay as they were
+        [Test]
+        public void A_member_turned_bold_refits_the_group()
+        {
+            const float sidePadding = 32f;
+            var style = ThemeStyle.Load();
+            var body = style.BodyFont;
+            Assert.That(body, Is.Not.Null, "the app's body font");
+            var button = KitFactory.Button(canvas.transform, "Primary", KitButtonVariant.Primary);
+            var label = button.Label;
+            label.GetComponent<ThemedText>().SetRole(TextRole.Body);
+            label.font = body;
+            label.fontStyle = FontStyles.Normal;
+            // The group measures the text alone (no margins), as the probe does
+            label.margin = Vector4.zero;
+            label.text = LongText;
+            ((RectTransform)button.transform).sizeDelta = new Vector2(Width(LongText, 44f, body) + 2f * sidePadding + 1f, 120f);
+            var group = Group(sidePadding, label);
+            group.Fit();
+            Assert.That(group.Size, Is.EqualTo(44f), "fitted regular");
+
+            var palette = ScriptableObject.CreateInstance<Palette>();
+            made.Add(palette);
+            button.Bind(new FakeThemeSource { Current = palette, Style = style });
+
+            Assert.That(label.fontStyle & FontStyles.Bold, Is.EqualTo(FontStyles.Bold));
+            Assert.That(label.font, Is.SameAs(body), "same font");
+            Assert.That(label.GetPreferredValues(label.text).x, Is.LessThanOrEqualTo(label.rectTransform.rect.width - 2f * sidePadding + 0.01f),
+                $"bold at {label.fontSize}");
+        }
+
         // A member's ThemedText takes the font and leaves the size to the group, which fits again for the new font (a
         // tall font would otherwise turn autosizing on)
         [Test]

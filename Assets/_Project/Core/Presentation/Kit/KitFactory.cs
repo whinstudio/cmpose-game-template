@@ -25,13 +25,13 @@ namespace Kturker.UnityBase.Core.Presentation
         public const float IconGlyph = 50f;
         public const float IconInset = 26f;
         public const float IconGap = 10f;
-        // The share of a round Icon button its glyph covers
+        // The share of a round button (Icon, Close) its glyph covers
         public const float IconFill = 0.5f;
 
         public static KitButton Button(Transform parent, string name, KitButtonVariant variant)
         {
             var root = Node(name, parent);
-            Size(root, variant == KitButtonVariant.Icon ? IconSize : variant == KitButtonVariant.Play ? PlaySize : ButtonSize);
+            Size(root, KitButton.IsRound(variant) ? IconSize : variant == KitButtonVariant.Play ? PlaySize : ButtonSize);
             var shadow = Layer("Shadow", root, ThemeRole.Scrim, false);
             var edge = Layer("Edge", root, KitButton.BodyRole(variant), false);
             var body = Layer("Body", root, KitButton.BodyRole(variant), true);
@@ -56,12 +56,12 @@ namespace Kturker.UnityBase.Core.Presentation
         }
 
         // A button with icon (a white glyph sprite, e.g. KitSprites.Gear) in a disc at its left; the label keeps the rest.
-        // The round Icon variant has no room for both: its glyph fills the middle (IconFill of the circle), no disc.
+        // The round variants (Icon, Close) have no room for both: the glyph fills the middle (IconFill of the circle), no disc.
         public static KitButton Button(Transform parent, string name, KitButtonVariant variant, Sprite icon)
         {
             var kit = Button(parent, name, variant);
             var role = KitButton.IconRole(variant);
-            if (variant == KitButtonVariant.Icon)
+            if (KitButton.IsRound(variant))
             {
                 var centred = Layer("Icon", kit.gameObject, role, false);
                 var box = centred.rectTransform;
